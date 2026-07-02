@@ -12,7 +12,7 @@ principal (`train.py`) exactamente igual en local (CPU) y en una instancia GPU a
 |---|---|---|
 | Código | `git clone` + editar en el equipo | `scripts/vastai/onstart.sh` clona el repo dentro de la instancia |
 | `.env` | `DATASET_ROOT=C:/Users/tu_usuario/.../data` | `DATASET_ROOT=/workspace/data` (lo escribe `onstart.sh`) |
-| Instalación | `make install` (venv creado a mano) | `venv/bin/pip install -e ".[cloud]"` (venv creado por `onstart.sh`) |
+| Instalación | `make install` (venv creado a mano) | `onstart.sh` instala torch/torchvision fijos (CUDA 12.6) y luego `-e ".[cloud]"` |
 | Dataset | `make download-dataset` | `python scripts/dataset/download_dataset.py` (dentro de `onstart.sh`) |
 | Splits | `make splits-baseline` / `make splits` | igual, por ssh |
 | Entrenamiento | `make train-baselines` / `make train` | igual, por ssh |
@@ -38,11 +38,14 @@ Variables relevantes en `.env` (ver `.env.example`): `HF_DATASET_REPO`, `HF_TOKE
 ## 2. Imagen reproducible (Docker)
 
 El `Dockerfile` de la raíz usa `python:3.11-slim` (el proyecto requiere Python >= 3.11,
-ver `pyproject.toml`) + wheels de PyTorch con CUDA 12.1 desde el índice oficial de PyTorch,
-e instala el proyecto en un `venv/` (no en el Python global) para que los mismos targets de
-`make` funcionen igual que en local. Sirve para verificar en el propio equipo
+ver `pyproject.toml`) + wheels de PyTorch 2.12.1 / torchvision 0.27.1 con CUDA 12.6 desde el
+índice oficial de PyTorch (misma línea CUDA que la plantilla vast.ai de abajo), e instala el
+proyecto en un `venv/` (no en el Python global) para que los mismos targets de `make`
+funcionen igual que en local. Sirve para verificar en el propio equipo
 (`docker build -t corn-leaf-baselines .`) que el entorno instala limpio antes de tocar una
-instancia real.
+instancia real. `scripts/vastai/onstart.sh` instala el mismo par torch/torchvision antes de
+`pip install -e ".[cloud]"` — mantener ambos en sync evita que pip haga backtracking
+resolviendo `torch` desde PyPI sin índice CUDA.
 
 Para vast.ai no hace falta construir ni publicar esta imagen: `scripts/vastai/launch.py`
 usa por defecto la plantilla oficial `vastai/pytorch:2.6.0-cuda-12.6.3-py312` (Python 3.12,
