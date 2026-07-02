@@ -47,6 +47,11 @@ instancia real. `scripts/vastai/onstart.sh` instala el mismo par torch/torchvisi
 `pip install -e ".[cloud]"` — mantener ambos en sync evita que pip haga backtracking
 resolviendo `torch` desde PyPI sin índice CUDA.
 
+**Al subir de versión:** actualizar juntos los tres lugares que fijan torch/torchvision —
+el `RUN` del `Dockerfile`, el paso equivalente en `onstart.sh` y el tope en
+`pyproject.toml` (`torch>=2.2,<X`, `torchvision>=0.17,<Y`) — y re-verificar que el par
+exista en el índice `cuXXX` elegido antes de hacer commit.
+
 Para vast.ai no hace falta construir ni publicar esta imagen: `scripts/vastai/launch.py`
 usa por defecto la plantilla oficial `vastai/pytorch:2.6.0-cuda-12.6.3-py312` (Python 3.12,
 también satisface `>=3.11`) y `scripts/vastai/onstart.sh` clona el repo y arma el mismo
