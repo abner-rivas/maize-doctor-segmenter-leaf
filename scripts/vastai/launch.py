@@ -58,8 +58,12 @@ def cmd_create(args: argparse.Namespace) -> None:
         ONSTART_SCRIPT,
     ]
     if args.env:
-        for key_value in args.env:
-            cmd += ["--env", f"-e {key_value}"]
+        # `vastai create instance --env` toma UN solo argumento con todas las variables
+        # (ver --help: "env variables and port mapping options, surround with ''"); pasar
+        # --env repetido (una vez por variable) hace que vastai se quede solo con la
+        # última ocurrencia y descarte las anteriores en silencio.
+        env_str = " ".join(f"-e {key_value}" for key_value in args.env)
+        cmd += ["--env", env_str]
     _run(cmd, dry_run=args.dry_run)
 
 
