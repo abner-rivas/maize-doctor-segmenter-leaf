@@ -24,6 +24,9 @@ if [[ ! -x venv/bin/python ]]; then
   echo "[onstart] Creando venv/"
   python3 -m venv venv
 fi
+echo "[onstart] Instalando PyTorch (CUDA 12.6, versión fija para evitar backtracking de pip)"
+venv/bin/pip install --no-cache-dir torch==2.12.1 torchvision==0.27.1 --index-url https://download.pytorch.org/whl/cu126
+
 echo "[onstart] Instalando el proyecto (pip install -e .[cloud])"
 venv/bin/pip install --no-cache-dir -e ".[cloud]"
 
