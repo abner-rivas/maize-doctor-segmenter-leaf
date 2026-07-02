@@ -8,20 +8,20 @@ principal (`train.py`) exactamente igual en local (CPU) y en una instancia GPU a
 
 ## Flujo, local vs. vast.ai
 
-| Paso | Local (Windows/CPU) | Instancia vast.ai (GPU) |
-|---|---|---|
-| Código | `git clone` + editar en el equipo | `scripts/vastai/onstart.sh` clona el repo dentro de la instancia |
-| `.env` | `DATASET_ROOT=C:/Users/tu_usuario/.../data` | `DATASET_ROOT=/workspace/data` (lo escribe `onstart.sh`) |
-| Instalación | `make install` (venv creado a mano) | `onstart.sh` instala torch/torchvision fijos (CUDA 12.6) y luego `-e ".[cloud]"` |
-| Dataset | `make download-dataset` | `python scripts/dataset/download_dataset.py` (dentro de `onstart.sh`) |
-| Splits | `make splits-baseline` / `make splits` | igual, por ssh |
-| Entrenamiento | `make train-baselines` / `make train` | igual, por ssh |
-| Resultados | quedan en `$DATASET_ROOT/results/` | se traen con `vastai copy` / `scripts/vastai/launch.py sync` |
+| Paso          | Local (Windows/CPU)                         | Instancia vast.ai (GPU)                                                          |
+| ------------- | -------------------------------------------- | --------------------------------------------------------------------------------- |
+| Código        | `git clone` + editar en el equipo           | `scripts/vastai/onstart.sh` clona el repo dentro de la instancia                  |
+| `.env`        | `DATASET_ROOT=C:/Users/tu_usuario/.../data` | `DATASET_ROOT=/workspace/data` (lo escribe `onstart.sh`)                          |
+| Instalación   | `make install` (venv creado a mano)         | `onstart.sh` instala torch/torchvision fijos (CUDA 12.6) y luego `-e ".[cloud]"` |
+| Dataset       | `make download-dataset`                     | `python scripts/dataset/download_dataset.py` (dentro de `onstart.sh`)             |
+| Splits        | `make splits-baseline` / `make splits`      | igual, por ssh                                                                     |
+| Entrenamiento | `make train-baselines` / `make train`       | igual, por ssh                                                                     |
+| Resultados    | quedan en `$DATASET_ROOT/results/`          | se traen con `vastai copy` / `scripts/vastai/launch.py sync`                      |
 
 ## 1. Dataset: Hugging Face Datasets Hub (fuente primaria) + Google Drive (fallback)
 
 El dataset limpio (`clean/<clase>/{lab,real}/`, ~25k imágenes deduplicadas) se aloja como
-repo de tipo *dataset* en Hugging Face Hub — descargas más rápidas y estables desde una
+repo de tipo _dataset_ en Hugging Face Hub — descargas más rápidas y estables desde una
 instancia efímera que un enlace de Google Drive (sin límites de tamaño ni interstitial de
 virus scan). El enlace de Google Drive existente se mantiene como respaldo.
 
@@ -37,13 +37,9 @@ Variables relevantes en `.env` (ver `.env.example`): `HF_DATASET_REPO`, `HF_TOKE
 
 ## 2. Imagen reproducible (Docker)
 
-El `Dockerfile` de la raíz usa `python:3.11-slim` (el proyecto requiere Python >= 3.11,
-ver `pyproject.toml`) + wheels de PyTorch 2.12.1 / torchvision 0.27.1 con CUDA 12.6 desde el
-índice oficial de PyTorch (misma línea CUDA que la plantilla vast.ai de abajo), e instala el
-proyecto en un `venv/` (no en el Python global) para que los mismos targets de `make`
-funcionen igual que en local. Sirve para verificar en el propio equipo
-(`docker build -t corn-leaf-baselines .`) que el entorno instala limpio antes de tocar una
-instancia real. `scripts/vastai/onstart.sh` instala el mismo par torch/torchvision antes de
+El `Dockerfile` de la raíz usa `python:3.11-slim` (el proyecto requiere Python >= 3.11, ver `pyproject.toml`) + wheels de PyTorch 2.12.1 / torchvision 0.27.1 con CUDA 12.6 desde el índice oficial de PyTorch (misma línea CUDA que la plantilla vast.ai de abajo), e instala el proyecto en un `venv/` (no en el Python global) para que los mismos targets de
+`make` funcionen igual que en local. Sirve para verificar en el propio equipo
+(`docker build -t corn-leaf-baselines .`) que el entorno instala limpio antes de tocar una instancia real. `scripts/vastai/onstart.sh` instala el mismo par torch/torchvision antes de
 `pip install -e ".[cloud]"` — mantener ambos en sync evita que pip haga backtracking
 resolviendo `torch` desde PyPI sin índice CUDA.
 
@@ -52,10 +48,8 @@ el `RUN` del `Dockerfile`, el paso equivalente en `onstart.sh` y el tope en
 `pyproject.toml` (`torch>=2.2,<X`, `torchvision>=0.17,<Y`) — y re-verificar que el par
 exista en el índice `cuXXX` elegido antes de hacer commit.
 
-Para vast.ai no hace falta construir ni publicar esta imagen: `scripts/vastai/launch.py`
-usa por defecto la plantilla oficial `vastai/pytorch:2.6.0-cuda-12.6.3-py312` (Python 3.12,
-también satisface `>=3.11`) y `scripts/vastai/onstart.sh` clona el repo y arma el mismo
-`venv/` en caliente al arrancar la instancia. Ojo: las imágenes oficiales
+Para vast.ai no hace falta construir ni publicar esta imagen: `scripts/vastai/launch.py` usa por defecto la plantilla oficial `vastai/pytorch:2.6.0-cuda-12.6.3-py312` (Python 3.12,
+también satisface `>=3.11`) y `scripts/vastai/onstart.sh` clona el repo y arma el mismo `venv/` en caliente al arrancar la instancia. Ojo: las imágenes oficiales
 `pytorch/pytorch:*-runtime` traen Python 3.10 vía conda y **no** sirven para este proyecto
 (la instalación falla por el requisito de Python en `pyproject.toml`).
 
