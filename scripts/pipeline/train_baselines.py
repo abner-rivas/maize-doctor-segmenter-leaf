@@ -231,7 +231,12 @@ def main() -> None:
         )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Dispositivo: {device}")
+    if device.type == "cuda":
+        gpu_name = torch.cuda.get_device_name(0)
+        gpu_mem_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
+        logger.info(f"Dispositivo: GPU - {gpu_name} ({gpu_mem_gb:.1f} GB VRAM)")
+    else:
+        logger.warning("Dispositivo: CPU (no se detectó GPU — el entrenamiento será significativamente más lento)")
 
     train_df = pd.read_csv(splits_dir / "train.csv")
     present_classes = sorted(train_df["label"].unique())
