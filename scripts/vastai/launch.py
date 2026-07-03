@@ -58,8 +58,12 @@ def cmd_create(args: argparse.Namespace) -> None:
         ONSTART_SCRIPT,
     ]
     if args.env:
-        for key_value in args.env:
-            cmd += ["--env", f"-e {key_value}"]
+        # `vastai create instance --env` toma UN solo argumento con todas las variables
+        # (ver --help: "env variables and port mapping options, surround with ''"); pasar
+        # --env repetido (una vez por variable) hace que vastai se quede solo con la
+        # última ocurrencia y descarte las anteriores en silencio.
+        env_str = " ".join(f"-e {key_value}" for key_value in args.env)
+        cmd += ["--env", env_str]
     _run(cmd, dry_run=args.dry_run)
 
 
@@ -73,8 +77,15 @@ def cmd_run(args: argparse.Namespace) -> None:
 
 
 def cmd_sync(args: argparse.Namespace) -> None:
-    remote_path = f"{args.instance_id}:{REMOTE_DATASET_ROOT}/{args.remote_subpath}"
-    _run(["vastai", "copy", remote_path, args.local_path], dry_run=args.dry_run)
+    remote_path = f"{REMOTE_DATASET_ROOT}/{args.remote_subpath}"
+    if args.dry_run:
+        print(f"$ scp -r <{args.instance_id}>:{remote_path} {args.local_path}")
+        return
+    user, host, port = _get_ssh_target(args.instance_id)
+    _run(
+        ["scp", "-r", "-P", port, f"{user}@{host}:{remote_path}", args.local_path],
+        dry_run=False,
+    )
 
 
 def cmd_destroy(args: argparse.Namespace) -> None:

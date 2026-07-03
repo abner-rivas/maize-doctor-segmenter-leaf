@@ -14,9 +14,9 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[3]))
-from src.config import DATASET_ROOT
+from src.config import get_dataset_root
 
-BASE_DIR = DATASET_ROOT / "clean" / "fall_armyworm"
+BASE_DIR = get_dataset_root() / "clean" / "fall_armyworm"
 SOURCE_DIR = BASE_DIR / "multi_desease"
 DEST_DIR = BASE_DIR / "real"
 

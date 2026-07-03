@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 
-from src.config import DATASET_ROOT
+from src.config import get_dataset_root
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ def upload_clean_dataset(repo_id: str, token: str | None = None, private: bool =
     """
     from huggingface_hub import HfApi
 
-    clean_dir = DATASET_ROOT / "clean"
+    clean_dir = get_dataset_root() / "clean"
     if not clean_dir.is_dir():
         raise SystemExit(f"No se encontró {clean_dir}. Verifica DATASET_ROOT en .env")
 

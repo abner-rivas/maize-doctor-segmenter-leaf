@@ -12,10 +12,10 @@ endif
 
 MODELS ?= all
 
-.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full explain-lime test-loader summary docs-eda lint fmt
+.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full explain-lime test-loader summary docs-eda lint lint-fix fmt check
 
 install:
-	$(PIP) install -e ".[dev,analysis,xai]"
+	$(PIP) install -e ".[dev,analysis,xai,cloud]"
 
 download-dataset:
 	$(PYTHON) scripts/dataset/download_dataset.py
@@ -35,15 +35,16 @@ train-baselines:
 train-baselines-full:
 	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --lime
 
-# Reporte visual LIME de 3 paneles. Por defecto, muestreo balanceado del test set para
-# cada modelo de MODELS (config/dataset.yaml -> lime:). Con IMAGE=ruta/a/imagen.jpg genera
-# un único reporte puntual por modelo. OUTPUT solo es válido junto con IMAGE y un MODELS de uno solo.
 explain-lime:
 	$(PYTHON) scripts/pipeline/explain_lime.py --models $(MODELS) $(if $(IMAGE),--image $(IMAGE),) $(if $(OUTPUT),--output $(OUTPUT),)
+
+test-loader:
+	$(PYTHON) scripts/checks/smoke_loader.py
 
 summary:
 	$(PYTHON) src/analysis/dataset_summary.py
 
+# Requiere shell POSIX (Git Bash/WSL en Windows) y que existan tmp/eda_*.png
 docs-eda:
 	cp tmp/eda_*.png public/eda/
 
