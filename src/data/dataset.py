@@ -12,8 +12,7 @@ from src.data.transforms import MINORITY_CLASSES
 
 _DEFAULT_CONFIG = str(PROJECT_ROOT / "config" / "dataset.yaml")
 
-# Reintentos consecutivos ante imágenes ilegibles antes de considerar que el problema es
-# del dataset (p.ej. DATASET_ROOT desmontado) y no de una imagen puntual.
+# Reintentos ante imágenes ilegibles antes de asumir que el dataset entero es inaccesible.
 _MAX_FALLBACK_ATTEMPTS = 5
 
 logger = logging.getLogger(__name__)
@@ -43,12 +42,9 @@ class CornDataset(Dataset):
                                 Si None, todas las muestras usan `transform`.
             exclude_classes: Clases a excluir del dataset en tiempo de construcción.
                              El CSV permanece inmutable; la exclusión es una decisión de pipeline.
-            class_to_idx: Mapeo canónico clase->índice a reutilizar (típicamente el del
-                          dataset de train, inyectado en val/test). Garantiza índices
-                          consistentes entre splits: si cada split derivara el suyo de las
-                          clases presentes en su CSV, un split sin alguna clase produciría
-                          índices corridos y métricas corruptas sin error. Si None, se
-                          construye desde las clases del YAML presentes en el CSV.
+            class_to_idx: Mapeo canónico clase->índice a reutilizar (el del split de train,
+                          inyectado en val/test) para mantener índices consistentes entre
+                          splits. Si None, se construye desde el YAML.
         """
         if not os.path.exists(csv_path):
             raise FileNotFoundError(f"No se encontró el archivo de manifiesto: {csv_path}")
@@ -66,7 +62,7 @@ class CornDataset(Dataset):
         present = set(self.data_frame["label"].unique())
 
         if class_to_idx is not None:
-            # 2a. Reutilizar el mapeo canónico inyectado, validando cobertura total.
+            # Reutilizar el mapeo inyectado, validando cobertura total.
             unknown = present - set(class_to_idx)
             if unknown:
                 raise ValueError(
@@ -75,7 +71,6 @@ class CornDataset(Dataset):
             self.class_to_idx = dict(class_to_idx)
             self.allowed_classes = sorted(self.class_to_idx, key=self.class_to_idx.__getitem__)
         else:
-            # 2b. Cargar mapeo de clases desde la configuración centralizada.
             with open(config_path, "r") as f:
                 config = yaml.safe_load(f)
 
@@ -97,20 +92,9 @@ class CornDataset(Dataset):
         return len(self.data_frame)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, int]:
-        """
-        Obtiene y procesa un elemento del dataset en caliente bajo demanda.
-
-        Garantiza:
-        1. Carga perezosa desde disco duro para optimizar la memoria RAM.
-        2. Normalización física y corrección de color/rotación en el milisegundo de lectura.
-        3. Transformación dimensional homogénea y conversión a tensor para la GPU.
-        """
-        # 1. Carga y normalización en caliente (RGB, corrección EXIF de smartphones), con
-        # reintentos acotados: si una imagen del manifiesto está corrupta o desaparece en
-        # tiempo de entrenamiento, probamos las filas siguientes en vez de matar el worker;
-        # tras _MAX_FALLBACK_ATTEMPTS fallos consecutivos el problema es del dataset y se
-        # propaga (el fallback recursivo anterior podía recursar infinito y duplicaba
-        # muestras en silencio sin límite).
+        """Carga perezosa: lee, normaliza y transforma la muestra bajo demanda."""
+        # Reintentos acotados: una imagen corrupta no mata el worker, pero una racha de
+        # fallos (dataset inaccesible) sí se propaga.
         last_error: Exception | None = None
         for attempt in range(_MAX_FALLBACK_ATTEMPTS):
             row = self.data_frame.iloc[(idx + attempt) % len(self)]

@@ -72,8 +72,7 @@ def train_baseline(
         transform=factory.get_pipeline("train"),
         minority_transform=factory.get_pipeline("minority"),
     )
-    # Mapeo canónico: se deriva una sola vez del split de train y se inyecta en val/test
-    # para garantizar índices consistentes entre los tres splits.
+    # Mapeo canónico del split de train, inyectado en val/test (índices consistentes)
     class_to_idx = train_dataset.class_to_idx
     num_classes = len(class_to_idx)
     val_dataset = CornDataset(

@@ -95,11 +95,7 @@ class CornValidationTransforms(TransformPipelineFactory):
     Pipeline de transformaciones deterministas para validación y prueba.
 
     No aplica augmentations aleatorias para garantizar una evaluación justa y reproducible.
-
-    Nota: `Resize(target_size)` directo (con distorsión de aspecto) es intencional y
-    consistente con el pipeline de entrenamiento. No "corregir" a Resize(256)+CenterCrop:
-    cambiaría la geometría vista por el modelo y rompería la comparabilidad con los
-    resultados existentes.
+    El `Resize` directo (con distorsión de aspecto) es intencional (ver CLAUDE.md).
     """
 
     def __init__(self, target_size: tuple[int, int]):
@@ -128,9 +124,7 @@ class CornTransformFactory:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
 
-        # target_size en el YAML es [alto, ancho], la misma convención (h, w) que espera
-        # torchvision en Resize/RandomResizedCrop. Con 224x224 es indistinto, pero si algún
-        # día deja de ser cuadrado, invertir el orden voltearía los ejes en silencio.
+        # target_size es [alto, ancho] — convención (h, w) de torchvision (ver CLAUDE.md)
         height, width = config["dataset"]["target_size"]
         self.target_size = (height, width)
 

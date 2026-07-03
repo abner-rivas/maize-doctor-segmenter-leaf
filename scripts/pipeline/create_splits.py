@@ -15,9 +15,8 @@ from src.data.splitter import HierarchicalStratifiedSplitter
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# El doble split estratificado de sklearn exige >=2 muestras por estrato en cada corte;
-# con 70/15/15 eso se garantiza a partir de ~7 imágenes por estrato label+environment.
-# Por debajo, train_test_split muere con un ValueError críptico — mejor validar antes.
+# sklearn exige >=2 muestras por estrato en cada corte del doble split; con 70/15/15
+# eso se garantiza a partir de ~7 imágenes por estrato label+environment.
 _MIN_STRATUM_IMAGES = 7
 
 
@@ -29,11 +28,8 @@ def _cap_manifest_per_class(df: pd.DataFrame, max_per_class: int, seed: int) -> 
     """Limita cada clase a lo sumo `max_per_class` imágenes (muestreo aleatorio reproducible).
 
     Clases con menos imágenes que el límite quedan intactas (p.ej. nitrogen_deficiency).
-
-    El muestreo es proporcional por `environment` (método del resto mayor) para conservar
-    el balance lab/real de cada clase: un muestreo aleatorio simple podía recortar casi
-    todo un entorno y sesgar el subset baseline, o dejar estratos demasiado pequeños para
-    el split estratificado.
+    El muestreo es proporcional por `environment` (resto mayor) para conservar el balance
+    lab/real de cada clase.
 
     Nota: se itera el groupby en vez de usar `.apply(lambda g: ...)` porque, al agrupar por
     el nombre literal de una columna, pandas >= 2.2 puede excluir esa columna del grupo
@@ -98,9 +94,8 @@ def run_data_preparation_pipeline(
     logger.info("Escaneando directorios para calcular la carga de trabajo...")
     raw_image_paths: list[tuple[str, str, Path, str]] = []
 
-    # Recorrido ordenado: el orden de os.listdir depende del filesystem/OS y la dedup
-    # SHA-256 conserva la primera copia vista — sin sorted(), qué duplicado sobrevive
-    # (y con qué label/environment) variaría entre máquinas pese al seed.
+    # sorted(): la dedup conserva la primera copia vista; sin orden estable el manifiesto
+    # variaría entre máquinas pese al seed.
     for class_name in sorted(os.listdir(clean_dir)):
         if class_name not in allowed_classes:
             continue
@@ -199,8 +194,7 @@ def run_data_preparation_pipeline(
     report_df = pd.concat([train_counts, val_counts, test_counts], axis=1).fillna(0).astype(int)
     report_df["total_count"] = report_df.sum(axis=1)
     report_df = report_df.reset_index()
-    # Se guarda junto a los CSV del split (no en una ruta global compartida) para que los
-    # perfiles completo y baseline no se pisen el reporte entre sí.
+    # Junto a los CSV del split, para que los perfiles completo y baseline no se pisen.
     report_df.to_csv(output_dir / "split_audit_report.csv", index=False)
 
     logger.info(f"Reporte de auditoría guardado en: {output_dir / 'split_audit_report.csv'}")

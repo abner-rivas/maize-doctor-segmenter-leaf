@@ -13,11 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 def _clean_dir_has_content(clean_dir: Path) -> bool:
-    """True solo si existe al menos un directorio de clase del YAML con archivos.
-
-    Mirar `any(iterdir())` no basta: una descarga interrumpida que solo dejó
-    `.cache/huggingface/` o archivos sueltos bloqueaba el reintento automático.
-    """
+    """True solo si existe al menos un directorio de clase del YAML con archivos
+    (así una descarga interrumpida no bloquea el reintento automático)."""
     if not clean_dir.is_dir():
         return False
     with open(PROJECT_ROOT / "config" / "dataset.yaml") as f:
@@ -37,8 +34,7 @@ def _download_from_hf(repo_id: str, clean_dir: Path, token: str | None) -> None:
         token=token,
         ignore_patterns=[".gitattributes", "README.md"],
     )
-    # snapshot_download deja metadatos de descarga en clean/.cache/huggingface; se elimina
-    # para que clean/ contenga únicamente los directorios de clase.
+    # Elimina los metadatos de descarga que snapshot_download deja en clean/.cache/
     shutil.rmtree(clean_dir / ".cache", ignore_errors=True)
     logger.info(f"Dataset descargado en {clean_dir}")
 
