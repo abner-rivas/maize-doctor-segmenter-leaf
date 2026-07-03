@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import shutil
+import tarfile
 from pathlib import Path
 
 import yaml
@@ -22,6 +23,17 @@ def _clean_dir_has_content(clean_dir: Path) -> bool:
     return any((clean_dir / c).is_dir() and any((clean_dir / c).iterdir()) for c in classes)
 
 
+def _extract_and_remove_tars(clean_dir: Path) -> None:
+    """Descomprime cada .tar en su lugar y lo borra al terminar"""
+    tar_paths = sorted(clean_dir.rglob("*.tar"))
+    for tar_path in tar_paths:
+        logger.info(f"Extrayendo {tar_path.name}...")
+        with tarfile.open(tar_path) as tf:
+            tf.extractall(clean_dir, filter="data")
+        tar_path.unlink()
+        logger.info(f"{tar_path.name} extraído y eliminado.")
+
+
 def _download_from_hf(repo_id: str, clean_dir: Path, token: str | None) -> None:
     from huggingface_hub import snapshot_download
 
@@ -34,6 +46,7 @@ def _download_from_hf(repo_id: str, clean_dir: Path, token: str | None) -> None:
         token=token,
         ignore_patterns=[".gitattributes", "README.md"],
     )
+    _extract_and_remove_tars(clean_dir)
     # Elimina los metadatos de descarga que snapshot_download deja en clean/.cache/
     shutil.rmtree(clean_dir / ".cache", ignore_errors=True)
     logger.info(f"Dataset descargado en {clean_dir}")
