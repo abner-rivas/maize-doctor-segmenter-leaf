@@ -9,9 +9,7 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
 
-# None (y no Path("")) cuando la variable falta: Path("") resuelve al cwd, que "existe",
-# por lo que los guards `DATASET_ROOT.exists()` de los entrypoints pasaban con una
-# configuración ausente (y p.ej. la descarga del dataset caía dentro del repo).
+# None cuando falta la variable: Path("") resolvería al cwd, que "existe" y burla los guards.
 _raw_dataset_root = os.getenv("DATASET_ROOT", "").strip()
 DATASET_ROOT: Path | None = Path(_raw_dataset_root) if _raw_dataset_root else None
 

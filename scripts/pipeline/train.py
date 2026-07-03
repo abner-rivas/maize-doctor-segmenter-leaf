@@ -75,8 +75,7 @@ def main() -> None:
         transform=factory.get_pipeline("train"),
         minority_transform=factory.get_pipeline("minority"),
     )
-    # Mapeo canónico: derivado del split de train e inyectado en val/test para garantizar
-    # índices consistentes entre los tres splits.
+    # Mapeo canónico del split de train, inyectado en val/test (índices consistentes)
     class_to_idx = train_dataset.class_to_idx
     num_classes = len(class_to_idx)
     val_dataset = CornDataset(
@@ -116,10 +115,7 @@ def main() -> None:
         pin_memory=pin_memory,
     )
 
-    # El desbalance de clases lo compensa el WeightedRandomSampler (+ augmentation extendida
-    # para MINORITY_CLASSES). No ponderar además la loss con pesos inversos a la frecuencia:
-    # sampler balanceado + loss ponderada corrigen lo mismo dos veces y sobre-ponderan las
-    # clases minoritarias ~cuadráticamente.
+    # El desbalance ya lo compensa el sampler; no ponderar además la loss (ver CLAUDE.md)
     criterion = torch.nn.CrossEntropyLoss()  # noqa: F841
 
     for model_name in model_names:

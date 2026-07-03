@@ -22,8 +22,8 @@ _COL_W = 52
 
 
 def _count_images(directory: Path) -> int:
-    """Cuenta solo archivos con extensión de imagen — misma regla que _scan(), para que
-    la tabla por clase y el reporte de disco no diverjan si hay archivos ajenos."""
+    """Cuenta solo extensiones de imagen — misma regla que _scan(), para que tabla y
+    reporte de disco coincidan."""
     if not directory.is_dir():
         return 0
     return sum(1 for f in directory.iterdir() if f.is_file() and f.suffix.lower() in IMAGE_EXTS)
@@ -41,8 +41,7 @@ def count_clean_dataset(clean_dir: Path) -> pd.DataFrame:
 
     rows = []
     for class_dir in sorted(clean_dir.iterdir()):
-        # Se omiten ocultos (p.ej. .cache de huggingface) para no listarlos como clase.
-        if not class_dir.is_dir() or class_dir.name.startswith("."):
+        if not class_dir.is_dir() or class_dir.name.startswith("."):  # omite .cache, etc.
             continue
         lab_count = _count_images(class_dir / "lab")
         real_count = _count_images(class_dir / "real")

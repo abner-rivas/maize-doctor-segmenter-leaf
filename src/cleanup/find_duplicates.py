@@ -9,8 +9,7 @@ Opciones:
   2. Encontrar y eliminar  - guarda CSV y elimina duplicados
   3. Eliminar duplicados   - elimina basándose en CSV ya existente
 
-Los CSV existentes en results/ se conservan como registro histórico de las
-deduplicaciones ya aplicadas a clean/ (ver results/README.md).
+Los CSV existentes en results/ son registro histórico (ver results/README.md).
 """
 
 import csv

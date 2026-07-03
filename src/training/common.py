@@ -1,8 +1,4 @@
-"""Utilidades compartidas por los scripts de entrenamiento (train.py y train_baselines.py).
-
-Única fuente de verdad para resolución de modelos, siembra de DataLoader workers y
-selección de dispositivo — antes cada script tenía su copia y podían divergir.
-"""
+"""Utilidades compartidas por los scripts de entrenamiento (train.py y train_baselines.py)."""
 
 import logging
 import random
@@ -26,15 +22,7 @@ def resolve_model_names(requested: list[str], registry: ModelRegistry) -> list[s
 
 
 def worker_init_fn(worker_id: int) -> None:
-    """Propaga la semilla del worker de PyTorch a `random` y `numpy`.
-
-    PyTorch ya siembra torch en cada worker con `base_seed + worker_id`, donde `base_seed`
-    varía por época (deriva del RNG global fijado por `set_global_seed`, así que sigue
-    siendo reproducible run-a-run). Aquí solo se propaga esa misma semilla a los RNG que
-    PyTorch no cubre. No usar una semilla fija propia: como los workers se recrean cada
-    época (sin persistent_workers), una semilla constante repetía idéntica la secuencia de
-    parámetros de augmentation en todas las épocas.
-    """
+    """Propaga la semilla per-worker de PyTorch (variable por época) a `random` y `numpy`."""
     worker_seed = torch.initial_seed() % 2**32
     random.seed(worker_seed)
     np.random.seed(worker_seed)
