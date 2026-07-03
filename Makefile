@@ -12,10 +12,10 @@ endif
 
 MODELS ?= all
 
-.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full test-loader summary docs-eda lint lint-fix fmt check
+.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full explain-lime test-loader summary docs-eda lint lint-fix fmt check
 
 install:
-	$(PIP) install -e ".[dev,analysis,cloud]"
+	$(PIP) install -e ".[dev,analysis,xai,cloud]"
 
 download-dataset:
 	$(PYTHON) scripts/dataset/download_dataset.py
@@ -30,10 +30,13 @@ train:
 	$(PYTHON) scripts/pipeline/train.py
 
 train-baselines:
-	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --baseline
+	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --baseline --lime
 
 train-baselines-full:
-	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS)
+	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --lime
+
+explain-lime:
+	$(PYTHON) scripts/pipeline/explain_lime.py --models $(MODELS) $(if $(IMAGE),--image $(IMAGE),) $(if $(OUTPUT),--output $(OUTPUT),)
 
 test-loader:
 	$(PYTHON) scripts/checks/smoke_loader.py

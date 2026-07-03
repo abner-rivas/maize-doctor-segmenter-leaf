@@ -18,6 +18,7 @@ dependencies = [
 dev      = ["ipykernel", "jupyterlab", "matplotlib", "seaborn", "ruff", "pyright"]
 analysis = ["imagededup", "fiftyone", "imageio", "mongoengine", "motor"]
 cloud    = ["huggingface_hub>=0.24,<1.22", "gdown>=5.1,<6.2"]
+xai      = ["lime>=0.2", "scikit-image>=0.22", "matplotlib>=3.8"]
 
 [build-system]
 requires = ["hatchling"]

@@ -130,6 +130,23 @@ class CornDataset(Dataset):
         return image, label_idx
 
 
+def resolve_class_mapping(
+    train_csv_path: str, classes: list[str]
+) -> tuple[dict[str, int], dict[int, str]]:
+    """
+    Construye class_to_idx/idx_to_class filtrando `classes` (orden del YAML) contra
+    las labels presentes en el CSV de train. Debe usarse el mismo `train_csv_path`
+    con el que se entrenó el checkpoint que se va a cargar, ya que los índices de
+    clase no se guardan en el state_dict.
+    """
+    train_df = pd.read_csv(train_csv_path)
+    present_classes = sorted(train_df["label"].unique())
+    allowed = [c for c in classes if c in present_classes]
+    class_to_idx = {name: idx for idx, name in enumerate(allowed)}
+    idx_to_class = {idx: name for name, idx in class_to_idx.items()}
+    return class_to_idx, idx_to_class
+
+
 def build_weighted_sampler(dataset: "CornDataset", seed: int) -> WeightedRandomSampler:
     labels = dataset.data_frame["label"].tolist()
     class_counts = dataset.data_frame["label"].value_counts().to_dict()
