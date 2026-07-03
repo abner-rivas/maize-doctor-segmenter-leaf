@@ -12,10 +12,10 @@ endif
 
 MODELS ?= all
 
-.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full test-loader summary docs-eda lint fmt
+.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full test-loader summary docs-eda lint lint-fix fmt check
 
 install:
-	$(PIP) install -e ".[dev,analysis]"
+	$(PIP) install -e ".[dev,analysis,cloud]"
 
 download-dataset:
 	$(PYTHON) scripts/dataset/download_dataset.py
@@ -35,9 +35,13 @@ train-baselines:
 train-baselines-full:
 	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS)
 
+test-loader:
+	$(PYTHON) scripts/checks/smoke_loader.py
+
 summary:
 	$(PYTHON) src/analysis/dataset_summary.py
 
+# Requiere shell POSIX (Git Bash/WSL en Windows) y que existan tmp/eda_*.png
 docs-eda:
 	cp tmp/eda_*.png public/eda/
 

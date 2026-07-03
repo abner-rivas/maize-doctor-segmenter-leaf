@@ -12,9 +12,9 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[3]))
-from src.config import DATASET_ROOT
+from src.config import get_dataset_root
 
-TARGET_DIR = DATASET_ROOT / "clean" / "fall_armyworm" / "real"
+TARGET_DIR = get_dataset_root() / "clean" / "fall_armyworm" / "real"
 
 
 def rename_files(target_dir: str) -> None:

@@ -19,10 +19,17 @@ def load_and_normalize_image(image_path: str) -> Image.Image:
         raise FileNotFoundError(f"La ruta de la imagen no existe: {image_path}")
 
     try:
-        img = Image.open(image_path)
-
-        # Corregir orientación EXIF en caliente (Smartphones)
-        img = ImageOps.exif_transpose(img)
+        # Context manager: sin él, una imagen ya-RGB sin EXIF se retornaba lazy con el
+        # file descriptor abierto hasta el GC (riesgo de "Too many open files" con
+        # DataLoader workers en entrenamientos largos).
+        with Image.open(image_path) as raw:
+            # Corregir orientación EXIF en caliente (Smartphones). Devuelve siempre una
+            # imagen nueva ya cargada en memoria (Pillow >= 10), independiente del fd.
+            img = ImageOps.exif_transpose(raw)
+            if img is raw:
+                # Salvaguarda para Pillow antiguos donde exif_transpose podía devolver el
+                # mismo objeto: el close() del with destruiría el core de la imagen.
+                img = raw.copy()
 
         # Normalización estricta del espacio de color a RGB
         if img.mode != "RGB":

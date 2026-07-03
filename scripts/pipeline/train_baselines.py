@@ -1,10 +1,8 @@
 import argparse
-import functools
 import json
 import logging
 from pathlib import Path
 
-import pandas as pd
 import torch
 import torch.nn as nn
 import yaml
@@ -13,38 +11,14 @@ from torch.utils.data import DataLoader
 
 import src.models.baselines.efficientnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
-from src.config import DATASET_ROOT, PROJECT_ROOT, set_global_seed
+from src.config import PROJECT_ROOT, get_dataset_root, set_global_seed
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
 from src.models.registry import MODEL_REGISTRY
+from src.training.common import resolve_model_names, select_device, worker_init_fn
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
-_DEFAULT_SPLITS_DIR_FULL = DATASET_ROOT / "splits" / "seed_42"
-_DEFAULT_SPLITS_DIR_BASELINE = DATASET_ROOT / "splits" / "seed_42_baseline"
-_DEFAULT_OUTPUT_DIR = str(DATASET_ROOT / "results" / "baselines")
-
-
-def _resolve_model_names(requested: list[str]) -> list[str]:
-    available = MODEL_REGISTRY.list_names()
-    if requested == ["all"]:
-        return available
-    unknown = [n for n in requested if n not in MODEL_REGISTRY]
-    if unknown:
-        raise SystemExit(f"Modelos desconocidos: {unknown}. Disponibles: {available}")
-    return requested
-
-
-def _worker_init_fn(worker_id: int, seed: int) -> None:
-    import random
-
-    import numpy as np
-
-    worker_seed = seed + worker_id
-    random.seed(worker_seed)
-    np.random.seed(worker_seed)
-    torch.manual_seed(worker_seed)
 
 
 def _train_one_epoch(
@@ -85,11 +59,9 @@ def train_baseline(
     model_name: str,
     splits_dir: Path,
     output_dir: Path,
-    num_classes: int,
     epochs: int,
     batch_size: int,
     device: torch.device,
-    idx_to_class: dict[int, str],
     seed: int,
 ) -> None:
     logger.info(f"[{model_name}] Iniciando entrenamiento")
@@ -100,30 +72,37 @@ def train_baseline(
         transform=factory.get_pipeline("train"),
         minority_transform=factory.get_pipeline("minority"),
     )
+    # Mapeo canónico: se deriva una sola vez del split de train y se inyecta en val/test
+    # para garantizar índices consistentes entre los tres splits.
+    class_to_idx = train_dataset.class_to_idx
+    num_classes = len(class_to_idx)
     val_dataset = CornDataset(
         csv_path=str(splits_dir / "val.csv"),
         transform=factory.get_pipeline("val"),
+        class_to_idx=class_to_idx,
     )
     test_dataset = CornDataset(
         csv_path=str(splits_dir / "test.csv"),
         transform=factory.get_pipeline("test"),
+        class_to_idx=class_to_idx,
     )
 
     sampler = build_weighted_sampler(train_dataset, seed=seed)
+    pin_memory = device.type == "cuda"
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         sampler=sampler,
         num_workers=4,
-        pin_memory=True,
-        worker_init_fn=functools.partial(_worker_init_fn, seed=seed),
+        pin_memory=pin_memory,
+        worker_init_fn=worker_init_fn,
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True
+        val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=pin_memory
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True
+        test_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=pin_memory
     )
 
     model = MODEL_REGISTRY.build(model_name, num_classes=num_classes).to(device)
@@ -152,7 +131,7 @@ def train_baseline(
     model.load_state_dict(torch.load(best_ckpt_path, map_location=device))
     test_preds, test_labels = _evaluate(model, test_loader, device)
 
-    target_names = [idx_to_class[i] for i in range(num_classes)]
+    target_names = [train_dataset.idx_to_class[i] for i in range(num_classes)]
     test_f1 = f1_score(test_labels, test_preds, average="macro", zero_division=0)
     test_acc = sum(p == gt for p, gt in zip(test_preds, test_labels)) / len(test_labels)
     report = classification_report(
@@ -188,7 +167,8 @@ def main() -> None:
         default=None,
         dest="splits_dir",
         help="Directorio con train/val/test.csv. Si se omite, usa "
-        f"{_DEFAULT_SPLITS_DIR_BASELINE} con --baseline, o {_DEFAULT_SPLITS_DIR_FULL} sin él.",
+        "$DATASET_ROOT/splits/seed_42_baseline con --baseline, o "
+        "$DATASET_ROOT/splits/seed_42 sin él.",
     )
     parser.add_argument(
         "--baseline",
@@ -198,9 +178,10 @@ def main() -> None:
     )
     parser.add_argument(
         "--output-dir",
-        default=_DEFAULT_OUTPUT_DIR,
+        default=None,
         dest="output_dir",
-        help=f"Directorio de salida para checkpoints y métricas (default: {_DEFAULT_OUTPUT_DIR})",
+        help="Directorio de salida para checkpoints y métricas "
+        "(default: $DATASET_ROOT/results/baselines)",
     )
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=32, dest="batch_size")
@@ -215,14 +196,17 @@ def main() -> None:
     seed = cfg["dataset"]["seed"]
     set_global_seed(seed)
 
-    model_names = _resolve_model_names(args.models)
+    model_names = resolve_model_names(args.models, MODEL_REGISTRY)
+    dataset_root = get_dataset_root()
     if args.splits_dir is not None:
         splits_dir = Path(args.splits_dir)
     elif args.baseline:
-        splits_dir = _DEFAULT_SPLITS_DIR_BASELINE
+        splits_dir = dataset_root / "splits" / "seed_42_baseline"
     else:
-        splits_dir = _DEFAULT_SPLITS_DIR_FULL
-    output_dir = Path(args.output_dir)
+        splits_dir = dataset_root / "splits" / "seed_42"
+    output_dir = (
+        Path(args.output_dir) if args.output_dir else dataset_root / "results" / "baselines"
+    )
 
     if not splits_dir.exists():
         raise SystemExit(
@@ -230,34 +214,19 @@ def main() -> None:
             "Genera los splits primero con: make splits  (o make splits-baseline para el subset)"
         )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type == "cuda":
-        gpu_name = torch.cuda.get_device_name(0)
-        gpu_mem_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
-        logger.info(f"Dispositivo: GPU - {gpu_name} ({gpu_mem_gb:.1f} GB VRAM)")
-    else:
-        logger.warning("Dispositivo: CPU (no se detectó GPU — el entrenamiento será significativamente más lento)")
-
-    train_df = pd.read_csv(splits_dir / "train.csv")
-    present_classes = sorted(train_df["label"].unique())
-    allowed = [c for c in cfg["dataset"]["classes"] if c in present_classes]
-    class_to_idx = {name: idx for idx, name in enumerate(allowed)}
-    idx_to_class = {idx: name for name, idx in class_to_idx.items()}
-    num_classes = len(allowed)
+    device = select_device()
 
     logger.info(f"Modelos a entrenar: {model_names}")
-    logger.info(f"Splits: {splits_dir}  |  Clases: {num_classes}  |  Epochs: {args.epochs}")
+    logger.info(f"Splits: {splits_dir}  |  Epochs: {args.epochs}")
 
     for model_name in model_names:
         train_baseline(
             model_name=model_name,
             splits_dir=splits_dir,
             output_dir=output_dir,
-            num_classes=num_classes,
             epochs=args.epochs,
             batch_size=args.batch_size,
             device=device,
-            idx_to_class=idx_to_class,
             seed=seed,
         )
 

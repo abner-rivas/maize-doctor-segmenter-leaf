@@ -70,14 +70,14 @@ ln -s /ruta/a/tu/dataset data
 make install
 ```
 
-Esto corre `pip install -e ".[dev,analysis]"` dentro del venv (instala el paquete `src/` en modo editable + extras de desarrollo y análisis). Extras disponibles en `pyproject.toml`:
+Esto corre `pip install -e ".[dev,analysis,cloud]"` dentro del venv (instala el paquete `src/` en modo editable + todos los extras necesarios para el flujo local, incluida la descarga del dataset). Extras disponibles en `pyproject.toml`:
 
 - `dev`: ipykernel, jupyterlab, matplotlib, seaborn, ruff, pyright
 - `analysis`: imagededup, fiftyone, imageio, mongoengine, motor (necesario para deduplicación y
   exploración visual)
 - `cloud`: huggingface_hub, gdown (necesario para descargar/subir el dataset)
 
-Si solo necesitas descargar el dataset sin las herramientas de análisis:
+Si solo necesitas descargar el dataset sin las herramientas de desarrollo/análisis:
 
 ```bash
 venv\Scripts\pip install -e ".[cloud]"   # Windows
@@ -86,7 +86,7 @@ venv/bin/pip install -e ".[cloud]"        # Linux/macOS
 
 ## 5. Descargar el dataset (`clean/`)
 
-Con `DATASET_ROOT` ya configurado en `.env` y las dependencias de `cloud` instaladas:
+Con `DATASET_ROOT` ya configurado en `.env` (las dependencias de `cloud` ya vienen con `make install`):
 
 ```bash
 make download-dataset

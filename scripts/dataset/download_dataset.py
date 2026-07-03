@@ -1,16 +1,28 @@
 import argparse
 import logging
 import os
+import shutil
 from pathlib import Path
 
-from src.config import DATASET_ROOT
+import yaml
+
+from src.config import PROJECT_ROOT, get_dataset_root
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
 def _clean_dir_has_content(clean_dir: Path) -> bool:
-    return clean_dir.is_dir() and any(clean_dir.iterdir())
+    """True solo si existe al menos un directorio de clase del YAML con archivos.
+
+    Mirar `any(iterdir())` no basta: una descarga interrumpida que solo dejó
+    `.cache/huggingface/` o archivos sueltos bloqueaba el reintento automático.
+    """
+    if not clean_dir.is_dir():
+        return False
+    with open(PROJECT_ROOT / "config" / "dataset.yaml") as f:
+        classes = yaml.safe_load(f)["dataset"]["classes"]
+    return any((clean_dir / c).is_dir() and any((clean_dir / c).iterdir()) for c in classes)
 
 
 def _download_from_hf(repo_id: str, clean_dir: Path, token: str | None) -> None:
@@ -23,7 +35,11 @@ def _download_from_hf(repo_id: str, clean_dir: Path, token: str | None) -> None:
         repo_type="dataset",
         local_dir=str(clean_dir),
         token=token,
+        ignore_patterns=[".gitattributes", "README.md"],
     )
+    # snapshot_download deja metadatos de descarga en clean/.cache/huggingface; se elimina
+    # para que clean/ contenga únicamente los directorios de clase.
+    shutil.rmtree(clean_dir / ".cache", ignore_errors=True)
     logger.info(f"Dataset descargado en {clean_dir}")
 
 
@@ -44,7 +60,7 @@ def download_clean_dataset(
     gdrive_id: str | None = None,
     dry_run: bool = False,
 ) -> None:
-    clean_dir = DATASET_ROOT / "clean"
+    clean_dir = get_dataset_root() / "clean"
     hf_repo = hf_repo or os.getenv("HF_DATASET_REPO")
     hf_token = hf_token or os.getenv("HF_TOKEN")
     gdrive_id = gdrive_id or os.getenv("GDRIVE_DATASET_ID")
@@ -55,7 +71,7 @@ def download_clean_dataset(
         )
         return
 
-    if source in ("hf", "auto") and not hf_repo and source == "hf":
+    if source == "hf" and not hf_repo:
         raise SystemExit("--source hf requiere HF_DATASET_REPO (env) o --hf-repo.")
     if source == "gdrive" and not gdrive_id:
         raise SystemExit("--source gdrive requiere GDRIVE_DATASET_ID (env) o --gdrive-id.")

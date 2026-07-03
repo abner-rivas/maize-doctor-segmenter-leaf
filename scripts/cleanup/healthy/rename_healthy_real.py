@@ -12,9 +12,9 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[3]))
-from src.config import DATASET_ROOT
+from src.config import get_dataset_root
 
-SOURCE_DIR = DATASET_ROOT / "clean" / "healthy" / "real" / "temporal"
+SOURCE_DIR = get_dataset_root() / "clean" / "healthy" / "real" / "temporal"
 
 START_INDEX = 1
 RANDOM_DIGITS = 8
