@@ -8,11 +8,17 @@ from torch.utils.data import DataLoader
 
 import src.models.baselines.efficientnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
-from src.config import PROJECT_ROOT, get_dataset_root, set_global_seed
+from src.config import PROJECT_ROOT, get_output_root, set_global_seed
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
 from src.models.registry import MODEL_REGISTRY
-from src.training.common import resolve_model_names, select_device, worker_init_fn
+from src.training.common import (
+    build_run_dir,
+    generate_run_id,
+    resolve_model_names,
+    select_device,
+    worker_init_fn,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -31,14 +37,14 @@ def main() -> None:
         "--splits-dir",
         default=None,
         dest="splits_dir",
-        help="Directorio con train/val/test.csv (default: $DATASET_ROOT/splits/seed_42)",
+        help="Directorio con train/val/test.csv (default: <repo>/outputs/splits/seed_42)",
     )
     parser.add_argument(
         "--output-dir",
         default=None,
         dest="output_dir",
         help="Directorio de salida para checkpoints y métricas "
-        "(default: $DATASET_ROOT/results/main)",
+        "(default: <repo>/outputs/main)",
     )
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=32, dest="batch_size")
@@ -54,11 +60,11 @@ def main() -> None:
     set_global_seed(seed)
 
     model_names = resolve_model_names(args.models, MODEL_REGISTRY)
-    dataset_root = get_dataset_root()
+    output_root = get_output_root()
     splits_dir = (
-        Path(args.splits_dir) if args.splits_dir else dataset_root / "splits" / "seed_42"
+        Path(args.splits_dir) if args.splits_dir else output_root / "splits" / "seed_42"
     )
-    output_dir = Path(args.output_dir) if args.output_dir else dataset_root / "results" / "main"
+    output_dir = Path(args.output_dir) if args.output_dir else output_root / "main"
 
     if not splits_dir.exists():
         raise SystemExit(
@@ -120,11 +126,12 @@ def main() -> None:
 
     for model_name in model_names:
         model = MODEL_REGISTRY.build(model_name, num_classes=num_classes).to(device)  # noqa: F841
-        ckpt_dir = output_dir / model_name
-        ckpt_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"[{model_name}] Modelo construido. Checkpoints en {ckpt_dir}")
+        run_id = generate_run_id()
+        run_dir = build_run_dir(output_dir, model_name, run_id)
+        logger.info(f"[{model_name}] Modelo construido. Checkpoints en {run_dir}")
 
-        # TODO: loop de entrenamiento
+        # TODO: loop de entrenamiento — al implementarlo, guardar checkpoints/metrics en
+        # run_dir y llamar a update_latest_pointer(output_dir, model_name, run_id) al final.
 
 
 if __name__ == "__main__":

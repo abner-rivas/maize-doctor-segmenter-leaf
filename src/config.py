@@ -24,6 +24,12 @@ def get_dataset_root() -> Path:
     return DATASET_ROOT
 
 
+def get_output_root() -> Path:
+    """PROJECT_ROOT/outputs — raíz de artefactos generados por el pipeline (splits,
+    resultados de entrenamiento, reports), separada de DATASET_ROOT (datos fuente)."""
+    return PROJECT_ROOT / "outputs"
+
+
 def set_global_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)

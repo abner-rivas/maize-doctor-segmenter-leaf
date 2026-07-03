@@ -16,7 +16,7 @@ principal (`train.py`) exactamente igual en local (CPU) y en una instancia GPU a
 | Dataset       | `make download-dataset`                     | `python scripts/dataset/download_dataset.py` (dentro de `onstart.sh`)             |
 | Splits        | `make splits-baseline` / `make splits`      | igual, por ssh                                                                     |
 | Entrenamiento | `make train-baselines` / `make train`       | igual, por ssh                                                                     |
-| Resultados    | quedan en `$DATASET_ROOT/results/`          | se traen con `vastai copy` / `scripts/vastai/launch.py sync`                      |
+| Resultados    | quedan en `outputs/` (raíz del repo, gitignored) | se traen a `./outputs-remote` con `scripts/vastai/launch.py sync`             |
 
 ## 1. Dataset: Hugging Face Datasets Hub (fuente primaria) + Google Drive (fallback)
 
@@ -72,7 +72,7 @@ python scripts/vastai/launch.py run <INSTANCE_ID> make train-baselines
 # o el pipeline principal:
 python scripts/vastai/launch.py run <INSTANCE_ID> make train
 
-# 4. Traer resultados de vuelta
+# 4. Traer resultados de vuelta (copia outputs/ del checkout remoto -> ./outputs-remote local)
 python scripts/vastai/launch.py sync <INSTANCE_ID>
 
 # 5. Destruir la instancia (vast.ai cobra por minuto mientras esté viva)

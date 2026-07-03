@@ -13,7 +13,7 @@ Los tres modelos elegidos son redes convolucionales ligeras pre-entrenadas en Im
 
 Los baselines se entrenan sobre el **perfil reducido `baseline`** de `config/dataset.yaml`: 4 clases
 (`healthy`, `common_rust`, `fall_armyworm`, `nitrogen_deficiency`) con un tope de 500 imágenes por
-clase, generado con `make splits-baseline` en `splits/seed_42_baseline/`:
+clase, generado con `make splits-baseline` en `outputs/splits/seed_42_baseline/`:
 
 | Split | Imágenes |
 |---|---:|
@@ -22,7 +22,7 @@ clase, generado con `make splits-baseline` en `splits/seed_42_baseline/`:
 | Prueba (`test.csv`) | 300 |
 | **Total** | **2 000** (500 por clase) |
 
-El split completo (`splits/seed_42/`, generado con `make splits`) usa las 9 clases sin límite por
+El split completo (`outputs/splits/seed_42/`, generado con `make splits`) usa las 9 clases sin límite por
 clase. El perfil `baseline` mantiene la misma estratificación por `label + environment` y el mismo
 seed (42), solo que sobre un subconjunto de clases y con un tope de imágenes por clase — ambos
 configurables desde `config/dataset.yaml` (sección `baseline:`) o por CLI

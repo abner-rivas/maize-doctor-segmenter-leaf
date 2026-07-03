@@ -12,7 +12,7 @@ from pathlib import Path
 
 from torch.utils.data import DataLoader
 
-from src.config import get_dataset_root
+from src.config import get_output_root
 from src.data.dataset import CornDataset
 from src.data.transforms import CornTransformFactory
 
@@ -23,13 +23,13 @@ def main() -> None:
         "--splits-dir",
         default=None,
         dest="splits_dir",
-        help="Directorio con train.csv (default: $DATASET_ROOT/splits/seed_42)",
+        help="Directorio con train.csv (default: <repo>/outputs/splits/seed_42)",
     )
     parser.add_argument("--batch-size", type=int, default=16, dest="batch_size")
     args = parser.parse_args()
 
     splits_dir = (
-        Path(args.splits_dir) if args.splits_dir else get_dataset_root() / "splits" / "seed_42"
+        Path(args.splits_dir) if args.splits_dir else get_output_root() / "splits" / "seed_42"
     )
     csv_path = splits_dir / "train.csv"
     if not csv_path.exists():

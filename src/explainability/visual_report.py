@@ -269,11 +269,12 @@ def explain_model_visual(
     """
     Genera el reporte visual de 3 paneles para una muestra balanceada de `test_df`
     (`images_per_class` imágenes por clase) y las guarda como PNG bajo
-    `<output_dir>/<model_name>/lime_visual/`.
+    `<output_dir>/lime_visual/`. `output_dir` ya debe ser el directorio de la corrida
+    concreta (el caller es responsable de incluir model_name/run_id).
     """
     model.eval()
     df_sample = sample_balanced(test_df, images_per_class, seed)
-    lime_dir = output_dir / model_name / "lime_visual"
+    lime_dir = output_dir / "lime_visual"
 
     for _, row in df_sample.iterrows():
         img_path = dataset_root / row["image_path"]

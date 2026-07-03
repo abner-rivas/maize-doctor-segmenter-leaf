@@ -15,7 +15,7 @@ Implementada en `src/data/splitter.py - HierarchicalStratifiedSplitter`.
 - **Proporciones:** 70% train / 15% val / 15% test.
 - **Seed fijo:** 42, declarado en `config/dataset.yaml`. Garantiza reproducibilidad exacta entre ejecuciones.
 - **Estratificación jerárquica:** se estratifica por `label + environment` (no solo por clase). Esto asegura que la proporción de imágenes de laboratorio vs campo sea consistente en los tres splits. Un split aleatorio simple podría concentrar todas las imágenes de laboratorio de una clase en train, sesgando val y test.
-- **Los CSV son inmutables:** `splits/seed_42/train.csv`, `val.csv`, `test.csv` son la fuente de verdad. No se modifican. Las exclusiones de clases se aplican en tiempo de construcción del dataset (`exclude_classes`), no en el CSV.
+- **Los CSV son inmutables:** `outputs/splits/seed_42/train.csv`, `val.csv`, `test.csv` son la fuente de verdad. No se modifican. Las exclusiones de clases se aplican en tiempo de construcción del dataset (`exclude_classes`), no en el CSV.
 
 ## Balanceo
 
