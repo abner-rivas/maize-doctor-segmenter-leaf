@@ -47,7 +47,7 @@ Variables relevantes:
 
 | Variable | Descripción |
 |---|---|
-| `DATASET_ROOT` | Ruta local donde vivirá el dataset (debe contener `raw/`, `clean/`, `splits/`). Elige cualquier carpeta de tu máquina, p.ej. `C:/Users/tu_usuario/datasets/corn-leaf-diseases` en Windows o `/Users/tu_usuario/datasets/corn-leaf-diseases` en macOS/Linux. |
+| `DATASET_ROOT` | Ruta local donde vivirá el dataset fuente (debe contener `raw/`, `clean/`). Elige cualquier carpeta de tu máquina, p.ej. `C:/Users/tu_usuario/datasets/corn-leaf-diseases` en Windows o `/Users/tu_usuario/datasets/corn-leaf-diseases` en macOS/Linux. Los artefactos generados (`splits/`, resultados de entrenamiento, reports) viven aparte, en `outputs/` dentro del propio repo — ver `get_output_root()` en `src/config.py`. |
 | `HF_DATASET_REPO` | Repo de tipo *dataset* en Hugging Face Hub que contiene `clean/` (fuente primaria de descarga). |
 | `HF_TOKEN` | Solo necesario si el repo de HF es privado o no hiciste `huggingface-cli login`. |
 | `GDRIVE_DATASET_ID` | ID de carpeta pública de Google Drive, usada como respaldo si falla la descarga desde HF. |
@@ -102,11 +102,11 @@ Esto ejecuta `scripts/dataset/download_dataset.py`, que descarga `clean/` hacia
 Con `clean/` ya poblado:
 
 ```bash
-make splits              # Splits completos (9 clases) -> splits/seed_42/
-make splits-baseline      # Splits del perfil baseline (subset + límite por clase) -> splits/seed_42_baseline/
+make splits              # Splits completos (9 clases) -> outputs/splits/seed_42/
+make splits-baseline      # Splits del perfil baseline (subset + límite por clase) -> outputs/splits/seed_42_baseline/
 ```
 
-No edites los CSV de `splits/` a mano — son derivados reproducibles.
+No edites los CSV de `outputs/splits/` a mano — son derivados reproducibles.
 
 ## 7. Verificar que todo funciona
 

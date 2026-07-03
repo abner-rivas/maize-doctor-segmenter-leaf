@@ -11,16 +11,17 @@ import src.models.baselines.fastvit  # noqa: F401 - registra modelos
 import src.models.baselines.ghostnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
 import src.models.baselines.shufflenet  # noqa: F401 - registra modelos
-from src.config import DATASET_ROOT, PROJECT_ROOT, set_global_seed
+from src.config import DATASET_ROOT, PROJECT_ROOT, get_output_root, set_global_seed
 from src.data.dataset import resolve_class_mapping
 from src.data.loader import load_and_normalize_image
 from src.explainability.visual_report import explain_model_visual, render_visual_explanation
 from src.models.registry import MODEL_REGISTRY
+from src.training.common import resolve_run_dir
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-_RESULTS_DIR = DATASET_ROOT / "results" / "baselines"
+_OUTPUT_DIR = get_output_root() / "baselines"
 
 
 def _resolve_model_names(requested: list[str]) -> list[str]:
@@ -57,7 +58,7 @@ def main() -> None:
         "--output",
         default=None,
         help="Ruta del PNG de salida. Solo válido junto con --image y un único modelo "
-        "en --models. Default: <output_dir>/<model>/lime_visual/<stem-de-la-imagen>.png",
+        "en --models. Default: <run_dir>/lime_visual/<stem-de-la-imagen>.png",
     )
     parser.add_argument(
         "--baseline",
@@ -65,6 +66,12 @@ def main() -> None:
         default=None,
         help="Fuerza el uso de splits/seed_42_baseline en vez de leer lime.baseline de "
         "config/dataset.yaml.",
+    )
+    parser.add_argument(
+        "--run",
+        default=None,
+        help="run_id específico a explicar (p.ej. 20260703_142230). Por defecto usa el "
+        "último run registrado en latest.json para cada modelo.",
     )
     args = parser.parse_args()
 
@@ -75,7 +82,7 @@ def main() -> None:
 
     model_names = _resolve_model_names(args.models)
     use_baseline = args.baseline if args.baseline is not None else lime_cfg["baseline"]
-    splits_dir = DATASET_ROOT / "splits" / ("seed_42_baseline" if use_baseline else "seed_42")
+    splits_dir = get_output_root() / "splits" / ("seed_42_baseline" if use_baseline else "seed_42")
     classes = cfg["baseline"]["classes"] if use_baseline else cfg["dataset"]["classes"]
 
     if args.output is not None and (args.image is None or len(model_names) != 1):
@@ -97,11 +104,15 @@ def main() -> None:
     logger.info(f"Modelos a explicar: {model_names}")
 
     for model_name in model_names:
-        checkpoint_path = _RESULTS_DIR / model_name / "best.pth"
+        try:
+            run_dir = resolve_run_dir(_OUTPUT_DIR, model_name, args.run)
+        except SystemExit as e:
+            logger.warning(f"[{model_name}] {e}. Se omite.")
+            continue
+        checkpoint_path = run_dir / "best.pth"
         if not checkpoint_path.exists():
             logger.warning(
-                f"[{model_name}] No se encontró checkpoint en {checkpoint_path}, se omite. "
-                "Entrena primero con: make train-baselines"
+                f"[{model_name}] Run {run_dir.name} sin checkpoint completo, se omite."
             )
             continue
 
@@ -114,7 +125,7 @@ def main() -> None:
             output_path = (
                 Path(args.output)
                 if args.output is not None
-                else _RESULTS_DIR / model_name / "lime_visual" / f"{image_path.stem}.png"
+                else run_dir / "lime_visual" / f"{image_path.stem}.png"
             )
             result = render_visual_explanation(
                 image=load_and_normalize_image(image_path),
@@ -139,7 +150,7 @@ def main() -> None:
                 dataset_root=DATASET_ROOT,
                 idx_to_class=idx_to_class,
                 target_size=target_size,
-                output_dir=_RESULTS_DIR,
+                output_dir=run_dir,
                 images_per_class=lime_cfg["images_per_class"],
                 num_features=lime_cfg["num_features"],
                 num_samples=lime_cfg["num_samples"],

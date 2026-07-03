@@ -6,11 +6,14 @@ Funciones públicas:
   print_disk_summary(dataset_root) - reporte de disco por subcarpeta raíz
 """
 
+import contextlib
+import io
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 
-from src.config import get_dataset_root
+from src.config import get_dataset_root, get_output_root
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"}
 _COL_W = 52
@@ -190,10 +193,20 @@ def main() -> None:
     dataset_root = get_dataset_root()
     clean_dir = dataset_root / "clean"
 
-    if args.mode in ("table", "all"):
-        print_class_table(clean_dir)
-    if args.mode in ("disk", "all"):
-        print_disk_summary(dataset_root)
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        if args.mode in ("table", "all"):
+            print_class_table(clean_dir)
+        if args.mode in ("disk", "all"):
+            print_disk_summary(dataset_root)
+
+    report_text = buffer.getvalue()
+    print(report_text)
+
+    report_dir = get_output_root() / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / f"dataset_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+    report_path.write_text(report_text, encoding="utf-8")
 
 
 if __name__ == "__main__":

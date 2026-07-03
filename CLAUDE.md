@@ -4,23 +4,25 @@
 
 - **Nunca modificar `raw/`.** Es inmutable, solo fuente original.
 - `clean/` es la única fuente de verdad para entrenamiento. Estructura: `clean/<clase>/{lab,real}/`.
-- Los CSV de `splits/` son derivados reproducibles (`make splits` / `make splits-baseline`). No editarlos a mano.
+- Los CSV de `splits/` son derivados reproducibles (`make splits` / `make splits-baseline`). No editarlos a mano. Viven en `outputs/splits/` (ver más abajo), no bajo `DATASET_ROOT`.
 
 ## Arquitectura (`src/`)
 
 - **Único punto de entrada a imagen:** `load_and_normalize_image()` (`src/data/loader.py`) — corrección EXIF + RGB antes de cualquier transform.
-- **Rutas al dataset:** siempre vía `get_dataset_root()` (`src/config.py`), que falla con mensaje claro si falta `.env`. No usar la constante `DATASET_ROOT` directo (es `Path | None`).
+- **Rutas al dataset fuente:** siempre vía `get_dataset_root()` (`src/config.py`), que falla con mensaje claro si falta `.env`. No usar la constante `DATASET_ROOT` directo (es `Path | None`). Solo cubre `raw/`/`clean/` (datos fuente).
+- **Rutas a artefactos generados:** siempre vía `get_output_root()` (`src/config.py`) → `PROJECT_ROOT/outputs/` (raíz del repo, gitignored). Cubre splits, resultados de entrenamiento (pesos/metrics/LIME), reports de `dataset_summary.py` y EDA — todo lo que el pipeline *produce*, a diferencia de `get_dataset_root()` que es para lo que el pipeline *consume*.
 - **Config centralizada:** `config/dataset.yaml` declara clases, `target_size`, seed y el perfil `baseline`. Los módulos lo leen; nunca hardcodear constantes de dominio.
 - **Sin `sys.path.append`.** Paquete editable (`pip install -e .`); los imports `src.*` resuelven directo.
 - **`MINORITY_CLASSES`** (`src/data/transforms.py`) es un `frozenset` estático que `CornDataset.__getitem__` consulta para aplicar augmentation extendido — independiente del subset/límite usado al generar los splits.
 - **`target_size` es `[alto, ancho]`** (convención `(h, w)` de torchvision). El `Resize(224,224)` directo con distorsión de aspecto es intencional y consistente train/eval — no "corregirlo" a Resize+CenterCrop.
 - **Balanceo de clases:** lo hace el `WeightedRandomSampler` (+ augmentation de minoritarias); la loss NO se pondera además por frecuencia — sería doble compensación.
-- **Utilidades comunes de entrenamiento** (`src/training/common.py`): `resolve_model_names`, `worker_init_fn`, `select_device` — compartidas por `train.py` y `train_baselines.py`; no duplicarlas en los scripts. `worker_init_fn` deriva de `torch.initial_seed()`: nunca sembrar workers con una semilla fija — los workers renacen cada época y repetirían idéntica la secuencia de augmentation.
+- **Utilidades comunes de entrenamiento** (`src/training/common.py`): `resolve_model_names`, `worker_init_fn`, `select_device`, `generate_run_id`, `build_run_dir`, `update_latest_pointer`, `resolve_run_dir` — compartidas por `train.py` y `train_baselines.py`; no duplicarlas en los scripts. `worker_init_fn` deriva de `torch.initial_seed()`: nunca sembrar workers con una semilla fija — los workers renacen cada época y repetirían idéntica la secuencia de augmentation.
+- **Resultados versionados por corrida:** cada entrenamiento de un modelo escribe en `outputs/<pipeline>/<modelo>/<run_id>/` (`run_id` = timestamp `YYYYMMDD_HHMMSS`), nunca sobrescribe corridas previas. `outputs/<pipeline>/<modelo>/latest.json` apunta a la corrida más reciente (`resolve_run_dir` la lee cuando no se pasa `--run`).
 - Para ubicar símbolos, llamadas o impacto de cambios en `src/`, usa CodeGraph (si está disponible) en vez de grep/lectura manual.
 
 ## Pipelines
 
-- **Datos:** `clean/<clase>/{lab,real}/` → `create_splits.py` (valida integridad PIL, deduplica por SHA-256 con escaneo `sorted()` — determinista entre máquinas —, estratifica por `label+environment`) → `splits/seed_42/` (9 clases) o `splits/seed_42_baseline/` (`--baseline`, subset de `config/dataset.yaml -> baseline:`).
+- **Datos:** `clean/<clase>/{lab,real}/` → `create_splits.py` (valida integridad PIL, deduplica por SHA-256 con escaneo `sorted()` — determinista entre máquinas —, estratifica por `label+environment`) → `outputs/splits/seed_42/` (9 clases) o `outputs/splits/seed_42_baseline/` (`--baseline`, subset de `config/dataset.yaml -> baseline:`).
 - **Baselines (funcional, PyTorch):** `CornDataset` → `WeightedRandomSampler` → `DataLoader` → `MODEL_REGISTRY.build(<efficientnet_b0|efficientnet_lite0|mobilenet_v3_large>)` vía `train_baselines.py`. Pese al nombre, no es un pipeline sklearn — es DL completo, pensado para comparar arquitecturas rápido y barato.
 - **Principal (`train.py`):** comparte toda la infraestructura de datos/modelos con baselines; el loop de entrenamiento está pendiente de implementar.
 
