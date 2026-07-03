@@ -9,11 +9,16 @@ import yaml
 from PIL import Image
 from tqdm import tqdm
 
-from src.config import DATASET_ROOT
+from src.config import get_dataset_root
 from src.data.splitter import HierarchicalStratifiedSplitter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+# El doble split estratificado de sklearn exige >=2 muestras por estrato en cada corte;
+# con 70/15/15 eso se garantiza a partir de ~7 imágenes por estrato label+environment.
+# Por debajo, train_test_split muere con un ValueError críptico — mejor validar antes.
+_MIN_STRATUM_IMAGES = 7
 
 
 def _sha256(path: Path) -> str:
@@ -25,6 +30,11 @@ def _cap_manifest_per_class(df: pd.DataFrame, max_per_class: int, seed: int) -> 
 
     Clases con menos imágenes que el límite quedan intactas (p.ej. nitrogen_deficiency).
 
+    El muestreo es proporcional por `environment` (método del resto mayor) para conservar
+    el balance lab/real de cada clase: un muestreo aleatorio simple podía recortar casi
+    todo un entorno y sesgar el subset baseline, o dejar estratos demasiado pequeños para
+    el split estratificado.
+
     Nota: se itera el groupby en vez de usar `.apply(lambda g: ...)` porque, al agrupar por
     el nombre literal de una columna, pandas >= 2.2 puede excluir esa columna del grupo
     pasado a la función (comportamiento por defecto desde pandas 3.0), lo que rompía el
@@ -32,9 +42,22 @@ def _cap_manifest_per_class(df: pd.DataFrame, max_per_class: int, seed: int) -> 
     """
     parts = []
     for _, group in df.groupby("label"):
-        if len(group) > max_per_class:
-            group = group.sample(n=max_per_class, random_state=seed)
-        parts.append(group)
+        if len(group) <= max_per_class:
+            parts.append(group)
+            continue
+
+        # Cuotas proporcionales por entorno con método del resto mayor (suman exacto).
+        env_sizes = group["environment"].value_counts()
+        quotas = env_sizes * max_per_class / len(group)
+        base = quotas.astype(int)
+        remainders = (quotas - base).sort_values(ascending=False)
+        for env in remainders.index[: max_per_class - int(base.sum())]:
+            base[env] += 1
+
+        for env, n in base.items():
+            if n > 0:
+                env_group = group[group["environment"] == env]
+                parts.append(env_group.sample(n=n, random_state=seed))
     return pd.concat(parts).reset_index(drop=True)
 
 
@@ -53,9 +76,10 @@ def run_data_preparation_pipeline(
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
-    if not DATASET_ROOT.exists():
+    dataset_root = get_dataset_root()
+    if not dataset_root.exists():
         raise SystemExit(
-            f"DATASET_ROOT no encontrado: {DATASET_ROOT}. Verifica DATASET_ROOT en .env"
+            f"DATASET_ROOT no encontrado: {dataset_root}. Verifica DATASET_ROOT en .env"
         )
 
     baseline_cfg = config.get("baseline", {}) if baseline else {}
@@ -64,8 +88,8 @@ def run_data_preparation_pipeline(
         max_per_class if max_per_class is not None else baseline_cfg.get("max_images_per_class")
     )
 
-    clean_dir = DATASET_ROOT / config["paths"]["raw_dir"]
-    base_output_dir = DATASET_ROOT / config["paths"]["split_output_dir"]
+    clean_dir = dataset_root / config["paths"]["raw_dir"]
+    base_output_dir = dataset_root / config["paths"]["split_output_dir"]
     output_dir = _split_output_dir(base_output_dir, suffix="baseline" if baseline else None)
     seed = config["dataset"]["seed"]
 
@@ -74,22 +98,25 @@ def run_data_preparation_pipeline(
     logger.info("Escaneando directorios para calcular la carga de trabajo...")
     raw_image_paths: list[tuple[str, str, Path, str]] = []
 
-    for class_name in os.listdir(clean_dir):
+    # Recorrido ordenado: el orden de os.listdir depende del filesystem/OS y la dedup
+    # SHA-256 conserva la primera copia vista — sin sorted(), qué duplicado sobrevive
+    # (y con qué label/environment) variaría entre máquinas pese al seed.
+    for class_name in sorted(os.listdir(clean_dir)):
         if class_name not in allowed_classes:
             continue
         class_path = clean_dir / class_name
         if not class_path.is_dir():
             continue
 
-        for environment in os.listdir(class_path):
+        for environment in sorted(os.listdir(class_path)):
             env_path = class_path / environment
             if environment not in ("real", "lab") or not env_path.is_dir():
                 continue
 
-            for img_name in os.listdir(env_path):
+            for img_name in sorted(os.listdir(env_path)):
                 if img_name.lower().endswith((".png", ".jpg", ".jpeg")):
                     abs_path = env_path / img_name
-                    rel_path = str(abs_path.relative_to(DATASET_ROOT))
+                    rel_path = str(abs_path.relative_to(dataset_root))
                     raw_image_paths.append((class_name, environment, abs_path, rel_path))
 
     if not raw_image_paths:
@@ -138,6 +165,16 @@ def run_data_preparation_pipeline(
             f"{before} -> {len(df_manifest)} imágenes"
         )
 
+    strata = df_manifest.groupby(["label", "environment"]).size()
+    too_small = strata[strata < _MIN_STRATUM_IMAGES]
+    if not too_small.empty:
+        detail = ", ".join(f"{label}/{env}={n}" for (label, env), n in too_small.items())
+        raise SystemExit(
+            f"Estratos con menos de {_MIN_STRATUM_IMAGES} imágenes, insuficientes para el "
+            f"split estratificado 70/15/15: {detail}. Agrega imágenes a esos estratos o "
+            "excluye esas clases (--classes)."
+        )
+
     logger.info("Ejecutando división jerárquica estratificada (70% Train, 15% Val, 15% Test)...")
     splitter = HierarchicalStratifiedSplitter(seed=seed)
     train_df, val_df, test_df = splitter.split(
@@ -154,8 +191,6 @@ def run_data_preparation_pipeline(
     )
 
     logger.info("Generando reporte de auditoría del split...")
-    report_dir = DATASET_ROOT / "reports" / "class_distribution"
-    report_dir.mkdir(parents=True, exist_ok=True)
 
     train_counts = train_df.groupby(["label", "environment"]).size().rename("train_count")
     val_counts = val_df.groupby(["label", "environment"]).size().rename("val_count")
@@ -164,9 +199,11 @@ def run_data_preparation_pipeline(
     report_df = pd.concat([train_counts, val_counts, test_counts], axis=1).fillna(0).astype(int)
     report_df["total_count"] = report_df.sum(axis=1)
     report_df = report_df.reset_index()
-    report_df.to_csv(report_dir / "split_audit_report.csv", index=False)
+    # Se guarda junto a los CSV del split (no en una ruta global compartida) para que los
+    # perfiles completo y baseline no se pisen el reporte entre sí.
+    report_df.to_csv(output_dir / "split_audit_report.csv", index=False)
 
-    logger.info(f"Reporte de auditoría guardado en: {report_dir}/split_audit_report.csv")
+    logger.info(f"Reporte de auditoría guardado en: {output_dir / 'split_audit_report.csv'}")
 
 
 if __name__ == "__main__":

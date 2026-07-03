@@ -12,6 +12,9 @@
 - **Config centralizada:** `config/dataset.yaml` declara clases, `target_size`, seed y el perfil `baseline`. Los módulos lo leen; nunca hardcodear constantes de dominio.
 - **Sin `sys.path.append`.** Paquete editable (`pip install -e .`); los imports `src.*` resuelven directo.
 - **`MINORITY_CLASSES`** (`src/data/transforms.py`) es un `frozenset` estático que `CornDataset.__getitem__` consulta para aplicar augmentation extendido — independiente del subset/límite usado al generar los splits.
+- **`target_size` es `[alto, ancho]`** (convención `(h, w)` de torchvision). El `Resize(224,224)` directo con distorsión de aspecto es intencional y consistente train/eval — no "corregirlo" a Resize+CenterCrop.
+- **Balanceo de clases:** lo hace el `WeightedRandomSampler` (+ augmentation de minoritarias); la loss NO se pondera además por frecuencia — sería doble compensación.
+- **Utilidades comunes de entrenamiento** (`src/training/common.py`): `resolve_model_names`, `worker_init_fn`, `select_device` — compartidas por `train.py` y `train_baselines.py`; no duplicarlas en los scripts.
 - Para ubicar símbolos, llamadas o impacto de cambios en `src/`, usa CodeGraph (si está disponible) en vez de grep/lectura manual.
 
 ## Pipelines
@@ -41,7 +44,7 @@ instalado en `venv/`) + `scripts/vastai/onstart.sh` (provisioning: clona, instal
 ## Comandos frecuentes
 
 ```bash
-make install                          # pip install -e ".[dev,analysis]"
+make install                          # pip install -e ".[dev,analysis,cloud]"
 make download-dataset                 # clean/ (HF Hub, fallback Google Drive)
 make splits / make splits-baseline    # regenera splits CSV
 make train-baselines [MODELS=<nombre>] / make train-baselines-full

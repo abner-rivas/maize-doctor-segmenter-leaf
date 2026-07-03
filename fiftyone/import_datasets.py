@@ -4,7 +4,8 @@ from typing import Iterator, List
 
 import fiftyone as fo
 
-BASE_DIR = "/mnt/datasets/data/corn-leaf-diseases/raw"
+from src.config import get_dataset_root
+
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 UNLABELED_DIR = "_unlabeled"
 DEFAULT_BATCH_SIZE = 64
@@ -48,7 +49,9 @@ def iter_batches(samples: Iterator[fo.Sample], batch_size: int) -> Iterator[List
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Import datasets into FiftyOne")
-    parser.add_argument("--base-dir", default=BASE_DIR, help="Root directory for datasets")
+    parser.add_argument(
+        "--base-dir", default=None, help="Root directory for datasets (default: $DATASET_ROOT/raw)"
+    )
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Samples per batch")
     parser.add_argument("--skip-existing", action="store_true", help="Skip datasets that already exist")
     return parser.parse_args()
@@ -56,7 +59,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    base_dir = args.base_dir
+    base_dir = args.base_dir or str(get_dataset_root() / "raw")
     batch_size = max(1, args.batch_size)
 
     for folder in os.listdir(base_dir):

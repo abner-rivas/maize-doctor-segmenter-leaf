@@ -1,5 +1,4 @@
 import argparse
-import functools
 import logging
 from pathlib import Path
 
@@ -9,45 +8,14 @@ from torch.utils.data import DataLoader
 
 import src.models.baselines.efficientnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
-from src.config import DATASET_ROOT, PROJECT_ROOT, set_global_seed
+from src.config import PROJECT_ROOT, get_dataset_root, set_global_seed
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
 from src.models.registry import MODEL_REGISTRY
+from src.training.common import resolve_model_names, select_device, worker_init_fn
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
-_DEFAULT_SPLITS_DIR = str(DATASET_ROOT / "splits" / "seed_42")
-_DEFAULT_OUTPUT_DIR = str(DATASET_ROOT / "results" / "main")
-
-
-def _resolve_model_names(requested: list[str]) -> list[str]:
-    available = MODEL_REGISTRY.list_names()
-    if requested == ["all"]:
-        return available
-    unknown = [n for n in requested if n not in MODEL_REGISTRY]
-    if unknown:
-        raise SystemExit(f"Modelos desconocidos: {unknown}. Disponibles: {available}")
-    return requested
-
-
-def _worker_init_fn(worker_id: int, seed: int) -> None:
-    import random
-
-    import numpy as np
-
-    worker_seed = seed + worker_id
-    random.seed(worker_seed)
-    np.random.seed(worker_seed)
-    torch.manual_seed(worker_seed)
-
-
-def build_class_weights(dataset: CornDataset) -> torch.Tensor:
-    counts = dataset.data_frame["label"].value_counts().to_dict()
-    total = sum(counts.values())
-    num_classes = len(dataset.class_to_idx)
-    weights = [total / (num_classes * counts[cls]) for cls in dataset.allowed_classes]
-    return torch.tensor(weights, dtype=torch.float)
 
 
 def main() -> None:
@@ -61,15 +29,16 @@ def main() -> None:
     )
     parser.add_argument(
         "--splits-dir",
-        default=_DEFAULT_SPLITS_DIR,
+        default=None,
         dest="splits_dir",
-        help=f"Directorio con train/val/test.csv (default: {_DEFAULT_SPLITS_DIR})",
+        help="Directorio con train/val/test.csv (default: $DATASET_ROOT/splits/seed_42)",
     )
     parser.add_argument(
         "--output-dir",
-        default=_DEFAULT_OUTPUT_DIR,
+        default=None,
         dest="output_dir",
-        help=f"Directorio de salida para checkpoints y métricas (default: {_DEFAULT_OUTPUT_DIR})",
+        help="Directorio de salida para checkpoints y métricas "
+        "(default: $DATASET_ROOT/results/main)",
     )
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=32, dest="batch_size")
@@ -84,9 +53,12 @@ def main() -> None:
     seed = cfg["dataset"]["seed"]
     set_global_seed(seed)
 
-    model_names = _resolve_model_names(args.models)
-    splits_dir = Path(args.splits_dir)
-    output_dir = Path(args.output_dir)
+    model_names = resolve_model_names(args.models, MODEL_REGISTRY)
+    dataset_root = get_dataset_root()
+    splits_dir = (
+        Path(args.splits_dir) if args.splits_dir else dataset_root / "splits" / "seed_42"
+    )
+    output_dir = Path(args.output_dir) if args.output_dir else dataset_root / "results" / "main"
 
     if not splits_dir.exists():
         raise SystemExit(
@@ -94,13 +66,7 @@ def main() -> None:
             "Genera los splits primero con: make splits"
         )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type == "cuda":
-        gpu_name = torch.cuda.get_device_name(0)
-        gpu_mem_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
-        logger.info(f"Dispositivo: GPU - {gpu_name} ({gpu_mem_gb:.1f} GB VRAM)")
-    else:
-        logger.warning("Dispositivo: CPU (no se detectó GPU — el entrenamiento será significativamente más lento)")
+    device = select_device()
     logger.info(f"Modelos a entrenar: {model_names}")
 
     factory = CornTransformFactory()
@@ -109,35 +75,52 @@ def main() -> None:
         transform=factory.get_pipeline("train"),
         minority_transform=factory.get_pipeline("minority"),
     )
+    # Mapeo canónico: derivado del split de train e inyectado en val/test para garantizar
+    # índices consistentes entre los tres splits.
+    class_to_idx = train_dataset.class_to_idx
+    num_classes = len(class_to_idx)
     val_dataset = CornDataset(
         csv_path=str(splits_dir / "val.csv"),
         transform=factory.get_pipeline("val"),
+        class_to_idx=class_to_idx,
     )
     test_dataset = CornDataset(
         csv_path=str(splits_dir / "test.csv"),
         transform=factory.get_pipeline("test"),
+        class_to_idx=class_to_idx,
     )
 
     sampler = build_weighted_sampler(train_dataset, seed=seed)
-    class_weights = build_class_weights(train_dataset).to(device)
-    num_classes = len(train_dataset.class_to_idx)
+    pin_memory = device.type == "cuda"
 
     train_loader = DataLoader(  # noqa: F841
         train_dataset,
         batch_size=args.batch_size,
         sampler=sampler,
         num_workers=4,
-        pin_memory=True,
-        worker_init_fn=functools.partial(_worker_init_fn, seed=seed),
+        pin_memory=pin_memory,
+        worker_init_fn=worker_init_fn,
     )
     val_loader = DataLoader(  # noqa: F841
-        val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True
+        val_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=4,
+        pin_memory=pin_memory,
     )
     test_loader = DataLoader(  # noqa: F841
-        test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=4,
+        pin_memory=pin_memory,
     )
 
-    criterion = torch.nn.CrossEntropyLoss(weight=class_weights)  # noqa: F841
+    # El desbalance de clases lo compensa el WeightedRandomSampler (+ augmentation extendida
+    # para MINORITY_CLASSES). No ponderar además la loss con pesos inversos a la frecuencia:
+    # sampler balanceado + loss ponderada corrigen lo mismo dos veces y sobre-ponderan las
+    # clases minoritarias ~cuadráticamente.
+    criterion = torch.nn.CrossEntropyLoss()  # noqa: F841
 
     for model_name in model_names:
         model = MODEL_REGISTRY.build(model_name, num_classes=num_classes).to(device)  # noqa: F841

@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[3]))
-from src.config import DATASET_ROOT
+from src.config import get_dataset_root
 
 
 def parse_args():
@@ -16,20 +16,24 @@ def parse_args():
     parser.add_argument(
         "--csv",
         default=str(
-            DATASET_ROOT / "raw" / "maize-in-field-dataset" / "Kaggle Dataset" / "Database.csv"
+            get_dataset_root()
+            / "raw"
+            / "maize-in-field-dataset"
+            / "Kaggle Dataset"
+            / "Database.csv"
         ),
         help="Path to Database.csv",
     )
     parser.add_argument(
         "--images",
         default=str(
-            DATASET_ROOT / "raw" / "maize-in-field-dataset" / "Kaggle Dataset" / "leaf_images"
+            get_dataset_root() / "raw" / "maize-in-field-dataset" / "Kaggle Dataset" / "leaf_images"
         ),
         help="Path to the leaf_images directory",
     )
     parser.add_argument(
         "--output",
-        default=str(DATASET_ROOT / "clean" / "maize-in-field-dataset"),
+        default=str(get_dataset_root() / "clean" / "maize-in-field-dataset"),
         help="Output directory for organized images",
     )
     parser.add_argument(
