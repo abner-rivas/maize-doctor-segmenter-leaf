@@ -95,6 +95,7 @@ class CornValidationTransforms(TransformPipelineFactory):
     Pipeline de transformaciones deterministas para validación y prueba.
 
     No aplica augmentations aleatorias para garantizar una evaluación justa y reproducible.
+    El `Resize` directo (con distorsión de aspecto) es intencional (ver CLAUDE.md).
     """
 
     def __init__(self, target_size: tuple[int, int]):
@@ -123,9 +124,9 @@ class CornTransformFactory:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
 
-        # Lee las dimensiones configuradas en tu archivo paramétrico
-        width, height = config["dataset"]["target_size"]
-        self.target_size = (width, height)
+        # target_size es [alto, ancho] — convención (h, w) de torchvision (ver CLAUDE.md)
+        height, width = config["dataset"]["target_size"]
+        self.target_size = (height, width)
 
     def get_pipeline(self, stage: str) -> T.Compose:
         """Retorna el pipeline de transformación correspondiente a la etapa."""

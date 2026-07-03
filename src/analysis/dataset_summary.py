@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.config import DATASET_ROOT
+from src.config import get_dataset_root
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"}
 _COL_W = 52
@@ -19,6 +19,14 @@ _COL_W = 52
 # ---------------------------------------------------------------------------
 # Funciones de conteo
 # ---------------------------------------------------------------------------
+
+
+def _count_images(directory: Path) -> int:
+    """Cuenta solo extensiones de imagen — misma regla que _scan(), para que tabla y
+    reporte de disco coincidan."""
+    if not directory.is_dir():
+        return 0
+    return sum(1 for f in directory.iterdir() if f.is_file() and f.suffix.lower() in IMAGE_EXTS)
 
 
 def count_clean_dataset(clean_dir: Path) -> pd.DataFrame:
@@ -33,12 +41,10 @@ def count_clean_dataset(clean_dir: Path) -> pd.DataFrame:
 
     rows = []
     for class_dir in sorted(clean_dir.iterdir()):
-        if not class_dir.is_dir():
+        if not class_dir.is_dir() or class_dir.name.startswith("."):  # omite .cache, etc.
             continue
-        lab_count = len(list((class_dir / "lab").iterdir())) if (class_dir / "lab").exists() else 0
-        real_count = (
-            len(list((class_dir / "real").iterdir())) if (class_dir / "real").exists() else 0
-        )
+        lab_count = _count_images(class_dir / "lab")
+        real_count = _count_images(class_dir / "real")
         rows.append(
             {
                 "Clase": class_dir.name,
@@ -181,12 +187,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    clean_dir = DATASET_ROOT / "clean"
+    dataset_root = get_dataset_root()
+    clean_dir = dataset_root / "clean"
 
     if args.mode in ("table", "all"):
         print_class_table(clean_dir)
     if args.mode in ("disk", "all"):
-        print_disk_summary(DATASET_ROOT)
+        print_disk_summary(dataset_root)
 
 
 if __name__ == "__main__":

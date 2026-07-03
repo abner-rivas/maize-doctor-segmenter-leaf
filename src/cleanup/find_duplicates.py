@@ -5,21 +5,20 @@ usando imagededup (PHash - rápido, escala a 20k+ imágenes).
 Analiza cada enfermedad completa (lab/ + real/ juntos).
 
 Opciones:
-  1. Encontrar duplicados  - guarda CSV en $DATASET_ROOT/analysis/
+  1. Encontrar duplicados  - guarda CSV en results/ (junto a este script)
   2. Encontrar y eliminar  - guarda CSV y elimina duplicados
   3. Eliminar duplicados   - elimina basándose en CSV ya existente
+
+Los CSV existentes en results/ son registro histórico (ver results/README.md).
 """
 
 import csv
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parents[2]))
-from src.config import DATASET_ROOT
+from src.config import get_dataset_root
 
-CLEAN_DIR = DATASET_ROOT / "clean"
 ANALYSIS_DIR = Path(__file__).parent / "results"
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"}
@@ -33,11 +32,12 @@ PHASH_THRESHOLD = 0
 
 
 def get_disease_dirs() -> list[Path]:
-    if not CLEAN_DIR.exists():
+    clean_dir = get_dataset_root() / "clean"
+    if not clean_dir.exists():
         raise SystemExit(
-            f"No se encontró la carpeta clean en {DATASET_ROOT}. Verifica DATASET_ROOT en .env"
+            f"No se encontró la carpeta clean en {clean_dir.parent}. Verifica DATASET_ROOT en .env"
         )
-    return sorted([d for d in CLEAN_DIR.iterdir() if d.is_dir()])
+    return sorted([d for d in clean_dir.iterdir() if d.is_dir()])
 
 
 def count_images(disease_dir: Path) -> int:
@@ -47,7 +47,7 @@ def count_images(disease_dir: Path) -> int:
 def choose_disease() -> Path:
     dirs = get_disease_dirs()
     if not dirs:
-        raise SystemExit(f"No se encontraron carpetas en {CLEAN_DIR}.")
+        raise SystemExit(f"No se encontraron carpetas en {get_dataset_root() / 'clean'}.")
     print("\nEnfermedades disponibles:\n")
     for i, d in enumerate(dirs, 1):
         total = count_images(d)
