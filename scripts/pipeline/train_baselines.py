@@ -19,6 +19,7 @@ import src.models.baselines.shufflenet  # noqa: F401 - registra modelos
 from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_global_seed
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
+from src.explainability.augmentation_preview import save_augmentation_evidence
 from src.explainability.visual_report import explain_model_visual
 from src.models.registry import MODEL_REGISTRY
 from src.training.common import (
@@ -125,6 +126,15 @@ def train_baseline(
     started_at = datetime.now()
     run_id = started_at.strftime("%Y%m%d_%H%M%S")
     run_dir = build_run_dir(output_dir, model_name, run_id)
+
+    save_augmentation_evidence(
+        train_csv_path=str(splits_dir / "train.csv"),
+        dataset_root=get_dataset_root(),
+        train_transform=factory.get_pipeline("train"),
+        minority_transform=factory.get_pipeline("minority"),
+        output_dir=run_dir,
+        seed=seed,
+    )
 
     best_val_f1 = -1.0
     best_ckpt_path = run_dir / "best.pth"

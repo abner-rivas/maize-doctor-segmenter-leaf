@@ -44,7 +44,7 @@ test-loader:
 summary:
 	$(PYTHON) src/analysis/dataset_summary.py
 
-# Requiere shell POSIX (Git Bash/WSL en Windows) y que existan outputs/eda/eda_*.png
+# Requiere shell POSIX (Powershell/Git Bash/WSL en Windows) y que existan outputs/eda/eda_*.png
 docs-eda:
 	cp outputs/eda/eda_*.png public/eda/
 
