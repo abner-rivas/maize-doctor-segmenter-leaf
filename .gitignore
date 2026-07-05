@@ -11,6 +11,9 @@ cache/
 dist/
 node_modules/
 /data
+/outputs/
+/outputs-remote/
+/results-remote/
 
 npm-debug.log*
 yarn-debug.log*

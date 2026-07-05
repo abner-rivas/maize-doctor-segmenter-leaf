@@ -1,7 +1,6 @@
 paths:
-  # Rutas relativas a DATASET_ROOT
-  raw_dir: "clean"
-  split_output_dir: "splits/seed_42"
+  raw_dir: "clean"                    # relativo a DATASET_ROOT
+  split_output_dir: "splits/seed_42"  # relativo a outputs/ (ver get_output_root())
 
 dataset:
   target_size: [224, 224]

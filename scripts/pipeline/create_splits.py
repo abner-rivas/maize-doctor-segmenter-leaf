@@ -9,7 +9,7 @@ import yaml
 from PIL import Image
 from tqdm import tqdm
 
-from src.config import get_dataset_root
+from src.config import get_dataset_root, get_output_root
 from src.data.splitter import HierarchicalStratifiedSplitter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -85,7 +85,7 @@ def run_data_preparation_pipeline(
     )
 
     clean_dir = dataset_root / config["paths"]["raw_dir"]
-    base_output_dir = dataset_root / config["paths"]["split_output_dir"]
+    base_output_dir = get_output_root() / config["paths"]["split_output_dir"]
     output_dir = _split_output_dir(base_output_dir, suffix="baseline" if baseline else None)
     seed = config["dataset"]["seed"]
 
@@ -151,6 +151,15 @@ def run_data_preparation_pipeline(
         f"Manifiesto construido: {len(df_manifest)} imágenes válidas "
         f"(duplicados exactos omitidos: {duplicates_found} | corruptas omitidas: {corrupt_found})"
     )
+
+    missing_classes = sorted(set(allowed_classes) - set(df_manifest["label"].unique()))
+    if missing_classes:
+        raise SystemExit(
+            f"Clases configuradas sin ninguna imagen válida indexada en '{clean_dir}': "
+            f"{missing_classes}. El dataset parece incompleto o desactualizado en "
+            "DATASET_ROOT (revisa `make download-dataset`); si es intencional, quítalas de "
+            "dataset.classes / baseline.classes en config/dataset.yaml o usa --classes."
+        )
 
     if max_per_class is not None:
         before = len(df_manifest)
