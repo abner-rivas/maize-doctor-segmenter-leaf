@@ -120,13 +120,19 @@ class CornTransformFactory:
     Punto de acceso único (Factory) para obtener los pipelines según la etapa del flujo.
     """
 
-    def __init__(self, config_path: str = _DEFAULT_CONFIG):
+    def __init__(
+        self,
+        config_path: str = _DEFAULT_CONFIG,
+        target_size: tuple[int, int] | None = None,
+    ):
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
 
         # target_size es [alto, ancho] — convención (h, w) de torchvision (ver CLAUDE.md)
-        height, width = config["dataset"]["target_size"]
-        self.target_size = (height, width)
+        if target_size is None:
+            height, width = config["dataset"]["target_size"]
+            target_size = (height, width)
+        self.target_size = target_size
 
     def get_pipeline(self, stage: str) -> T.Compose:
         """Retorna el pipeline de transformación correspondiente a la etapa."""
