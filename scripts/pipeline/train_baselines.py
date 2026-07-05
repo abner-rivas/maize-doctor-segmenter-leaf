@@ -11,11 +11,18 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.config import PROJECT_ROOT, get_dataset_root, set_global_seed
+from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_global_seed
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
 from src.models import MODEL_REGISTRY, build_model, list_models
-from src.training.common import resolve_model_names, select_device, worker_init_fn
+from src.training.common import (
+    build_run_dir,
+    generate_run_id,
+    resolve_model_names,
+    select_device,
+    update_latest_pointer,
+    worker_init_fn,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -175,20 +182,24 @@ def _write_test_outputs(
 
 
 def _write_summary(
-    model_dir: Path,
+    run_dir: Path,
     model_name: str,
+    run_id: str,
     args: argparse.Namespace,
     target_size: tuple[int, int],
     class_to_idx: dict[str, int],
+    splits_dir: Path,
     best_epoch: int,
     best_val_macro_f1: float,
     test_metrics: dict[str, float],
 ) -> None:
     summary = {
         "model": model_name,
+        "run_id": run_id,
         "num_classes": len(class_to_idx),
         "class_to_idx": class_to_idx,
         "image_size": list(target_size),
+        "splits_dir": str(splits_dir),
         "epochs": args.epochs,
         "batch_size": args.batch_size,
         "learning_rate": args.learning_rate,
@@ -198,7 +209,9 @@ def _write_summary(
         "best_val_macro_f1": best_val_macro_f1,
         "test": test_metrics,
     }
-    with open(model_dir / "summary.json", "w") as f:
+    with open(run_dir / "summary.json", "w") as f:
+        json.dump(summary, f, indent=2)
+    with open(run_dir / "metrics.json", "w") as f:
         json.dump(summary, f, indent=2)
 
 
@@ -209,12 +222,13 @@ def _train_model(
     idx_to_class: dict[int, str],
     args: argparse.Namespace,
     target_size: tuple[int, int],
+    splits_dir: Path,
     output_dir: Path,
     device: torch.device,
-) -> None:
+) -> Path:
     train_loader, val_loader, test_loader = loaders
-    model_dir = output_dir / model_name
-    model_dir.mkdir(parents=True, exist_ok=True)
+    run_id = generate_run_id()
+    run_dir = build_run_dir(output_dir, model_name, run_id)
 
     logger.info("[%s] Construyendo modelo", model_name)
     model = build_model(
@@ -265,14 +279,14 @@ def _train_model(
             "epoch_seconds": epoch_seconds,
         }
         history.append(row)
-        pd.DataFrame(history).to_csv(model_dir / "train_history.csv", index=False)
+        pd.DataFrame(history).to_csv(run_dir / "train_history.csv", index=False)
 
         if val_metrics["macro_f1"] > best_val_macro_f1:
             best_epoch = epoch
             best_val_macro_f1 = val_metrics["macro_f1"]
-            torch.save(model.state_dict(), model_dir / "best.pth")
+            torch.save(model.state_dict(), run_dir / "best.pth")
 
-        torch.save(model.state_dict(), model_dir / "last.pth")
+        torch.save(model.state_dict(), run_dir / "last.pth")
         logger.info(
             "[%s] epoch %s/%s train_f1=%.4f val_f1=%.4f",
             model_name,
@@ -282,7 +296,7 @@ def _train_model(
             val_metrics["macro_f1"],
         )
 
-    best_path = model_dir / "best.pth"
+    best_path = run_dir / "best.pth"
     if best_path.exists():
         model.load_state_dict(torch.load(best_path, map_location=device))
 
@@ -293,18 +307,70 @@ def _train_model(
         device,
         desc=f"{model_name} test",
     )
-    _write_test_outputs(model_dir, idx_to_class, labels, predictions)
+    _write_test_outputs(run_dir, idx_to_class, labels, predictions)
     _write_summary(
-        model_dir,
+        run_dir,
         model_name,
+        run_id,
         args,
         target_size,
         class_to_idx,
+        splits_dir,
         best_epoch,
         best_val_macro_f1,
         test_metrics,
     )
+    update_latest_pointer(output_dir, model_name, run_id)
     logger.info("[%s] Test macro_f1=%.4f", model_name, test_metrics["macro_f1"])
+    logger.info("[%s] Run completado en %s", model_name, run_dir)
+    return run_dir
+
+
+def _generate_lime_reports(
+    model_name: str,
+    run_dir: Path,
+    splits_dir: Path,
+    idx_to_class: dict[int, str],
+    target_size: tuple[int, int],
+    cfg: dict,
+    device: torch.device,
+) -> None:
+    try:
+        from src.explainability.visual_report import explain_model_visual
+    except ModuleNotFoundError as e:
+        logger.warning(
+            "[%s] No se generaron reportes LIME porque falta la dependencia opcional: %s. "
+            "Instala el extra xai con: pip install -e .[xai]",
+            model_name,
+            e.name,
+        )
+        return
+
+    checkpoint_path = run_dir / "best.pth"
+    if not checkpoint_path.exists():
+        logger.warning("[%s] No se encontró best.pth para LIME en %s", model_name, run_dir)
+        return
+
+    lime_cfg = cfg["lime"]
+    test_df = pd.read_csv(splits_dir / "test.csv")
+    model = build_model(model_name, num_classes=len(idx_to_class), pretrained=False).to(device)
+    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+    model.eval()
+
+    explain_model_visual(
+        model=model,
+        model_name=model_name,
+        test_df=test_df,
+        dataset_root=get_dataset_root(),
+        idx_to_class=idx_to_class,
+        target_size=target_size,
+        output_dir=run_dir,
+        images_per_class=lime_cfg["images_per_class"],
+        num_features=lime_cfg["num_features"],
+        num_samples=lime_cfg["num_samples"],
+        seed=lime_cfg["seed"],
+        device=device,
+    )
 
 
 def main() -> None:
@@ -330,7 +396,7 @@ def main() -> None:
         "--output-dir",
         default=None,
         dest="output_dir",
-        help="Directorio de salida (default: $DATASET_ROOT/results/baselines).",
+        help="Directorio base de salida (default: <repo>/outputs/baselines).",
     )
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=32, dest="batch_size")
@@ -342,7 +408,7 @@ def main() -> None:
     parser.add_argument(
         "--lime",
         action="store_true",
-        help="Aceptado por compatibilidad; usa make explain-lime para generar reportes LIME.",
+        help="Genera reportes visuales LIME dentro del run al terminar cada modelo.",
     )
     parser.add_argument(
         "--config",
@@ -359,13 +425,13 @@ def main() -> None:
     set_global_seed(seed)
 
     model_names = resolve_model_names(args.models, MODEL_REGISTRY)
-    dataset_root = get_dataset_root()
+    output_root = get_output_root()
     split_name = "seed_42_baseline" if args.baseline else "seed_42"
-    splits_dir = Path(args.splits_dir) if args.splits_dir else dataset_root / "splits" / split_name
+    splits_dir = Path(args.splits_dir) if args.splits_dir else output_root / "splits" / split_name
     output_dir = (
         Path(args.output_dir)
         if args.output_dir
-        else dataset_root / "results" / "baselines"
+        else output_root / "baselines"
     )
     target_size = _target_size_from_args(args, cfg)
 
@@ -390,20 +456,34 @@ def main() -> None:
     train_loader, val_loader, test_loader, class_to_idx, idx_to_class = loaders
     dataloaders = (train_loader, val_loader, test_loader)
 
+    run_dirs: dict[str, Path] = {}
     for model_name in model_names:
-        _train_model(
+        run_dir = _train_model(
             model_name=model_name,
             loaders=dataloaders,
             class_to_idx=class_to_idx,
             idx_to_class=idx_to_class,
             args=args,
             target_size=target_size,
+            splits_dir=splits_dir,
             output_dir=output_dir,
             device=device,
         )
+        run_dirs[model_name] = run_dir
+
+        if args.lime:
+            _generate_lime_reports(
+                model_name=model_name,
+                run_dir=run_dir,
+                splits_dir=splits_dir,
+                idx_to_class=idx_to_class,
+                target_size=target_size,
+                cfg=cfg,
+                device=device,
+            )
 
     if args.lime:
-        logger.info("--lime recibido. Genera explicaciones con: make explain-lime")
+        logger.info("Reportes LIME procesados para runs: %s", run_dirs)
 
 
 if __name__ == "__main__":
