@@ -76,10 +76,12 @@ def main() -> None:
     model_names = _resolve_model_names(args.models)
     use_baseline = args.baseline if args.baseline is not None else lime_cfg["baseline"]
     splits_dir = DATASET_ROOT / "splits" / ("seed_42_baseline" if use_baseline else "seed_42")
-    classes = cfg["baseline"]["classes"] if use_baseline else cfg["dataset"]["classes"]
+    classes = cfg["dataset"]["classes"]
 
     if args.output is not None and (args.image is None or len(model_names) != 1):
-        raise SystemExit("--output solo es válido junto con --image y un único modelo en --models.")
+        raise SystemExit(
+            "--output solo es valido junto con --image y un unico modelo en --models."
+        )
 
     if not splits_dir.exists():
         raise SystemExit(
