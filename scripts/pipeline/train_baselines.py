@@ -58,14 +58,15 @@ def _evaluate(
     model: nn.Module,
     loader: DataLoader,
     device: torch.device,
-) -> tuple[list[int], list[int]]:
+) -> tuple[list[int], list[int], list[float]]:
     model.eval()
-    all_preds, all_labels = [], []
+    all_preds, all_labels, all_probs = [], [], []
     for images, labels in loader:
-        preds = model(images.to(device)).argmax(dim=1).cpu().tolist()
-        all_preds.extend(preds)
+        probs = model(images.to(device)).softmax(dim=1)
+        all_preds.extend(probs.argmax(dim=1).cpu().tolist())
         all_labels.extend(labels.tolist())
-    return all_preds, all_labels
+        all_probs.extend(probs.max(dim=1).values.cpu().tolist())
+    return all_preds, all_labels, all_probs
 
 
 def train_baseline(
@@ -78,6 +79,7 @@ def train_baseline(
     seed: int,
     target_size: tuple[int, int],
     lime_cfg: dict | None = None,
+    gradcam_enabled: bool = True,
 ) -> None:
     logger.info(f"[{model_name}] Iniciando entrenamiento")
 
@@ -141,7 +143,7 @@ def train_baseline(
 
     for epoch in range(1, epochs + 1):
         train_loss = _train_one_epoch(model, train_loader, optimizer, criterion, device)
-        val_preds, val_labels = _evaluate(model, val_loader, device)
+        val_preds, val_labels, _ = _evaluate(model, val_loader, device)
         val_f1 = f1_score(val_labels, val_preds, average="macro", zero_division=0)
 
         logger.info(
@@ -155,7 +157,7 @@ def train_baseline(
 
     # Evaluación final sobre test con el mejor checkpoint
     model.load_state_dict(torch.load(best_ckpt_path, map_location=device))
-    test_preds, test_labels = _evaluate(model, test_loader, device)
+    test_preds, test_labels, test_probs = _evaluate(model, test_loader, device)
 
     target_names = [train_dataset.idx_to_class[i] for i in range(num_classes)]
     test_f1 = f1_score(test_labels, test_preds, average="macro", zero_division=0)
@@ -180,6 +182,18 @@ def train_baseline(
     logger.info(f"[{model_name}] Métricas guardadas en {metrics_path}")
     logger.info(f"[{model_name}] test accuracy={test_acc:.4f} | test macro-F1={test_f1:.4f}")
 
+    predictions_df = pd.DataFrame(
+        {
+            "image_path": test_dataset.data_frame["image_path"].tolist(),
+            "label": test_dataset.data_frame["label"].tolist(),
+            "pred_label": [train_dataset.idx_to_class[p] for p in test_preds],
+            "pred_prob": test_probs,
+        }
+    )
+    predictions_path = run_dir / "predictions.csv"
+    predictions_df.to_csv(predictions_path, index=False)
+    logger.info(f"[{model_name}] Predicciones de test guardadas en {predictions_path}")
+
     update_latest_pointer(output_dir, model_name, run_id)
 
     if lime_cfg is not None:
@@ -197,6 +211,7 @@ def train_baseline(
             num_samples=lime_cfg["num_samples"],
             seed=lime_cfg["seed"],
             device=device,
+            enable_gradcam=gradcam_enabled,
         )
 
 
@@ -269,6 +284,7 @@ def main() -> None:
     device = select_device()
     target_size = tuple(cfg["dataset"]["target_size"])
     lime_cfg = cfg["lime"] if args.lime else None
+    gradcam_enabled = cfg.get("gradcam", {}).get("enabled", False)
 
     logger.info(f"Modelos a entrenar: {model_names}")
     logger.info(f"Splits: {splits_dir}  |  Epochs: {args.epochs}")
@@ -284,6 +300,7 @@ def main() -> None:
             seed=seed,
             target_size=target_size,
             lime_cfg=lime_cfg,
+            gradcam_enabled=gradcam_enabled,
         )
 
     logger.info("Entrenamiento de baselines completado.")

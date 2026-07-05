@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 from typing import Callable
@@ -14,6 +15,7 @@ from PIL import Image
 from skimage.segmentation import mark_boundaries
 
 from src.data.loader import load_and_normalize_image
+from src.explainability.gradcam import GradCAM, build_gradcam_overlay, get_target_layer
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,18 @@ def sample_balanced(test_df: pd.DataFrame, num_per_class: int, seed: int) -> pd.
     return pd.concat(sampled, ignore_index=True)
 
 
+def explanation_dispersion(local_exp: list[tuple[int, float]]) -> float:
+    """
+    Desviación estándar de los pesos LIME normalizados por el máximo absoluto: valores
+    bajos indican una explicación concentrada en pocos superpíxeles dominantes; valores
+    altos indican pesos repartidos de forma pareja (explicación más difícil de
+    interpretar visualmente, como se observó en las clases con fondo ruidoso de campo).
+    """
+    weights = np.array([w for _, w in local_exp])
+    max_abs = np.abs(weights).max()
+    return float(np.std(weights / max_abs)) if max_abs > 0 else 0.0
+
+
 def _humanize_class_name(class_name: str) -> str:
     return _DISPLAY_NAMES.get(class_name, class_name.replace("_", " ").title())
 
@@ -64,6 +78,18 @@ def _diagnosis_color(class_name: str) -> str:
     return _COLOR_DISEASE
 
 
+def _build_validation_transform(target_size: tuple[int, int]) -> T.Compose:
+    """Resize + normalize deterministas de validación, compartidos entre `predict_fn`
+    (LIME) y la construcción del tensor de entrada para Grad-CAM."""
+    return T.Compose(
+        [
+            T.Resize(target_size),
+            T.ToTensor(),
+            T.Normalize(mean=_IMAGENET_MEAN, std=_IMAGENET_STD),
+        ]
+    )
+
+
 def build_predict_fn(
     model: nn.Module, device: torch.device, target_size: tuple[int, int]
 ) -> Callable[[np.ndarray], np.ndarray]:
@@ -72,13 +98,7 @@ def build_predict_fn(
     un batch de imágenes HWC uint8 y devuelve las probabilidades softmax por clase,
     aplicando las mismas transforms deterministas de validación (resize + normalize).
     """
-    validation_transform = T.Compose(
-        [
-            T.Resize(target_size),
-            T.ToTensor(),
-            T.Normalize(mean=_IMAGENET_MEAN, std=_IMAGENET_STD),
-        ]
-    )
+    validation_transform = _build_validation_transform(target_size)
 
     @torch.no_grad()
     def predict_fn(images: np.ndarray) -> np.ndarray:
@@ -135,10 +155,16 @@ def render_visual_explanation(
     num_features: int = 8,
     seed: int = 42,
     device: torch.device | None = None,
+    model_name: str | None = None,
 ) -> dict:
     """
-    Genera el reporte visual de 3 paneles (original / regiones positivas / heatmap
-    de importancia) para una única imagen y lo guarda como PNG en `output_path`.
+    Genera el reporte visual (original / regiones positivas / heatmap de importancia
+    LIME, y opcionalmente Grad-CAM como 4to panel) para una única imagen y lo guarda
+    como PNG en `output_path`.
+
+    `model_name` es opcional (default None): si se provee y está registrado en
+    `GRADCAM_TARGET_LAYERS`, añade el panel Grad-CAM; si es None o la arquitectura no
+    está soportada, el reporte mantiene el layout de 3 paneles original.
 
     Devuelve un dict con la predicción y probabilidad, útil para logging/metadata.
     """
@@ -176,6 +202,20 @@ def render_visual_explanation(
     local_exp = explanation.local_exp[pred_idx]
     heatmap_panel, norm = _build_importance_heatmap(image_rgb01, explanation.segments, local_exp)
 
+    gradcam_panel = None
+    if model_name is not None:
+        try:
+            target_layer = get_target_layer(model, model_name)
+            input_tensor = (
+                _build_validation_transform(target_size)(image).unsqueeze(0).to(device)
+            )
+            with GradCAM(model, target_layer) as cam:
+                heatmap = cam(input_tensor, class_idx=pred_idx)
+            gradcam_panel = build_gradcam_overlay(image_rgb01, heatmap, target_size)
+        except KeyError as e:
+            logger.warning(f"Grad-CAM omitido: {e}")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     _save_figure(
         original=image_rgb01,
         region_panel=region_panel,
@@ -184,9 +224,43 @@ def render_visual_explanation(
         pred_class=pred_class,
         pred_prob=pred_prob,
         output_path=output_path,
+        gradcam_panel=gradcam_panel,
+    )
+    _save_explanation_artifacts(
+        output_path=output_path,
+        pred_class=pred_class,
+        pred_prob=pred_prob,
+        local_exp=local_exp,
+        segments=explanation.segments,
     )
 
     return {"predicted_label": pred_class, "predicted_prob": pred_prob}
+
+
+def _save_explanation_artifacts(
+    output_path: Path,
+    pred_class: str,
+    pred_prob: float,
+    local_exp: list[tuple[int, float]],
+    segments: np.ndarray,
+) -> None:
+    """
+    Persiste junto al PNG (mismo stem) los datos numéricos que LIME ya calculó: un
+    .json con la predicción y los pesos por superpíxel, y un .npy con el mapa de
+    segmentos, necesarios para recalcular el heatmap o cruzarlo con otras máscaras
+    sin tener que re-ejecutar LIME.
+    """
+    metadata = {
+        "predicted_label": pred_class,
+        "predicted_prob": pred_prob,
+        "top_features": [
+            {"segment_id": int(seg_id), "weight": float(weight)} for seg_id, weight in local_exp
+        ],
+    }
+    output_path.with_suffix(".json").write_text(
+        json.dumps(metadata, indent=2, ensure_ascii=False)
+    )
+    np.save(output_path.with_suffix(".npy"), segments)
 
 
 def _save_figure(
@@ -197,12 +271,17 @@ def _save_figure(
     pred_class: str,
     pred_prob: float,
     output_path: Path,
+    gradcam_panel: np.ndarray | None = None,
 ) -> None:
     title_color = _diagnosis_color(pred_class)
     diagnosis_name = _humanize_class_name(pred_class)
 
-    fig = plt.figure(figsize=(16, 6), facecolor="white")
-    grid = gridspec.GridSpec(1, 4, width_ratios=[1, 1, 1, 0.08])
+    has_gradcam = gradcam_panel is not None
+    n_image_panels = 4 if has_gradcam else 3
+    width_ratios = [1] * n_image_panels + [0.08]
+
+    fig = plt.figure(figsize=(16 + (4 if has_gradcam else 0), 6), facecolor="white")
+    grid = gridspec.GridSpec(1, n_image_panels + 1, width_ratios=width_ratios)
 
     ax_original = fig.add_subplot(grid[0, 0])
     ax_original.imshow(original)
@@ -225,7 +304,13 @@ def _save_figure(
     ax_heatmap.set_title("Mapa de Importancia", fontsize=13, fontweight="bold", color="#2C3E50", pad=12)
     ax_heatmap.axis("off")
 
-    ax_colorbar = fig.add_subplot(grid[0, 3])
+    if has_gradcam:
+        ax_gradcam = fig.add_subplot(grid[0, 3])
+        ax_gradcam.imshow(gradcam_panel)
+        ax_gradcam.set_title("Grad-CAM", fontsize=13, fontweight="bold", color="#2C3E50", pad=12)
+        ax_gradcam.axis("off")
+
+    ax_colorbar = fig.add_subplot(grid[0, n_image_panels])
     mappable = cm.ScalarMappable(norm=heatmap_norm, cmap="RdYlGn")
     fig.colorbar(mappable, cax=ax_colorbar, label="Importancia")
 
@@ -265,12 +350,13 @@ def explain_model_visual(
     num_samples: int,
     seed: int,
     device: torch.device,
+    enable_gradcam: bool = True,
 ) -> None:
     """
-    Genera el reporte visual de 3 paneles para una muestra balanceada de `test_df`
-    (`images_per_class` imágenes por clase) y las guarda como PNG bajo
-    `<output_dir>/lime_visual/`. `output_dir` ya debe ser el directorio de la corrida
-    concreta (el caller es responsable de incluir model_name/run_id).
+    Genera el reporte visual (3 paneles LIME, 4 si `enable_gradcam`) para una muestra
+    balanceada de `test_df` (`images_per_class` imágenes por clase) y las guarda como
+    PNG bajo `<output_dir>/lime_visual/`. `output_dir` ya debe ser el directorio de la
+    corrida concreta (el caller es responsable de incluir model_name/run_id).
     """
     model.eval()
     df_sample = sample_balanced(test_df, images_per_class, seed)
@@ -299,6 +385,7 @@ def explain_model_visual(
             num_features=num_features,
             seed=seed,
             device=device,
+            model_name=model_name if enable_gradcam else None,
         )
         logger.info(
             f"[{model_name}] {img_path.name}: predicho={result['predicted_label']} "

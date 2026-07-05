@@ -12,7 +12,7 @@ endif
 
 MODELS ?= all
 
-.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full explain-lime test-loader summary docs-eda lint lint-fix fmt check
+.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full explain-lime explain-report explain-errors test-loader summary docs-eda lint lint-fix fmt check
 
 install:
 	$(PIP) install -e ".[dev,analysis,xai,cloud]"
@@ -30,13 +30,19 @@ train:
 	$(PYTHON) scripts/pipeline/train.py
 
 train-baselines:
-	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --baseline --lime
+	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --baseline
 
 train-baselines-full:
-	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --lime
+	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS)
 
 explain-lime:
 	$(PYTHON) scripts/pipeline/explain_lime.py --models $(MODELS) $(if $(IMAGE),--image $(IMAGE),) $(if $(OUTPUT),--output $(OUTPUT),)
+
+explain-report:
+	$(PYTHON) scripts/pipeline/explain_report.py --models $(MODELS) $(if $(RUN),--run $(RUN),) $(if $(SAMPLE_SIZE),--sample-size $(SAMPLE_SIZE),)
+
+explain-errors:
+	$(PYTHON) scripts/pipeline/explain_report.py --models $(MODELS) --errors-only $(if $(RUN),--run $(RUN),)
 
 test-loader:
 	$(PYTHON) scripts/checks/smoke_loader.py
