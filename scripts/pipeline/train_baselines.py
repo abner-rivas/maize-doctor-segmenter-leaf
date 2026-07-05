@@ -121,7 +121,7 @@ def _run_epoch(
     device: torch.device,
     optimizer: torch.optim.Optimizer | None = None,
     desc: str = "",
-) -> tuple[dict[str, float], list[int], list[int]]:
+) -> tuple[dict[str, float], list[int], list[int], list[float]]:
     is_train = optimizer is not None
     model.train(is_train)
 
@@ -129,6 +129,7 @@ def _run_epoch(
     seen = 0
     labels_all: list[int] = []
     preds_all: list[int] = []
+    probs_all: list[float] = []
 
     context = torch.enable_grad() if is_train else torch.no_grad()
     with context:
@@ -150,11 +151,13 @@ def _run_epoch(
             running_loss += loss.item() * batch_size
             seen += batch_size
             labels_all.extend(labels.detach().cpu().tolist())
-            preds_all.extend(logits.argmax(dim=1).detach().cpu().tolist())
+            probs = logits.detach().softmax(dim=1)
+            preds_all.extend(probs.argmax(dim=1).cpu().tolist())
+            probs_all.extend(probs.max(dim=1).values.cpu().tolist())
 
     avg_loss = running_loss / max(seen, 1)
     metrics = _metrics_from_predictions(labels_all, preds_all, avg_loss)
-    return metrics, labels_all, preds_all
+    return metrics, labels_all, preds_all, probs_all
 
 
 def _write_test_outputs(
@@ -261,7 +264,7 @@ def _train_model(
 
     for epoch in range(1, args.epochs + 1):
         started = perf_counter()
-        train_metrics, _, _ = _run_epoch(
+        train_metrics, _, _, _ = _run_epoch(
             model,
             train_loader,
             criterion,
@@ -269,7 +272,7 @@ def _train_model(
             optimizer=optimizer,
             desc=f"{model_name} train {epoch}/{args.epochs}",
         )
-        val_metrics, _, _ = _run_epoch(
+        val_metrics, _, _, _ = _run_epoch(
             model,
             val_loader,
             criterion,
@@ -311,7 +314,7 @@ def _train_model(
     if best_path.exists():
         model.load_state_dict(torch.load(best_path, map_location=device))
 
-    test_metrics, labels, predictions = _run_epoch(
+    test_metrics, labels, predictions, test_probs = _run_epoch(
         model,
         test_loader,
         criterion,
@@ -319,6 +322,19 @@ def _train_model(
         desc=f"{model_name} test",
     )
     _write_test_outputs(run_dir, idx_to_class, labels, predictions)
+
+    test_dataset = test_loader.dataset
+    predictions_df = pd.DataFrame(
+        {
+            "image_path": test_dataset.data_frame["image_path"].tolist(),
+            "label": test_dataset.data_frame["label"].tolist(),
+            "pred_label": [idx_to_class[p] for p in predictions],
+            "pred_prob": test_probs,
+        }
+    )
+    predictions_df.to_csv(run_dir / "predictions.csv", index=False)
+    logger.info("[%s] Predicciones de test guardadas en %s", model_name, run_dir / "predictions.csv")
+
     _write_summary(
         run_dir,
         model_name,
@@ -345,6 +361,7 @@ def _generate_lime_reports(
     target_size: tuple[int, int],
     cfg: dict,
     device: torch.device,
+    gradcam_enabled: bool = True,
 ) -> None:
     try:
         from src.explainability.visual_report import explain_model_visual
@@ -381,6 +398,7 @@ def _generate_lime_reports(
         num_samples=lime_cfg["num_samples"],
         seed=lime_cfg["seed"],
         device=device,
+        enable_gradcam=gradcam_enabled,
     )
 
 
@@ -451,6 +469,7 @@ def main() -> None:
         raise SystemExit(f"No existe {splits_dir}. Genera los splits primero con: {command}")
 
     device = select_device()
+    gradcam_enabled = cfg.get("gradcam", {}).get("enabled", False)
     logger.info("Modelos a entrenar: %s", model_names)
     logger.info("Splits: %s", splits_dir)
     logger.info("Tamano de imagen: %sx%s", target_size[0], target_size[1])
@@ -494,6 +513,7 @@ def main() -> None:
                 target_size=target_size,
                 cfg=cfg,
                 device=device,
+                gradcam_enabled=gradcam_enabled,
             )
 
     if args.lime:
