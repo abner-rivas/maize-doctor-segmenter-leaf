@@ -60,7 +60,7 @@ def build_run_dir(output_dir: Path, model_name: str, run_id: str) -> Path:
 
 def update_latest_pointer(output_dir: Path, model_name: str, run_id: str) -> None:
     """Escribe <output_dir>/<model_name>/latest.json. Llamar solo tras un run exitoso
-    (metrics.json ya escrito), para no apuntar a runs a medias."""
+    (summary.json ya escrito), para no apuntar a runs a medias."""
     latest_path = output_dir / model_name / "latest.json"
     latest_path.write_text(json.dumps({"run_id": run_id}, indent=2))
 

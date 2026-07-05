@@ -14,6 +14,7 @@ from tqdm import tqdm
 from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_global_seed
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
+from src.explainability.augmentation_preview import save_augmentation_evidence
 from src.models import MODEL_REGISTRY, build_model, list_models
 from src.training.common import (
     build_run_dir,
@@ -211,8 +212,6 @@ def _write_summary(
     }
     with open(run_dir / "summary.json", "w") as f:
         json.dump(summary, f, indent=2)
-    with open(run_dir / "metrics.json", "w") as f:
-        json.dump(summary, f, indent=2)
 
 
 def _train_model(
@@ -225,10 +224,22 @@ def _train_model(
     splits_dir: Path,
     output_dir: Path,
     device: torch.device,
+    factory: CornTransformFactory | None = None,
+    seed: int = 42,
 ) -> Path:
     train_loader, val_loader, test_loader = loaders
     run_id = generate_run_id()
     run_dir = build_run_dir(output_dir, model_name, run_id)
+
+    if factory is not None:
+        save_augmentation_evidence(
+            train_csv_path=str(splits_dir / "train.csv"),
+            dataset_root=get_dataset_root(),
+            train_transform=factory.get_pipeline("train"),
+            minority_transform=factory.get_pipeline("minority"),
+            output_dir=run_dir,
+            seed=seed,
+        )
 
     logger.info("[%s] Construyendo modelo", model_name)
     model = build_model(
@@ -444,6 +455,7 @@ def main() -> None:
     logger.info("Splits: %s", splits_dir)
     logger.info("Tamano de imagen: %sx%s", target_size[0], target_size[1])
 
+    factory = CornTransformFactory(config_path=str(config_path), target_size=target_size)
     loaders = _build_dataloaders(
         splits_dir=splits_dir,
         config_path=config_path,
@@ -468,6 +480,8 @@ def main() -> None:
             splits_dir=splits_dir,
             output_dir=output_dir,
             device=device,
+            factory=factory,
+            seed=seed,
         )
         run_dirs[model_name] = run_dir
 
