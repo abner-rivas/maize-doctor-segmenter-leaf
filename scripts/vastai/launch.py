@@ -77,13 +77,18 @@ def cmd_run(args: argparse.Namespace) -> None:
 
 
 def cmd_sync(args: argparse.Namespace) -> None:
-    remote_path = f"{REMOTE_DATASET_ROOT}/{args.remote_subpath}"
+    # outputs/ vive en el checkout del repo (REMOTE_WORKSPACE), no en el volumen de
+    # datos (REMOTE_DATASET_ROOT) — ver get_output_root() en src/config.py.
+    remote_path = f"{REMOTE_WORKSPACE}/{args.remote_subpath}"
     if args.dry_run:
-        print(f"$ scp -r <{args.instance_id}>:{remote_path} {args.local_path}")
+        print(f"$ scp -r <{args.instance_id}>:{remote_path}/. {args.local_path}")
         return
     user, host, port = _get_ssh_target(args.instance_id)
     _run(
-        ["scp", "-r", "-P", port, f"{user}@{host}:{remote_path}", args.local_path],
+        # El "/." al final copia el *contenido* del directorio remoto en vez del
+        # directorio en sí, evitando el anidamiento doble de `scp -r`. Verificar
+        # manualmente contra el cliente OpenSSH real usado.
+        ["scp", "-r", "-P", port, f"{user}@{host}:{remote_path}/.", args.local_path],
         dry_run=False,
     )
 
@@ -134,9 +139,11 @@ def main() -> None:
     )
     p_sync.add_argument("instance_id")
     p_sync.add_argument(
-        "--remote-subpath", default="results", help="Subruta bajo DATASET_ROOT remoto."
+        "--remote-subpath",
+        default="outputs",
+        help="Subruta bajo el checkout remoto del repo (REMOTE_WORKSPACE).",
     )
-    p_sync.add_argument("--local-path", default="./results-remote")
+    p_sync.add_argument("--local-path", default="./outputs-remote")
     p_sync.set_defaults(func=cmd_sync)
 
     p_destroy = subparsers.add_parser("destroy", help="Destruye la instancia (deja de cobrar).")
