@@ -31,9 +31,11 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 | Roya común *(Common Rust)* | *Puccinia sorghi* | Pústulas anaranjadas en ambas caras | 2 150 | 106 ⚠️ | 2 256 |
 | Tizón foliar del norte *(NCLB)* | *Exserohilum turcicum* | Lesiones alargadas grisáceas | 888 | 5 942 | 6 830 |
 | Mancha gris *(GLS)* | *Cercospora zeae-maydis* | Lesiones rectangulares grises | 513 | 606 | 1 119 |
+| Necrosis letal *(MLN)* | Complejo viral (MCMV + potyvirus) | Rayado clorótico, necrosis progresiva y muerte de la planta | 0 | 6 415 | 6 415 |
 | Hoja sana *(Healthy)* | - | Sin síntomas visibles | 0 | 8 744 | 8 744 |
 | Gusano cogollero *(Fall Armyworm)* | *Spodoptera frugiperda* | Daño por masticación, excrementos en cogollo | 0 | 4 858 | 4 858 |
-| Áfidos del maíz *(Maize Aphids)* | *Rhopalosiphum maidis* | Colonias de pulgones, hojas enrolladas y amarillamiento | 0 | 77 ⚠️ | 77 |
+
+> `aphids_pest` (áfidos) se evaluó pero se descartó del alcance: solo ~77 imágenes disponibles, insuficientes para augmentation viable.
 
 ### Deficiencias nutricionales
 
@@ -54,7 +56,7 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 | Tamaño del modelo (post Int8) | ≤ 20 MB |
 | Latencia de inferencia | ≤ 300 ms/imagen |
 | Dispositivo objetivo | Android ≥ 4 GB RAM, Snapdragon 6xx |
-| Arquitectura base | -- Por definir -- |
+| Arquitectura base | En evaluación entre 6 baselines: EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0 |
 
 ---
 
@@ -87,9 +89,9 @@ El dataset *Corn Leaf Diseases* aplica 17 técnicas de augmentation documentadas
 El proyecto sigue el marco **CRISP-DM iterativo**:
 
 1. **Comprensión del negocio** - Definición del problema agrícola y restricciones de despliegue
-2. **Comprensión de datos** - Consolidación y auditoría de 5 fuentes públicas
+2. **Comprensión de datos** - Consolidación y auditoría de 8 fuentes públicas
 3. **Preparación** - Limpieza, estandarización (224×224 px), deduplicación, augmentation
-4. **Modelado** - Fine-tuning de MobileNetV3 (baseline V2 y EfficientNet-B0)
+4. **Modelado** - Fine-tuning de 6 arquitecturas baseline (EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0) para comparar rápido y barato
 5. **Evaluación** - Macro F1 ≥ 0.85 en conjunto independiente de imágenes de campo real
 6. **Despliegue** - PWA offline con TFLite Int8 + sincronización opcional
 
@@ -100,7 +102,7 @@ El proyecto sigue el marco **CRISP-DM iterativo**:
 El código de datos/entrenamiento vive en `src/` (librería instalable) y `scripts/` (entrypoints). Hay
 dos pipelines paralelos sobre el mismo dataset limpio (`data/clean/`):
 
-- **Baselines** (`scripts/pipeline/train_baselines.py`): EfficientNet-B0, EfficientNet-Lite0 y MobileNetV3-Large pre-entrenados, funcional de punta a punta. Por defecto entrena sobre un subset configurable (`config/dataset.yaml -> baseline:`, 4 clases y hasta 500 imágenes por clase) para comparar arquitecturas rápido y barato; ver [Baselines](docs/es/baselines/index.md).
+- **Baselines** (`scripts/pipeline/train_baselines.py`): 6 arquitecturas pre-entrenadas (EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0), funcional de punta a punta. Por defecto entrena sobre un subset configurable (`config/dataset.yaml -> baseline:`, 4 clases y hasta 500 imágenes por clase) para comparar arquitecturas rápido y barato; ver [Baselines](docs/es/baselines/index.md).
 - **Pipeline principal** (`scripts/pipeline/train.py`): comparte toda la infraestructura de datos y modelos; el loop de entrenamiento está pendiente de implementar.
 
 ### Quickstart
@@ -182,16 +184,18 @@ corn-leaf-desease-project/
 │   ├── maize-diseases/
 │   └── maize-in-field-dataset/
 ├── scripts/
+│   ├── checks/                  # Smoke tests y diagnósticos manuales (lime_stability.py)
 │   ├── cleanup/                 # Limpieza por clase/dataset (one-shot, ya ejecutados)
 │   ├── dataset/                 # Subida/descarga de data/clean/ (Hugging Face Hub, Google Drive)
-│   ├── pipeline/                # create_splits.py, train_baselines.py, train.py
+│   ├── pipeline/                # create_splits.py, train_baselines.py, train.py, explain_lime.py, explain_report.py
 │   └── vastai/                  # Orquestación de GPU remota en vast.ai
 ├── src/                         # Librería principal (pip install -e .)
 │   ├── config.py
 │   ├── analysis/                # Resumen del dataset
 │   ├── cleanup/                 # Deduplicación perceptual (PHash)
 │   ├── data/                    # CornDataset, loader, splitter, transforms
-│   └── models/                  # Registro de modelos + baselines (EfficientNet, MobileNetV3)
+│   ├── explainability/          # LIME + Grad-CAM (reportes post-hoc, no acoplados al entrenamiento)
+│   └── models/                  # Registro de modelos + 6 baselines (EfficientNet, MobileNetV3, FastViT, GhostNetV2, ShuffleNetV2)
 ├── Dockerfile                   # Imagen reproducible (Python 3.11 + PyTorch CUDA) para GPU remota
 ├── pyproject.toml
 ├── Makefile
@@ -208,7 +212,8 @@ corn-leaf-desease-project/
 - [x] Análisis exploratorio de datos (EDA)
 - [x] Pipeline de preparación de datos (splits estratificados, perfil baseline configurable)
 - [x] Data augmentation para clases minoritarias (pipeline extendido por clase en `transforms.py`)
-- [x] Entrenamiento de baselines (EfficientNet-B0/Lite0, MobileNetV3-Large) + soporte GPU remota (vast.ai)
+- [x] Entrenamiento de 6 baselines (EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0) + soporte GPU remota (vast.ai)
+- [x] Explicabilidad post-hoc (LIME + Grad-CAM, análisis de errores y fidelidad agregada)
 - [ ] Loop de entrenamiento del pipeline principal (`scripts/pipeline/train.py`)
 - [ ] Evaluación exhaustiva y selección de modelo final
 - [ ] Aplicación Android con TensorFlow Lite

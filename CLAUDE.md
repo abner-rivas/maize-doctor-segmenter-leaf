@@ -56,7 +56,7 @@ instalado en `venv/`) + `scripts/vastai/onstart.sh` (provisioning: clona, instal
 ## Comandos frecuentes
 
 ```bash
-make install                          # pip install -e ".[dev,analysis,cloud]"
+make install                          # pip install -e ".[dev,analysis,xai,cloud]"
 make download-dataset                 # clean/ (HF Hub, fallback Google Drive)
 make splits / make splits-baseline    # regenera splits CSV
 make train-baselines [MODELS=<nombre>] / make train-baselines-full
