@@ -7,12 +7,12 @@ from typing import Any
 import torch
 import yaml
 
-from src.config import PROJECT_ROOT, get_dataset_root
+from src.config import PROJECT_ROOT, get_output_root
 from src.data.dataset import resolve_class_mapping
 from src.data.loader import load_and_normalize_image
 from src.data.transforms import CornTransformFactory
 from src.models import build_model, list_models
-from src.training.common import select_device
+from src.training.common import resolve_run_dir, select_device
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -29,16 +29,16 @@ def _load_config(config_path: Path) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def _default_splits_dir(dataset_root: Path, baseline: bool, full: bool) -> Path:
+def _default_splits_dir(output_root: Path, baseline: bool, full: bool) -> Path:
     if baseline and full:
         raise SystemExit("Usa solo uno de --baseline o --full.")
     if baseline:
-        return dataset_root / "splits" / "seed_42_baseline"
+        return output_root / "splits" / "seed_42_baseline"
     if full:
-        return dataset_root / "splits" / "seed_42"
+        return output_root / "splits" / "seed_42"
 
-    baseline_dir = dataset_root / "splits" / "seed_42_baseline"
-    return baseline_dir if baseline_dir.exists() else dataset_root / "splits" / "seed_42"
+    baseline_dir = output_root / "splits" / "seed_42_baseline"
+    return baseline_dir if baseline_dir.exists() else output_root / "splits" / "seed_42"
 
 
 def _load_summary(checkpoint_path: Path) -> dict[str, Any]:
@@ -108,7 +108,12 @@ def main() -> None:
     parser.add_argument(
         "--checkpoint",
         default=None,
-        help="Ruta al checkpoint .pth (default: $DATASET_ROOT/results/baselines/<model>/best.pth).",
+        help="Ruta al checkpoint .pth (default: último run en <repo>/outputs/baselines).",
+    )
+    parser.add_argument(
+        "--run",
+        default=None,
+        help="run_id específico a usar. Por defecto usa latest.json para el modelo.",
     )
     parser.add_argument(
         "--splits-dir",
@@ -126,12 +131,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    dataset_root = get_dataset_root()
-    checkpoint_path = (
-        Path(args.checkpoint)
-        if args.checkpoint
-        else dataset_root / "results" / "baselines" / args.model / "best.pth"
-    )
+    output_root = get_output_root()
+    if args.checkpoint:
+        checkpoint_path = Path(args.checkpoint)
+    else:
+        checkpoint_path = resolve_run_dir(
+            output_root / "baselines",
+            args.model,
+            args.run,
+        ) / "best.pth"
     if not checkpoint_path.exists():
         raise SystemExit(f"No existe el checkpoint: {checkpoint_path}")
 
@@ -141,7 +149,7 @@ def main() -> None:
     splits_dir = (
         Path(args.splits_dir)
         if args.splits_dir
-        else _default_splits_dir(dataset_root, baseline=args.baseline, full=args.full)
+        else _default_splits_dir(output_root, baseline=args.baseline, full=args.full)
     )
     class_to_idx, idx_to_class = _resolve_class_mapping(summary, splits_dir, cfg)
     target_size = _resolve_target_size(args, summary, cfg)
