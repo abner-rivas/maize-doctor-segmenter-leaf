@@ -78,6 +78,7 @@ def main() -> None:
     with open(PROJECT_ROOT / "config" / "dataset.yaml") as f:
         cfg = yaml.safe_load(f)
     lime_cfg = cfg["lime"]
+    gradcam_enabled = cfg.get("gradcam", {}).get("enabled", False)
     set_global_seed(lime_cfg["seed"])
 
     model_names = _resolve_model_names(args.models)
@@ -137,6 +138,7 @@ def main() -> None:
                 num_features=lime_cfg["num_features"],
                 seed=lime_cfg["seed"],
                 device=device,
+                model_name=model_name if gradcam_enabled else None,
             )
             logger.info(
                 f"[{model_name}] Diagnóstico: {result['predicted_label']} "
@@ -156,6 +158,7 @@ def main() -> None:
                 num_samples=lime_cfg["num_samples"],
                 seed=lime_cfg["seed"],
                 device=device,
+                enable_gradcam=gradcam_enabled,
             )
 
     logger.info("Explicaciones LIME completadas.")

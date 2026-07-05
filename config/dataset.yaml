@@ -1,6 +1,6 @@
 paths:
   raw_dir: "clean"                    # relativo a DATASET_ROOT
-  split_output_dir: "splits/seed_42"  # relativo a outputs/ (ver get_output_root())
+  split_output_dir: "splits/seed_42"  # relativo a outputs/
 
 dataset:
   target_size: [224, 224]
@@ -16,9 +16,6 @@ dataset:
     - phosphorus_deficiency
     - potassium_deficiency
 
-# Perfil reducido para el pipeline de baselines (scripts/pipeline/train_baselines.py).
-# Se activa con `create_splits.py --baseline` / `make splits-baseline`.
-# No afecta a `dataset.classes` ni al pipeline principal (train.py).
 baseline:
   classes:
     - healthy
@@ -28,13 +25,13 @@ baseline:
   max_images_per_class: 500
   seed: 42
 
-# Configuración para scripts/pipeline/explain_lime.py y el flag --lime de
-# train_baselines.py. images_per_class es cuántas imágenes por clase se explican
-# (muestreo balanceado del test set); num_samples es la cantidad de perturbaciones
-# internas que genera LIME por imagen (a mayor valor, heatmap más preciso y más lento).
 lime:
   images_per_class: 2
   num_samples: 300
   num_features: 5
   seed: 42
   baseline: true
+  report_sample_size: 30
+
+gradcam:
+  enabled: true
