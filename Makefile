@@ -3,11 +3,13 @@ ifeq ($(OS),Windows_NT)
     PIP    	:= venv\Scripts\pip
     RUFF   	:= venv\Scripts\ruff
 	PYRIGHT := venv\Scripts\pyright
+	MODAL   := venv\Scripts\modal
 else
     PYTHON 	:= venv/bin/python
     PIP    	:= venv/bin/pip
     RUFF   	:= venv/bin/ruff
 	PYRIGHT := venv/bin/pyright
+	MODAL   := venv/bin/modal
 endif
 
 MODELS ?= all
@@ -37,13 +39,13 @@ train-baselines-full:
 	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS)
 
 modal-seed:
-	modal run scripts/modal/train.py::seed_dataset
+	$(MODAL) run scripts/modal/train.py::seed_dataset
 
 modal-train-baselines:
-	modal run scripts/modal/train.py --models "$(MODELS)" --epochs "$(EPOCHS)"
+	$(MODAL) run scripts/modal/train.py --models "$(MODELS)" --epochs "$(EPOCHS)"
 
 modal-pull:
-	modal volume get corn-outputs / ./outputs-remote
+	$(MODAL) volume get corn-outputs / ./outputs-remote
 
 explain-lime:
 	$(PYTHON) scripts/pipeline/explain_lime.py --models $(MODELS) $(if $(IMAGE),--image $(IMAGE),) $(if $(OUTPUT),--output $(OUTPUT),)

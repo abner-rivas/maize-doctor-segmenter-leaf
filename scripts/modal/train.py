@@ -82,6 +82,10 @@ def train_baselines(models: str = "efficientnet_b0", epochs: int = 30) -> None:
             check=True,
             cwd=REPO_ANCHOR,
         )
+        # Persistir splits aunque el training falle luego: sin este commit, un run
+        # interrumpido perdería los splits recién generados y la próxima corrida
+        # los regeneraría en vez de reutilizarlos (rompe la idempotencia lazy).
+        outputs_vol.commit()
     subprocess.run(
         [
             sys.executable,
