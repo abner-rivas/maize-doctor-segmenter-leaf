@@ -8,16 +8,11 @@
 
 ## Arquitectura (`src/`)
 
-- **Único punto de entrada a imagen:** `load_and_normalize_image()` (`src/data/loader.py`) — corrección EXIF + RGB antes de cualquier transform.
-- **Rutas al dataset fuente:** siempre vía `get_dataset_root()` (`src/config.py`), que falla con mensaje claro si falta `.env`. No usar la constante `DATASET_ROOT` directo (es `Path | None`). Solo cubre `raw/`/`clean/` (datos fuente).
-- **Rutas a artefactos generados:** siempre vía `get_output_root()` (`src/config.py`) → `PROJECT_ROOT/outputs/` (raíz del repo, gitignored). Cubre splits, resultados de entrenamiento (pesos/metrics/LIME), reports de `dataset_summary.py` y EDA — todo lo que el pipeline *produce*, a diferencia de `get_dataset_root()` que es para lo que el pipeline *consume*.
-- **Config centralizada:** `config/dataset.yaml` declara clases, `target_size`, seed y el perfil `baseline`. Los módulos lo leen; nunca hardcodear constantes de dominio.
+- **Único punto de entrada a imagen:** `load_and_normalize_image()` (`src/data/loader.py`).
+- **Rutas:** dataset fuente vía `get_dataset_root()`, artefactos generados vía `get_output_root()` (ambas en `src/config.py`) — nunca hardcodear paths ni usar la constante `DATASET_ROOT` directo.
+- **Config centralizada:** `config/dataset.yaml` (clases, `target_size`, seed, perfil `baseline`). Nunca hardcodear constantes de dominio.
 - **Sin `sys.path.append`.** Paquete editable (`pip install -e .`); los imports `src.*` resuelven directo.
-- **Clases minoritarias (augmentation agresivo):** `CornDataset` las **deriva de la distribución real del split** en `compute_minority_classes` (`src/data/dataset.py`) — una clase es minoritaria si `max_count/count > augmentation.minority_ratio_threshold` (`config/dataset.yaml`, default 4.0). No hay `frozenset` estático: en un split balanceado (p. ej. el baseline de 4 clases) el conjunto queda vacío y nadie recibe augmentation asimétrico; en el dataset completo de 9 clases se recomputa. `src/models/input_sizes.py -> MODEL_INPUT_SIZES` es un mapa análogo para resolución nativa por modelo.
-- **`target_size` es `[alto, ancho]`** (convención `(h, w)` de torchvision). El `Resize` directo con distorsión de aspecto es intencional y consistente train/eval — no "corregirlo" a Resize+CenterCrop. El tamaño por defecto (224) puede ser sobrescrito por modelo vía `MODEL_INPUT_SIZES` (p. ej. `efficientnet_b4`→380, `fastvit_t8`→256); `train_baselines.py` auto-escala el batch a la baja para las resoluciones mayores.
-- **Balanceo de clases:** lo hace el `WeightedRandomSampler` (+ augmentation de minoritarias); la loss NO se pondera además por frecuencia — sería doble compensación. El sampler se **desactiva automáticamente** cuando el split está balanceado (`build_weighted_sampler` devuelve `None` si no hay clases minoritarias) y el `DataLoader` usa `shuffle=True`, para no reducir la cobertura por época con `replacement=True`.
-- **Utilidades comunes de entrenamiento** (`src/training/common.py`): `resolve_model_names`, `worker_init_fn`, `select_device`, `generate_run_id`, `build_run_dir`, `update_latest_pointer`, `resolve_run_dir` — compartidas por `train.py` y `train_baselines.py`; no duplicarlas en los scripts. `worker_init_fn` deriva de `torch.initial_seed()`: nunca sembrar workers con una semilla fija — los workers renacen cada época y repetirían idéntica la secuencia de augmentation.
-- **Resultados versionados por corrida:** cada entrenamiento de un modelo escribe en `outputs/<pipeline>/<modelo>/<run_id>/` (`run_id` = timestamp `YYYYMMDD_HHMMSS`), nunca sobrescribe corridas previas. `outputs/<pipeline>/<modelo>/latest.json` apunta a la corrida más reciente (`resolve_run_dir` la lee cuando no se pasa `--run`).
+- Convenciones detalladas de carga/rutas/`target_size`/clases minoritarias → skill `corn-data-pipeline`. Sampler de balanceo, utilidades de entrenamiento y versionado de runs → skill `corn-training-internals`.
 - Para ubicar símbolos, llamadas o impacto de cambios en `src/`, usa CodeGraph (si está disponible) en vez de grep/lectura manual.
 
 ## Pipelines
@@ -35,11 +30,10 @@ El perfil `baseline` usa por defecto `healthy`, `common_rust`, `fall_armyworm`, 
 
 ## Explicabilidad
 
-- **LIME ya no corre automáticamente al entrenar.** `train_baselines.py` mantiene el flag `--lime` (útil para encadenarlo puntualmente), pero los targets `make train-baselines`/`train-baselines-full` ya no lo pasan por defecto — entrenamiento y explicabilidad son pasos separados.
-- **`make explain-lime`** (`scripts/pipeline/explain_lime.py`): reporte visual por imagen (`<run_dir>/lime_visual/`), muestreo balanceado chico (`lime.images_per_class` en `config/dataset.yaml`) o `--image` puntual. Persiste, junto al PNG, un `.json` (predicción + pesos por superpíxel) y un `.npy` (mapa de segmentos) para reanálisis sin re-ejecutar LIME.
-- **`make explain-report`** / **`make explain-errors`** (`scripts/pipeline/explain_report.py`): fidelidad agregada sobre una muestra amplia (`lime.report_sample_size`) o, con `--errors-only`, explica específicamente las filas de `predictions.csv` donde `label != pred_label`. Requiere que el run ya tenga `predictions.csv` (lo genera `train_baselines.py`).
-- **Grad-CAM** (`src/explainability/gradcam.py`): 4to panel opcional (`config/dataset.yaml -> gradcam.enabled`) vía hooks nativos de PyTorch, sin dependencias nuevas. `GRADCAM_TARGET_LAYERS` mapea cada modelo del registry a su última capa con salida espacial — al añadir un modelo nuevo al `MODEL_REGISTRY`, agregar también su entrada ahí o Grad-CAM se omite con warning (fallback a 3 paneles).
-- **`scripts/checks/lime_stability.py`**: diagnóstico manual (sin target Make) para auditar cuán estable es una explicación LIME sobre una imagen puntual corriendo varias seeds y comparando IoU/correlación.
+Post-hoc, no acoplada al entrenamiento: `explain_lime.py` (reporte visual LIME + Grad-CAM), `explain_report.py` (fidelidad agregada / análisis de errores vía `predictions.csv`), `scripts/checks/lime_stability.py` (auditoría manual). LIME ya no corre automáticamente al entrenar (usar flag `--lime` puntual en `train_baselines.py`).
+
+- Flujo LIME (`make explain-lime`/`explain-report`/`explain-errors`, `lime_stability.py`) → skill `corn-lime-explainability`.
+- Grad-CAM (`GRADCAM_TARGET_LAYERS`, requisito al añadir modelos nuevos) → skill `corn-gradcam`.
 
 ## Dataset: hosting y descarga
 
@@ -47,11 +41,6 @@ El perfil `baseline` usa por defecto `healthy`, `common_rust`, `fall_armyworm`, 
 `download_dataset.py --source auto` resuelve cuál usar. `scripts/download_datasets.sh` es un flujo distinto:
 ingesta de fuentes crudas nuevas (Kaggle/Mendeley/Roboflow) hacia `raw/`, no toca `clean/`.
 
-## Entrenamiento en GPU remota (vast.ai)
-
-Ver guía completa en `docs/es/deployment/vast-ai.md`. Resumen: `Dockerfile` (Python 3.11 + PyTorch CUDA,
-instalado en `venv/`) + `scripts/vastai/onstart.sh` (provisioning: clona, instala, descarga dataset) +
-`scripts/vastai/launch.py` (wrapper sobre la CLI `vastai`: search/create/run/sync/destroy).
 
 ## Comandos frecuentes
 
