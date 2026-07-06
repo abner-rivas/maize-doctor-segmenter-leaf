@@ -40,6 +40,12 @@ image = (
             "DATASET_ROOT": "/data",
             "OUTPUT_ROOT": "/outputs",
             "HF_DATASET_REPO": HF_DATASET_REPO,
+            # Hilos del indexado de splits. Se fija explícitamente porque os.cpu_count() en el
+            # contenedor reporta los cores del HOST, no la CPU asignada al contenedor: sin esto,
+            # create_splits lanzaría ~32 hilos a ciegas. 8 ~= 2x los cores pedidos (cpu=4.0):
+            # el indexado es I/O-bound contra el Volume, así que algo de sobre-suscripción oculta
+            # la latencia de lectura sin depender del burst de CPU.
+            "SPLITS_INDEX_WORKERS": "8",
         }
     )
     .add_local_dir("config", f"{REPO_ANCHOR}/config", copy=True)
@@ -50,6 +56,7 @@ app = modal.App("corn-leaf-baselines", image=image)
 
 
 @app.function(
+    cpu=2.0,  # descarga I/O-bound; 2 cores bastan para descompresión/hash del dataset
     volumes={"/data": dataset_vol},
     secrets=[modal.Secret.from_name("hf")],
     timeout=3600,
@@ -67,6 +74,10 @@ def seed_dataset() -> None:
 
 @app.function(
     gpu="A10",
+    # CPU explícita (el default de Modal es 0.125 cores): garantiza cores reales para el
+    # indexado paralelo de splits y el DataLoader, sin depender del burst. Alineado con
+    # SPLITS_INDEX_WORKERS=8. Facturación: se cobra max(request, uso real).
+    cpu=4.0,
     volumes={"/data": dataset_vol, "/outputs": outputs_vol},
     secrets=[modal.Secret.from_name("hf")],
     timeout=6 * 3600,

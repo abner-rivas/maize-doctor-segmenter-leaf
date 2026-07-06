@@ -22,6 +22,23 @@ logger = logging.getLogger(__name__)
 _MIN_STRATUM_IMAGES = 7
 
 
+def _resolve_index_workers() -> int:
+    """Nº de hilos para el indexado. Override por `SPLITS_INDEX_WORKERS` para alinearlo con la
+    CPU asignada en entornos con cuota (p.ej. Modal, donde `os.cpu_count()` reporta los cores del
+    HOST, no la asignación del contenedor — sin override lanzaría demasiados hilos a ciegas).
+    Fallback: escala con los cores locales, acotado a 32."""
+    raw = os.getenv("SPLITS_INDEX_WORKERS", "").strip()
+    if raw:
+        try:
+            n = int(raw)
+        except ValueError:
+            n = 0
+        if n >= 1:
+            return n
+        logger.warning(f"SPLITS_INDEX_WORKERS inválido ({raw!r}); usando el default por cores.")
+    return min(32, (os.cpu_count() or 4) * 4)
+
+
 def _verify_and_hash(abs_path: Path) -> tuple[bool, str]:
     """Lee el archivo una sola vez; valida integridad PIL y calcula el SHA-256.
 
@@ -147,7 +164,7 @@ def run_data_preparation_pipeline(
     # de disco — crítico en volúmenes remotos (p.ej. el de Modal), donde cada lectura es lenta.
     # Se usan hilos (no procesos): el trabajo es I/O + C de hashlib/PIL, que liberan el GIL,
     # y así se evita el coste de serializar rutas/bytes entre procesos.
-    max_workers = min(32, (os.cpu_count() or 4) * 4)
+    max_workers = _resolve_index_workers()
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         results = list(
             tqdm(
