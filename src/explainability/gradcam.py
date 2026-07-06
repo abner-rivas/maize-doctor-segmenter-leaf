@@ -6,10 +6,12 @@ from matplotlib import colormaps
 
 GRADCAM_TARGET_LAYERS: dict[str, str] = {
     "efficientnet_b0": "features.-1",
-    "mobilenet_v3_large": "features.-1",
-    "shufflenet_v2_x1_0": "conv5",
+    "efficientnet_b4": "conv_head",
     "efficientnet_lite0": "conv_head",
-    "ghostnetv2_100": "conv_head",
+    "mobilenet_v3_large": "blocks.-1",
+    "mobilenet_v3_small": "blocks.-1",
+    "shufflenet_v2_x1_0": "conv5",
+    "ghostnetv2_100": "blocks.-1",
     "fastvit_t8": "final_conv",
 }
 
