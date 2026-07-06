@@ -16,6 +16,9 @@ dataset:
     - phosphorus_deficiency
     - potassium_deficiency
 
+augmentation:
+  minority_ratio_threshold: 4.0
+
 baseline:
   classes:
     - healthy

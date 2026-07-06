@@ -223,7 +223,9 @@ def main() -> None:
             logger.info(f"[{model_name}] Nada que explicar (subconjunto vacío). Se omite.")
             continue
 
-        model = MODEL_REGISTRY.build(model_name, num_classes=num_classes).to(device)
+        model = MODEL_REGISTRY.build(model_name, num_classes=num_classes, pretrained=False).to(
+            device
+        )
         model.load_state_dict(torch.load(checkpoint_path, map_location=device))
         model.eval()
 

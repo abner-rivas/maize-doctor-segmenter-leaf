@@ -45,7 +45,7 @@ modal-train-baselines:
 	$(MODAL) run scripts/modal/train.py --models "$(MODELS)" --epochs "$(EPOCHS)"
 
 modal-pull:
-	$(MODAL) volume get corn-outputs / ./outputs-remote
+	$(MODAL) volume get --force corn-outputs / ./outputs-remote
 
 explain-lime:
 	$(PYTHON) scripts/pipeline/explain_lime.py --models $(MODELS) $(if $(IMAGE),--image $(IMAGE),) $(if $(OUTPUT),--output $(OUTPUT),)

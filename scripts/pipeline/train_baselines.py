@@ -15,7 +15,7 @@ from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_glob
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
 from src.explainability.augmentation_preview import save_augmentation_evidence
-from src.models import MODEL_REGISTRY, build_model, list_models
+from src.models import MODEL_REGISTRY, build_model, list_models, resolve_input_size
 from src.training.common import (
     build_run_dir,
     generate_run_id,
@@ -34,11 +34,28 @@ def _load_config(config_path: Path) -> dict:
         return yaml.safe_load(f)
 
 
-def _target_size_from_args(args: argparse.Namespace, cfg: dict) -> tuple[int, int]:
-    if args.image_size is not None:
-        return (args.image_size, args.image_size)
+def _base_target_size(cfg: dict) -> tuple[int, int]:
     height, width = cfg["dataset"]["target_size"]
     return (height, width)
+
+
+def _resolve_model_target_size(
+    model_name: str, args: argparse.Namespace, cfg: dict
+) -> tuple[int, int]:
+    """Resolución efectiva por modelo.
+    """
+    if args.image_size is not None:
+        return (args.image_size, args.image_size)
+    return resolve_input_size(model_name, _base_target_size(cfg))
+
+
+def _scale_batch_size(base_batch: int, target_size: tuple[int, int], base: tuple[int, int]) -> int:
+    """Escala el batch inversamente al área de la imagen para acotar la memoria de activaciones.
+    """
+    base_h, base_w = base
+    height, width = target_size
+    scaled = round(base_batch * (base_h * base_w) / (height * width))
+    return max(1, min(base_batch, scaled))
 
 
 def _build_dataloaders(
@@ -49,7 +66,9 @@ def _build_dataloaders(
     num_workers: int,
     seed: int,
     device: torch.device,
-) -> tuple[DataLoader, DataLoader, DataLoader, dict[str, int], dict[int, str]]:
+) -> tuple[
+    DataLoader, DataLoader, DataLoader, dict[str, int], dict[int, str], CornTransformFactory
+]:
     factory = CornTransformFactory(config_path=str(config_path), target_size=target_size)
 
     train_dataset = CornDataset(
@@ -81,6 +100,7 @@ def _build_dataloaders(
         train_dataset,
         batch_size=batch_size,
         sampler=sampler,
+        shuffle=sampler is None,
         num_workers=num_workers,
         pin_memory=pin_memory,
         worker_init_fn=worker_init_fn,
@@ -99,7 +119,7 @@ def _build_dataloaders(
         num_workers=num_workers,
         pin_memory=pin_memory,
     )
-    return train_loader, val_loader, test_loader, class_to_idx, idx_to_class
+    return train_loader, val_loader, test_loader, class_to_idx, idx_to_class, factory
 
 
 def _metrics_from_predictions(
@@ -191,6 +211,7 @@ def _write_summary(
     run_id: str,
     args: argparse.Namespace,
     target_size: tuple[int, int],
+    batch_size: int,
     class_to_idx: dict[str, int],
     splits_dir: Path,
     best_epoch: int,
@@ -205,7 +226,7 @@ def _write_summary(
         "image_size": list(target_size),
         "splits_dir": str(splits_dir),
         "epochs": args.epochs,
-        "batch_size": args.batch_size,
+        "batch_size": batch_size,
         "learning_rate": args.learning_rate,
         "weight_decay": args.weight_decay,
         "pretrained": not args.no_pretrained,
@@ -224,6 +245,7 @@ def _train_model(
     idx_to_class: dict[int, str],
     args: argparse.Namespace,
     target_size: tuple[int, int],
+    batch_size: int,
     splits_dir: Path,
     output_dir: Path,
     device: torch.device,
@@ -241,6 +263,7 @@ def _train_model(
             train_transform=factory.get_pipeline("train"),
             minority_transform=factory.get_pipeline("minority"),
             output_dir=run_dir,
+            minority_classes=train_loader.dataset.minority_classes,
             seed=seed,
         )
 
@@ -341,6 +364,7 @@ def _train_model(
         run_id,
         args,
         target_size,
+        batch_size,
         class_to_idx,
         splits_dir,
         best_epoch,
@@ -462,7 +486,7 @@ def main() -> None:
         if args.output_dir
         else output_root / "baselines"
     )
-    target_size = _target_size_from_args(args, cfg)
+    base_target_size = _base_target_size(cfg)
 
     if not splits_dir.exists():
         command = "make splits-baseline" if args.baseline else "make splits"
@@ -472,30 +496,46 @@ def main() -> None:
     gradcam_enabled = cfg.get("gradcam", {}).get("enabled", False)
     logger.info("Modelos a entrenar: %s", model_names)
     logger.info("Splits: %s", splits_dir)
-    logger.info("Tamano de imagen: %sx%s", target_size[0], target_size[1])
 
-    factory = CornTransformFactory(config_path=str(config_path), target_size=target_size)
-    loaders = _build_dataloaders(
-        splits_dir=splits_dir,
-        config_path=config_path,
-        target_size=target_size,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        seed=seed,
-        device=device,
-    )
-    train_loader, val_loader, test_loader, class_to_idx, idx_to_class = loaders
-    dataloaders = (train_loader, val_loader, test_loader)
-
+    loader_cache: dict[tuple[tuple[int, int], int], tuple] = {}
     run_dirs: dict[str, Path] = {}
     for model_name in model_names:
+        target_size = _resolve_model_target_size(model_name, args, cfg)
+        batch_size = _scale_batch_size(args.batch_size, target_size, base=base_target_size)
+
+        scaled = batch_size != args.batch_size or target_size != base_target_size
+        logger.info(
+            "[%s] tamano %dx%d, batch %d%s",
+            model_name,
+            target_size[0],
+            target_size[1],
+            batch_size,
+            " (auto-escalado)" if scaled else "",
+        )
+
+        cache_key = (target_size, batch_size)
+        if cache_key not in loader_cache:
+            loader_cache[cache_key] = _build_dataloaders(
+                splits_dir=splits_dir,
+                config_path=config_path,
+                target_size=target_size,
+                batch_size=batch_size,
+                num_workers=args.num_workers,
+                seed=seed,
+                device=device,
+            )
+        train_loader, val_loader, test_loader, class_to_idx, idx_to_class, factory = loader_cache[
+            cache_key
+        ]
+
         run_dir = _train_model(
             model_name=model_name,
-            loaders=dataloaders,
+            loaders=(train_loader, val_loader, test_loader),
             class_to_idx=class_to_idx,
             idx_to_class=idx_to_class,
             args=args,
             target_size=target_size,
+            batch_size=batch_size,
             splits_dir=splits_dir,
             output_dir=output_dir,
             device=device,
