@@ -17,8 +17,11 @@ instancias, reutilizando el pipeline de datos/modelos existente en `src/`.
 - `get_dataset_root()` ya es env-driven (`DATASET_ROOT`) → funciona en Modal apuntando al mount.
 - `get_output_root()` está **hardcodeado** a `PROJECT_ROOT/outputs` (`src/config.py:27-30`).
   En Modal ese path es efímero; hay que redirigirlo a un Volume persistente.
-- `create_splits()` ya es invocable como función (`scripts/pipeline/create_splits.py:68`).
-- `train_baselines.main()` usa `parser.parse_args()` sin argv → no invocable programáticamente.
+- Los scripts `create_splits.py`, `train_baselines.py`, `download_dataset.py` se corren como
+  CLI (así los invoca el Makefile). `scripts/pipeline/` y `scripts/dataset/` **no son paquetes
+  importables** (sin `__init__.py`), así que la orquestación los llama por subprocess, no por import.
+- `download_clean_dataset()` (`scripts/dataset/download_dataset.py`) ya es **idempotente**: salta
+  si `clean/` tiene contenido (a menos que `--force`).
 - 13 archivos consumen `get_output_root()` → cualquier cambio debe ser backward-compatible.
 
 ## Decisiones de diseño (acordadas)
@@ -52,17 +55,19 @@ def get_output_root() -> Path:
 **Interfaz:** misma firma `() -> Path`. **Dependencias:** `os.getenv`, `PROJECT_ROOT`.
 Añadir `OUTPUT_ROOT` (comentado, opcional) a `.env.example`.
 
-### 2. `train_baselines.main` invocable — `scripts/pipeline/train_baselines.py`
+### 2. Invocación de los scripts existentes (sin refactor)
 
-Cambio de una línea para permitir inyectar flags desde la función Modal, sin alterar el CLI:
+La función Modal orquesta por **subprocess** los mismos scripts CLI que corre el Makefile —
+sin importar funciones internas (evita el problema de paquetes) y sin tocar
+`train_baselines.py`/`create_splits.py`. Los subprocess heredan el entorno de la imagen
+(`DATASET_ROOT=/data`, `OUTPUT_ROOT=/outputs`), así que `get_dataset_root()`/`get_output_root()`
+resuelven a los Volumes montados dentro del subprocess. Comandos, idénticos a los targets
+`splits-baseline` y `train-baselines` del Makefile:
 
-```python
-def main(argv: list[str] | None = None) -> None:
-    ...
-    args = parser.parse_args(argv)   # argv=None => sys.argv (comportamiento CLI actual)
 ```
-
-`if __name__ == "__main__": main()` queda igual. El Makefile y el CLI no cambian.
+python scripts/pipeline/create_splits.py --baseline
+python scripts/pipeline/train_baselines.py --models <m…> --baseline --epochs <n>
+```
 
 ### 3. Módulo Modal — `scripts/modal/train.py`
 
@@ -72,19 +77,25 @@ Define `App`, `Image`, dos Volumes y dos entrypoints.
 - `corn-clean` → mount `/data` — dataset limpio (seed una vez).
 - `corn-outputs` → mount `/outputs` — splits + pesos + métricas + LIME.
 
-**Imagen (nativa):**
+**Imagen (nativa).** Orden importante: los `add_local_*` con `copy=False` deben ser las
+**últimas** capas, así que `.env()` va antes. `config/` se hornea con `copy=True`; `src`/`scripts`
+se montan (código en caliente). El anclaje es `/root` (workdir por defecto de Modal), con lo que
+`PROJECT_ROOT` (=`parents[1]` de `/root/src/config.py`) resuelve a `/root` y el default de config
+(`/root/config/dataset.yaml`) queda consistente.
+
 ```python
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("torch==2.12.1", "torchvision==0.27.1",
                  index_url="https://download.pytorch.org/whl/cu126")
     .pip_install_from_pyproject("pyproject.toml", optional_dependencies=["cloud", "xai"])
-    .add_local_dir("config", remote_path="/root/config")
-    .add_local_python_source("src", "scripts")
-    .env({"DATASET_ROOT": "/data", "OUTPUT_ROOT": "/outputs"})
+    .env({"DATASET_ROOT": "/data", "OUTPUT_ROOT": "/outputs",
+          "HF_DATASET_REPO": "daiv05/corn-leaf-diseases-pests-and-deficiencies"})
+    .add_local_dir("config", "/root/config", copy=True)
+    .add_local_python_source("src", "scripts")   # copy=False (mount) => última capa
 )
 ```
-`HF_TOKEN` vía `modal.Secret.from_name("hf")`.
+`HF_TOKEN` va por `modal.Secret.from_name("hf")` (no se hornea en la imagen).
 
 > Los pines `torch==2.12.1` / `torchvision==0.27.1` satisfacen los rangos de `pyproject.toml`
 > (`torch>=2.2,<2.13`, `torchvision>=0.17,<0.28`), así que `pip_install_from_pyproject` los deja
@@ -94,33 +105,35 @@ image = (
 > `pip_install_from_pyproject` y `add_local_python_source` (con Context7 / WebFetch) antes de
 > fijar el código; los nombres pueden variar por versión.
 
-**`seed_dataset` (CPU, 1 vez):**
+**`seed_dataset` (CPU, 1 vez):** `download_dataset.py` ya es idempotente (salta si `clean/`
+existe), así que no hace falta guard propio; solo se hace `commit()` del Volume al terminar.
 ```python
 @app.function(image=image, volumes={"/data": dataset_vol},
               secrets=[modal.Secret.from_name("hf")], timeout=3600)
 def seed_dataset():
-    # idempotente: si /data/clean ya tiene contenido, no re-descarga
-    if dataset_ya_poblado("/data"):
-        return
-    subprocess.run([sys.executable, "scripts/dataset/download_dataset.py"], check=True)
+    subprocess.run([sys.executable, "scripts/dataset/download_dataset.py"],
+                   check=True, cwd="/root")
     dataset_vol.commit()
 ```
 
-**`train_baselines` (GPU):**
+**`train_baselines` (GPU):** genera splits lazy (subprocess) solo si no existen; entrena; commitea.
 ```python
 @app.function(image=image, gpu="A10",
               volumes={"/data": dataset_vol, "/outputs": outputs_vol},
               secrets=[modal.Secret.from_name("hf")], timeout=6 * 3600)
 def train_baselines(models: str = "efficientnet_b0", epochs: int = 30):
-    from scripts.pipeline import create_splits, train_baselines as tb
-    if not splits_baseline_existen():        # /outputs/splits/seed_42_baseline/*.csv
-        create_splits.create_splits(baseline=True)
-        outputs_vol.commit()
-    tb.main(["--models", *models.split(), "--baseline", "--epochs", str(epochs)])
+    splits_marker = Path("/outputs/splits/seed_42_baseline/train.csv")
+    if not splits_marker.exists():
+        subprocess.run([sys.executable, "scripts/pipeline/create_splits.py", "--baseline"],
+                       check=True, cwd="/root")
+    subprocess.run([sys.executable, "scripts/pipeline/train_baselines.py",
+                    "--models", *models.split(), "--baseline", "--epochs", str(epochs)],
+                   check=True, cwd="/root")
     outputs_vol.commit()
 ```
 
-`@app.local_entrypoint()` traduce args de `modal run` a la llamada remota.
+`@app.local_entrypoint()` traduce args de `modal run` (`--models`, `--epochs`) a
+`train_baselines.remote(...)`.
 
 ### 4. Targets Make — `Makefile`
 
@@ -156,8 +169,8 @@ Espejo de `docs/es/deployment/vast-ai.md`: setup (`pip install -e ".[cloud]"`,
 ```
 [local] modal run seed_dataset ──> descarga HF ──> Volume corn-clean (/data)   [1 vez]
 [local] modal run train_baselines ─> monta /data + /outputs
-                                     ├─ splits lazy ─> /outputs/splits/seed_42_baseline
-                                     ├─ tb.main(--baseline) ─> /outputs/baselines/<modelo>/<run_id>
+                                     ├─ create_splits.py --baseline (lazy) ─> /outputs/splits/seed_42_baseline
+                                     ├─ train_baselines.py --baseline ─> /outputs/baselines/<modelo>/<run_id>
                                      └─ outputs_vol.commit()
 [local] make modal-pull ──> modal volume get corn-outputs ──> ./outputs-remote
 ```
@@ -166,11 +179,17 @@ Espejo de `docs/es/deployment/vast-ai.md`: setup (`pip install -e ".[cloud]"`,
 
 - `seed_dataset`: idempotente; si el Volume ya tiene el dataset, retorna sin re-descargar.
 - Falta de `HF_TOKEN`/Secret: falla en el arranque de la función con mensaje de Modal.
-- `create_splits`/`train_baselines` propagan sus `SystemExit`/excepciones → la corrida de
-  Modal termina en fallo visible en los logs; nada queda "colgado" cobrando (auto-teardown).
+- Los subprocess corren con `check=True`: un exit code ≠ 0 (p.ej. `SystemExit` de un script)
+  lanza `CalledProcessError` → la corrida de Modal termina en fallo visible en los logs; nada
+  queda "colgado" cobrando (auto-teardown).
 - `commit()` explícito tras escribir para asegurar persistencia aun si algo falla después.
 
 ## Testing / validación
+
+> El proyecto **no tiene suite pytest**; su convención son *smoke checks* (`scripts/checks/`,
+> `make test-loader`) y verificación manual con `make`. La validación de esta feature sigue esa
+> convención: comandos `python -c` con salida esperada + una corrida PoC en Modal.
+
 
 - **PoC manual:** `make modal-seed` una vez; luego `make modal-train-baselines
   MODELS=efficientnet_b0 EPOCHS=1` en T4/A10; verificar que aparece
@@ -192,8 +211,7 @@ Espejo de `docs/es/deployment/vast-ai.md`: setup (`pip install -e ".[cloud]"`,
 | Archivo | Cambio |
 |---|---|
 | `src/config.py` | `get_output_root` lee `OUTPUT_ROOT` (backward-compatible) |
-| `scripts/pipeline/train_baselines.py` | `main(argv=None)` + `parse_args(argv)` |
-| `scripts/modal/train.py` | **nuevo** — App, Image, Volumes, entrypoints |
+| `scripts/modal/train.py` | **nuevo** — App, Image, Volumes, entrypoints (orquesta por subprocess) |
 | `Makefile` | targets `modal-seed`, `modal-train-baselines`, `modal-pull` |
 | `pyproject.toml` | `modal` añadido al extra `cloud` |
 | `.env.example` | `OUTPUT_ROOT` opcional documentado (comentado, no rompe default local) |
