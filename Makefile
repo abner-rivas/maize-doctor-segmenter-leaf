@@ -11,8 +11,9 @@ else
 endif
 
 MODELS ?= all
+EPOCHS ?= 30
 
-.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full explain-lime explain-report explain-errors test-loader summary docs-eda lint lint-fix fmt check
+.PHONY: install download-dataset splits splits-baseline train train-baselines train-baselines-full explain-lime explain-report explain-errors test-loader summary docs-eda lint lint-fix fmt check modal-seed modal-train-baselines modal-pull
 
 install:
 	$(PIP) install -e ".[dev,analysis,xai,cloud]"
@@ -34,6 +35,15 @@ train-baselines:
 
 train-baselines-full:
 	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS)
+
+modal-seed:
+	modal run scripts/modal/train.py::seed_dataset
+
+modal-train-baselines:
+	modal run scripts/modal/train.py --models "$(MODELS)" --epochs "$(EPOCHS)"
+
+modal-pull:
+	modal volume get corn-outputs / ./outputs-remote
 
 explain-lime:
 	$(PYTHON) scripts/pipeline/explain_lime.py --models $(MODELS) $(if $(IMAGE),--image $(IMAGE),) $(if $(OUTPUT),--output $(OUTPUT),)
