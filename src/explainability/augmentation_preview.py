@@ -16,7 +16,6 @@ from matplotlib import pyplot as plt
 from PIL import Image
 
 from src.data.loader import load_and_normalize_image
-from src.data.transforms import MINORITY_CLASSES
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +64,15 @@ def save_augmentation_evidence(
     train_transform: T.Compose,
     minority_transform: T.Compose,
     output_dir: Path,
+    minority_classes: set[str],
     num_variants: int = 4,
     seed: int = 42,
 ) -> None:
     """
     Por cada clase presente en `train_csv_path`, toma una imagen de muestra y guarda
     un grid (original + `num_variants` variantes) bajo `<output_dir>/augmentation_preview/`,
-    usando el pipeline 'minority' si la clase está en MINORITY_CLASSES, o 'train' en
-    caso contrario — el mismo criterio que aplica `CornDataset.__getitem__`.
+    usando el pipeline 'minority' si la clase está en `minority_classes`, o 'train' en
+    caso contrario
     """
     df = pd.read_csv(train_csv_path)
     preview_dir = output_dir / "augmentation_preview"
@@ -87,7 +87,7 @@ def save_augmentation_evidence(
             logger.warning(f"Saltando evidencia de augmentation para '{class_name}': {e}")
             continue
 
-        is_minority = class_name in MINORITY_CLASSES
+        is_minority = class_name in minority_classes
         pipeline = minority_transform if is_minority else train_transform
         pipeline_name = "minority" if is_minority else "train"
 
