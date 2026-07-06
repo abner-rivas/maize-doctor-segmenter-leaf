@@ -30,8 +30,8 @@ instancias, reutilizando el pipeline de datos/modelos existente en `src/`.
    función `prepare_splits` separada que exige recordar correrla.)
 3. **Ergonomía:** targets `make` delgados que envuelven `modal run`. (Descartado: solo
    documentar `modal run` sin tocar el Makefile.)
-4. **Dependencia:** extra propio `modal` en `pyproject.toml` (no mezclar con `cloud`, que es
-   descarga de dataset).
+4. **Dependencia:** `modal` se añade al extra `cloud` de `pyproject.toml` (junto a las
+   dependencias de GPU remota / descarga de dataset ya existentes).
 5. **GPU por defecto:** `A10` (VRAM/precio adecuados para efficientnet/mobilenet), overridable.
 
 ## Componentes
@@ -137,14 +137,17 @@ modal-pull:
 
 ### 5. Dependencia — `pyproject.toml`
 
+`modal` se agrega al extra `cloud` existente:
+
 ```toml
-modal = ["modal>=0.64"]
+cloud = ["huggingface_hub>=0.24,<1.22", "gdown>=5.1,<6.2", "modal>=0.64"]
 ```
-(Confirmar versión mínima vigente al implementar.)
+(Confirmar versión mínima vigente al implementar.) El cliente `modal` se obtiene en local con
+`pip install -e ".[cloud]"`; en la imagen, Modal incluye su propio cliente automáticamente.
 
 ### 6. Documentación — `docs/es/deployment/modal.md`
 
-Espejo de `docs/es/deployment/vast-ai.md`: setup (`pip install -e ".[modal]"`,
+Espejo de `docs/es/deployment/vast-ai.md`: setup (`pip install -e ".[cloud]"`,
 `modal setup`, `modal secret create hf HF_TOKEN=…`) y flujo
 `make modal-seed` → `make modal-train-baselines MODELS=…` → `make modal-pull`.
 
@@ -192,6 +195,6 @@ Espejo de `docs/es/deployment/vast-ai.md`: setup (`pip install -e ".[modal]"`,
 | `scripts/pipeline/train_baselines.py` | `main(argv=None)` + `parse_args(argv)` |
 | `scripts/modal/train.py` | **nuevo** — App, Image, Volumes, entrypoints |
 | `Makefile` | targets `modal-seed`, `modal-train-baselines`, `modal-pull` |
-| `pyproject.toml` | extra `modal` |
-| `.env.example` | `OUTPUT_ROOT` opcional documentado |
+| `pyproject.toml` | `modal` añadido al extra `cloud` |
+| `.env.example` | `OUTPUT_ROOT` opcional documentado (comentado, no rompe default local) |
 | `docs/es/deployment/modal.md` | **nuevo** — guía espejo de vast-ai.md |
