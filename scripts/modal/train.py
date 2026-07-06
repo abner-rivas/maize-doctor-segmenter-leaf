@@ -45,7 +45,7 @@ image = (
             # create_splits lanzaría ~32 hilos a ciegas. 8 ~= 2x los cores pedidos (cpu=4.0):
             # el indexado es I/O-bound contra el Volume, así que algo de sobre-suscripción oculta
             # la latencia de lectura sin depender del burst de CPU.
-            "SPLITS_INDEX_WORKERS": "8",
+            "SPLITS_INDEX_WORKERS": "24",
         }
     )
     .add_local_dir("config", f"{REPO_ANCHOR}/config", copy=True)
@@ -76,7 +76,7 @@ def seed_dataset() -> None:
     gpu="A10",
     # CPU explícita (el default de Modal es 0.125 cores): garantiza cores reales para el
     # indexado paralelo de splits y el DataLoader, sin depender del burst. Alineado con
-    # SPLITS_INDEX_WORKERS=8. Facturación: se cobra max(request, uso real).
+    # SPLITS_INDEX_WORKERS=24. Facturación: se cobra max(request, uso real).
     cpu=4.0,
     volumes={"/data": dataset_vol, "/outputs": outputs_vol},
     secrets=[modal.Secret.from_name("hf")],
