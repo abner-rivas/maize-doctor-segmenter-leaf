@@ -1,7 +1,9 @@
 import argparse
 import hashlib
+import io
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
@@ -20,8 +22,22 @@ logger = logging.getLogger(__name__)
 _MIN_STRATUM_IMAGES = 7
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _verify_and_hash(abs_path: Path) -> tuple[bool, str]:
+    """Lee el archivo una sola vez; valida integridad PIL y calcula el SHA-256.
+
+    Devuelve `(True, digest)` si la imagen es válida, o `(False, mensaje_error)` si es
+    corrupta/ilegible. Es una función pura del contenido del archivo (el resultado no
+    depende del orden ni de otras imágenes), así que es segura para ejecutarse en paralelo.
+    Lee los bytes una vez y los reutiliza para PIL (vía BytesIO) y para el hash, evitando
+    la doble lectura de disco del enfoque anterior.
+    """
+    try:
+        data = abs_path.read_bytes()
+        with Image.open(io.BytesIO(data)) as img:
+            img.verify()
+        return True, hashlib.sha256(data).hexdigest()
+    except Exception as e:  # noqa: BLE001 - cualquier fallo = imagen inutilizable, se omite
+        return False, str(e)
 
 
 def _cap_manifest_per_class(df: pd.DataFrame, max_per_class: int, seed: int) -> pd.DataFrame:
@@ -126,25 +142,40 @@ def run_data_preparation_pipeline(
         f"Indexando {len(raw_image_paths)} imágenes con verificación SHA-256 y validación PIL..."
     )
 
-    for class_name, environment, abs_path, rel_path in tqdm(
-        raw_image_paths, desc="Indexando", unit="img"
-    ):
-        try:
-            with Image.open(abs_path) as img:
-                img.verify()
-
-            digest = _sha256(abs_path)
-            if digest in seen_hashes:
-                logger.warning(f"Duplicado exacto detectado y omitido: {rel_path}")
-                duplicates_found += 1
-                continue
-            seen_hashes.add(digest)
-            all_records.append(
-                {"image_path": rel_path, "label": class_name, "environment": environment}
+    # Fase 1 (paralela, I/O-bound): validar + hashear cada imagen. El resultado por archivo
+    # es independiente del orden, así que se calcula concurrentemente para ocultar la latencia
+    # de disco — crítico en volúmenes remotos (p.ej. el de Modal), donde cada lectura es lenta.
+    # Se usan hilos (no procesos): el trabajo es I/O + C de hashlib/PIL, que liberan el GIL,
+    # y así se evita el coste de serializar rutas/bytes entre procesos.
+    max_workers = min(32, (os.cpu_count() or 4) * 4)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        results = list(
+            tqdm(
+                pool.map(_verify_and_hash, (rec[2] for rec in raw_image_paths)),
+                total=len(raw_image_paths),
+                desc="Indexando",
+                unit="img",
             )
-        except Exception as e:
-            tqdm.write(f"⚠️  Imagen corrupta o ilegible, omitida: {rel_path} - {e}")
+        )
+
+    # Fase 2 (secuencial, en el mismo orden sorted() del escaneo): dedup determinista. Con los
+    # digests ya calculados, conservar la primera copia vista sigue siendo reproducible entre
+    # máquinas, idéntico al comportamiento previo — solo que ahora sin el cuello de botella serial.
+    for (class_name, environment, abs_path, rel_path), (ok, value) in zip(
+        raw_image_paths, results
+    ):
+        if not ok:
+            tqdm.write(f"Imagen corrupta o ilegible, omitida: {rel_path} - {value}")
             corrupt_found += 1
+            continue
+        if value in seen_hashes:
+            logger.warning(f"Duplicado exacto detectado y omitido: {rel_path}")
+            duplicates_found += 1
+            continue
+        seen_hashes.add(value)
+        all_records.append(
+            {"image_path": rel_path, "label": class_name, "environment": environment}
+        )
 
     df_manifest = pd.DataFrame(all_records)
     logger.info(
