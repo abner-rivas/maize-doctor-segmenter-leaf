@@ -51,7 +51,11 @@ def seed_dataset() -> None:
     cpu=4.0,
     volumes={"/data": dataset_vol, "/outputs": outputs_vol},
     secrets=[modal.Secret.from_name("hf")],
-    timeout=6 * 3600,
+    # `--models all` (7 baselines) x 30 epochs. Con --no-cap el train baseline es ~11.5k imgs
+    # (data/clean: healthy 8744 + common_rust 2256 + fall_armyworm 4857 + nitrogen 523, split
+    # 70%), ~8x el perfil capado (~12 min/modelo). Estimado ~1.5 h/modelo -> ~11 h los 7
+    # secuenciales; 14 h dan margen para no morir por timeout.
+    timeout=14 * 3600,
 )
 def train_baselines(
     models: str = "efficientnet_b0",
