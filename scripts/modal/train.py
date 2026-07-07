@@ -1,56 +1,27 @@
 """Entrenamiento de baselines en GPU de Modal (https://modal.com/docs/guide).
 
 Coexiste con scripts/vastai/. No importa funciones internas del pipeline: orquesta por
-subprocess los mismos scripts CLI que corre el Makefile (splits-baseline, train-baselines),
-heredando el entorno de la imagen (DATASET_ROOT=/data, OUTPUT_ROOT=/outputs) para que
-get_dataset_root()/get_output_root() resuelvan a los Volumes montados.
+subprocess el mismo script CLI que corre `make train-baselines` (train_baselines.py, que a
+su vez genera splits/seed_42_baseline de forma lazy si faltan), heredando el entorno de la
+imagen (DATASET_ROOT=/data, OUTPUT_ROOT=/outputs) para que get_dataset_root()/
+get_output_root() resuelvan a los Volumes montados.
 
 Uso:
     modal run scripts/modal/train.py::seed_dataset            # 1 vez: dataset -> Volume
     modal run scripts/modal/train.py --models "efficientnet_b0" --epochs 30
+    modal run scripts/modal/train.py::clean_outputs            # vacía el Volume corn-outputs
 Requiere: `pip install -e ".[cloud]"`, `modal setup`, y el secret:
     modal secret create hf HF_TOKEN=hf_xxx
 """
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import modal
 
-REPO_ANCHOR = "/root"  # workdir por defecto de Modal; el código local se monta aquí
-HF_DATASET_REPO = "daiv05/corn-leaf-diseases-pests-and-deficiencies"
-
-# Volumes persistentes: dataset (seed una vez) y artefactos (splits/pesos/métricas/LIME).
-dataset_vol = modal.Volume.from_name("corn-clean", create_if_missing=True)
-outputs_vol = modal.Volume.from_name("corn-outputs", create_if_missing=True)
-
-# Imagen nativa: deps horneadas; src/scripts montados en caliente (última capa, copy=False).
-# .env() va ANTES de los add_local_* porque las capas copy=False deben ser las últimas.
-image = (
-    modal.Image.debian_slim(python_version="3.11")
-    .pip_install(
-        "torch==2.12.1",
-        "torchvision==0.27.1",
-        index_url="https://download.pytorch.org/whl/cu126",
-    )
-    .pip_install_from_pyproject("pyproject.toml", optional_dependencies=["cloud", "xai"])
-    .env(
-        {
-            "DATASET_ROOT": "/data",
-            "OUTPUT_ROOT": "/outputs",
-            "HF_DATASET_REPO": HF_DATASET_REPO,
-            # Hilos del indexado de splits. Se fija explícitamente porque os.cpu_count() en el
-            # contenedor reporta los cores del HOST, no la CPU asignada al contenedor: sin esto,
-            # create_splits lanzaría ~32 hilos a ciegas. 8 ~= 2x los cores pedidos (cpu=4.0):
-            # el indexado es I/O-bound contra el Volume, así que algo de sobre-suscripción oculta
-            # la latencia de lectura sin depender del burst de CPU.
-            "SPLITS_INDEX_WORKERS": "24",
-        }
-    )
-    .add_local_dir("config", f"{REPO_ANCHOR}/config", copy=True)
-    .add_local_python_source("src", "scripts")
-)
+from scripts.modal._common import REPO_ANCHOR, dataset_vol, image, outputs_vol
 
 app = modal.App("corn-leaf-baselines", image=image)
 
@@ -82,38 +53,90 @@ def seed_dataset() -> None:
     secrets=[modal.Secret.from_name("hf")],
     timeout=6 * 3600,
 )
-def train_baselines(models: str = "efficientnet_b0", epochs: int = 30) -> None:
-    """Genera splits baseline (lazy) y entrena los baselines indicados, persistiendo
-    resultados en el Volume corn-outputs."""
+def train_baselines(
+    models: str = "efficientnet_b0",
+    epochs: int = 30,
+    max_per_class: int = 0,
+    no_cap: bool = False,
+    batch_size: int = 0,
+    image_size: int = 0,
+    learning_rate: float = 0.0,
+    weight_decay: float = 0.0,
+    num_workers: int = 0,
+    no_pretrained: bool = False,
+    lime: bool = False,
+) -> None:
+    """Entrena los baselines indicados, persistiendo resultados en el Volume corn-outputs.
+    Espeja `make train-baselines`/`train_baselines.py` — misma CLI, mismo comportamiento
+    (incluida la generación lazy de splits/seed_42_baseline si aún no existen).
+    """
     dataset_vol.reload()  # ve el dataset seedeado por seed_dataset
-    splits_marker = Path("/outputs/splits/seed_42_baseline/train.csv")
-    if not splits_marker.exists():
-        subprocess.run(
-            [sys.executable, "scripts/pipeline/create_splits.py", "--baseline"],
-            check=True,
-            cwd=REPO_ANCHOR,
-        )
-        # Persistir splits aunque el training falle luego: sin este commit, un run
-        # interrumpido perdería los splits recién generados y la próxima corrida
-        # los regeneraría en vez de reutilizarlos (rompe la idempotencia lazy).
-        outputs_vol.commit()
-    subprocess.run(
-        [
-            sys.executable,
-            "scripts/pipeline/train_baselines.py",
-            "--models",
-            *models.split(),
-            "--baseline",
-            "--epochs",
-            str(epochs),
-        ],
-        check=True,
-        cwd=REPO_ANCHOR,
-    )
+
+    train_args = [
+        sys.executable,
+        "scripts/pipeline/train_baselines.py",
+        "--models",
+        *models.split(),
+        "--baseline",
+        "--epochs",
+        str(epochs),
+    ]
+    if no_cap:
+        train_args.append("--no-cap")
+    elif max_per_class:
+        train_args += ["--max-per-class", str(max_per_class)]
+    if batch_size:
+        train_args += ["--batch-size", str(batch_size)]
+    if image_size:
+        train_args += ["--image-size", str(image_size)]
+    if learning_rate:
+        train_args += ["--learning-rate", str(learning_rate)]
+    if weight_decay:
+        train_args += ["--weight-decay", str(weight_decay)]
+    if num_workers:
+        train_args += ["--num-workers", str(num_workers)]
+    if no_pretrained:
+        train_args.append("--no-pretrained")
+    if lime:
+        train_args.append("--lime")
+    subprocess.run(train_args, check=True, cwd=REPO_ANCHOR)
+    outputs_vol.commit()
+
+
+@app.function(volumes={"/outputs": outputs_vol}, timeout=600)
+def clean_outputs() -> None:
+    """Vacía el contenido del Volume corn-outputs (splits/runs/reportes). No borra el Volume."""
+    outputs_root = Path("/outputs")
+    for entry in outputs_root.iterdir():
+        shutil.rmtree(entry) if entry.is_dir() else entry.unlink()
     outputs_vol.commit()
 
 
 @app.local_entrypoint()
-def main(models: str = "efficientnet_b0", epochs: int = 30) -> None:
+def main(
+    models: str = "efficientnet_b0",
+    epochs: int = 30,
+    max_per_class: int = 0,
+    no_cap: bool = False,
+    batch_size: int = 0,
+    image_size: int = 0,
+    learning_rate: float = 0.0,
+    weight_decay: float = 0.0,
+    num_workers: int = 0,
+    no_pretrained: bool = False,
+    lime: bool = False,
+) -> None:
     """Entrypoint de `modal run`: dispara train_baselines en la GPU remota."""
-    train_baselines.remote(models=models, epochs=epochs)
+    train_baselines.remote(
+        models=models,
+        epochs=epochs,
+        max_per_class=max_per_class,
+        no_cap=no_cap,
+        batch_size=batch_size,
+        image_size=image_size,
+        learning_rate=learning_rate,
+        weight_decay=weight_decay,
+        num_workers=num_workers,
+        no_pretrained=no_pretrained,
+        lime=lime,
+    )

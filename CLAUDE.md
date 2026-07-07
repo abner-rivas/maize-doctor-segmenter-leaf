@@ -48,7 +48,7 @@ ingesta de fuentes crudas nuevas (Kaggle/Mendeley/Roboflow) hacia `raw/`, no toc
 make install                          # pip install -e ".[dev,analysis,xai,cloud]"
 make download-dataset                 # clean/ (HF Hub, fallback Google Drive)
 make splits / make splits-baseline    # regenera splits CSV
-make train-baselines [MODELS=<nombre>] / make train-baselines-full
+make train-baselines [MODELS=<nombre> NO_CAP=1|MAX_PER_CLASS=<n>]
 make train                            # loop de entrenamiento pendiente
 make explain-lime [MODELS=<nombre>]   # reporte visual LIME+Grad-CAM post-hoc
 make explain-report [MODELS=<nombre> SAMPLE_SIZE=<n>]  # fidelidad agregada

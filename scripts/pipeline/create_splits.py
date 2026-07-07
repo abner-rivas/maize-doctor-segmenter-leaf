@@ -101,6 +101,7 @@ def run_data_preparation_pipeline(
     baseline: bool = False,
     classes: list[str] | None = None,
     max_per_class: int | None = None,
+    no_cap: bool = False,
 ) -> None:
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
@@ -113,9 +114,12 @@ def run_data_preparation_pipeline(
 
     baseline_cfg = config.get("baseline", {}) if baseline else {}
     allowed_classes = classes or baseline_cfg.get("classes") or config["dataset"]["classes"]
-    max_per_class = (
-        max_per_class if max_per_class is not None else baseline_cfg.get("max_images_per_class")
-    )
+    if no_cap:
+        max_per_class = None
+    else:
+        max_per_class = (
+            max_per_class if max_per_class is not None else baseline_cfg.get("max_images_per_class")
+        )
 
     clean_dir = dataset_root / config["paths"]["raw_dir"]
     base_output_dir = get_output_root() / config["paths"]["split_output_dir"]
@@ -178,9 +182,7 @@ def run_data_preparation_pipeline(
     # Fase 2 (secuencial, en el mismo orden sorted() del escaneo): dedup determinista. Con los
     # digests ya calculados, conservar la primera copia vista sigue siendo reproducible entre
     # máquinas, idéntico al comportamiento previo — solo que ahora sin el cuello de botella serial.
-    for (class_name, environment, abs_path, rel_path), (ok, value) in zip(
-        raw_image_paths, results
-    ):
+    for (class_name, environment, abs_path, rel_path), (ok, value) in zip(raw_image_paths, results):
         if not ok:
             tqdm.write(f"Imagen corrupta o ilegible, omitida: {rel_path} - {value}")
             corrupt_found += 1
@@ -276,7 +278,8 @@ if __name__ == "__main__":
         default=None,
         help="Lista explícita de clases a incluir (sobrescribe dataset.classes / baseline.classes)",
     )
-    parser.add_argument(
+    cap_group = parser.add_mutually_exclusive_group()
+    cap_group.add_argument(
         "--max-per-class",
         type=int,
         default=None,
@@ -284,10 +287,18 @@ if __name__ == "__main__":
         help="Límite de imágenes por clase, aplicado antes del split (sobrescribe "
         "baseline.max_images_per_class).",
     )
+    cap_group.add_argument(
+        "--no-cap",
+        action="store_true",
+        dest="no_cap",
+        help="Ignora baseline.max_images_per_class: usa el 100%% de las imágenes disponibles "
+        "por clase. Solo tiene efecto junto con --baseline (sin --baseline nunca hay cap).",
+    )
     args = parser.parse_args()
     run_data_preparation_pipeline(
         config_path=args.config,
         baseline=args.baseline,
         classes=args.classes,
         max_per_class=args.max_per_class,
+        no_cap=args.no_cap,
     )
