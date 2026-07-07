@@ -25,7 +25,6 @@ import src.models.baselines.ghostnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
 import src.models.baselines.shufflenet  # noqa: F401 - registra modelos
 from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_global_seed
-from src.data.dataset import resolve_class_mapping
 from src.data.loader import load_and_normalize_image
 from src.explainability.visual_report import (
     explanation_dispersion,
@@ -33,7 +32,7 @@ from src.explainability.visual_report import (
     sample_balanced,
 )
 from src.models.registry import MODEL_REGISTRY
-from src.training.common import resolve_run_dir
+from src.training.common import load_run_metadata, resolve_run_dir
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -171,20 +170,17 @@ def main() -> None:
 
     model_names = _resolve_model_names(args.models)
     use_baseline = args.baseline if args.baseline is not None else lime_cfg["baseline"]
-    splits_dir = get_output_root() / "splits" / ("seed_42_baseline" if use_baseline else "seed_42")
-    classes = cfg["baseline"]["classes"] if use_baseline else cfg["dataset"]["classes"]
+    # Fallbacks solo para runs sin summary.json; la fuente de verdad es el summary.json de
+    # cada run (ver load_run_metadata). Nunca reconstruir el mapeo desde baseline.classes: su
+    # orden puede diferir del canónico dataset.classes con el que se entrenó el head -> rótulos
+    # permutados en los reportes.
+    fallback_splits_dir = get_output_root() / "splits" / (
+        "seed_42_baseline" if use_baseline else "seed_42"
+    )
+    fallback_classes = cfg["baseline"]["classes"] if use_baseline else cfg["dataset"]["classes"]
+    fallback_target_size = tuple(cfg["dataset"]["target_size"])
     sample_size = args.sample_size or lime_cfg["report_sample_size"]
     num_samples = args.num_samples or lime_cfg["num_samples"]
-
-    if not splits_dir.exists():
-        raise SystemExit(
-            f"El directorio de splits no existe: {splits_dir}\n"
-            "Genera los splits primero con: make splits  (o make splits-baseline)"
-        )
-
-    class_to_idx, idx_to_class = resolve_class_mapping(splits_dir / "train.csv", classes)
-    num_classes = len(class_to_idx)
-    target_size = tuple(cfg["dataset"]["target_size"])
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Dispositivo: {device}")
@@ -222,6 +218,16 @@ def main() -> None:
         if df_subset.empty:
             logger.info(f"[{model_name}] Nada que explicar (subconjunto vacío). Se omite.")
             continue
+
+        # Mapeo clase->índice y tamaño de entrada del checkpoint concreto (per-run, desde su
+        # summary.json): el mismo que usó el head al entrenar y el mismo image_size por-modelo.
+        _, _, idx_to_class, target_size = load_run_metadata(
+            run_dir=run_dir,
+            fallback_splits_dir=fallback_splits_dir,
+            fallback_classes=fallback_classes,
+            fallback_target_size=fallback_target_size,
+        )
+        num_classes = len(idx_to_class)
 
         model = MODEL_REGISTRY.build(model_name, num_classes=num_classes, pretrained=False).to(
             device

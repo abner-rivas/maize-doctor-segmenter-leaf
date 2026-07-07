@@ -62,6 +62,7 @@ def train_baselines(
     epochs: int = 30,
     max_per_class: int = 0,
     no_cap: bool = False,
+    regenerate_splits: bool = False,
     batch_size: int = 0,
     image_size: int = 0,
     learning_rate: float = 0.0,
@@ -89,6 +90,8 @@ def train_baselines(
         train_args.append("--no-cap")
     elif max_per_class:
         train_args += ["--max-per-class", str(max_per_class)]
+    if regenerate_splits:
+        train_args.append("--regenerate-splits")
     if batch_size:
         train_args += ["--batch-size", str(batch_size)]
     if image_size:
@@ -122,6 +125,7 @@ def main(
     epochs: int = 30,
     max_per_class: int = 0,
     no_cap: bool = False,
+    regenerate_splits: bool = False,
     batch_size: int = 0,
     image_size: int = 0,
     learning_rate: float = 0.0,
@@ -136,6 +140,7 @@ def main(
         epochs=epochs,
         max_per_class=max_per_class,
         no_cap=no_cap,
+        regenerate_splits=regenerate_splits,
         batch_size=batch_size,
         image_size=image_size,
         learning_rate=learning_rate,
