@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -449,9 +450,9 @@ def main() -> None:
         type=int,
         default=None,
         dest="max_per_class",
-        help="Cap de imágenes por clase para splits/seed_42_baseline. Solo tiene efecto si "
-        "el directorio de splits aún no existe (se genera lazy con este cap); si ya existe, "
-        "se usa tal cual y este flag se ignora.",
+        help="Cap de imágenes por clase para splits/seed_42_baseline. Aplica al generar los "
+        "splits (lazy). Si el directorio ya existe se reutiliza tal cual y este flag se "
+        "ignora, salvo que se pase --regenerate-splits para forzar la regeneración.",
     )
     cap_group.add_argument(
         "--no-cap",
@@ -459,6 +460,14 @@ def main() -> None:
         dest="no_cap",
         help="Como --max-per-class pero sin límite (100%% de imágenes por clase). Mismas "
         "reglas de generación lazy.",
+    )
+    parser.add_argument(
+        "--regenerate-splits",
+        action="store_true",
+        dest="regenerate_splits",
+        help="Borra y regenera splits/seed_42_baseline aunque ya exista, para que un cambio "
+        "de --max-per-class/--no-cap o de baseline.classes surta efecto (clave en el Volume "
+        "de Modal, donde los splits persisten entre corridas).",
     )
     parser.add_argument(
         "--splits-dir",
@@ -504,6 +513,15 @@ def main() -> None:
     splits_dir = Path(args.splits_dir) if args.splits_dir else output_root / "splits" / split_name
     output_dir = Path(args.output_dir) if args.output_dir else output_root / "baselines"
     base_target_size = _base_target_size(cfg)
+
+    if splits_dir.exists() and args.regenerate_splits:
+        if not args.baseline:
+            raise SystemExit(
+                "--regenerate-splits solo aplica al path baseline (seed_42_baseline). Para "
+                f"regenerar {splits_dir} usa: make splits"
+            )
+        logger.info("--regenerate-splits: eliminando %s para regenerarlo", splits_dir)
+        shutil.rmtree(splits_dir)
 
     if not splits_dir.exists():
         if not args.baseline:

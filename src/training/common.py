@@ -81,3 +81,44 @@ def resolve_run_dir(output_dir: Path, model_name: str, run_id: str | None = None
     if not run_dir.exists():
         raise SystemExit(f"No se encontró el run '{run_id}' para '{model_name}' en {model_dir}")
     return run_dir
+
+
+def load_run_metadata(
+    run_dir: Path,
+    fallback_splits_dir: Path,
+    fallback_classes: list[str],
+    fallback_target_size: tuple[int, int],
+) -> tuple[Path, dict[str, int], dict[int, str], tuple[int, int]]:
+    """Resuelve (splits_dir, class_to_idx, idx_to_class, target_size) para un run baseline.
+
+    Fuente de verdad: el `summary.json` del run, que persiste el mapeo clase->índice y el
+    tamaño de entrada con los que se entrenó ese checkpoint. Solo si falta summary.json se
+    cae al fallback derivado del YAML + train.csv.
+
+    Compartida por explain_lime.py y explain_report.py: garantiza que ambos traduzcan el
+    argmax del modelo con EXACTAMENTE el mismo mapeo que el head entrenado. Reconstruir el
+    mapeo desde `baseline.classes` (cuyo orden puede diferir del canónico `dataset.classes`
+    que usa CornDataset) produce etiquetas permutadas — ese fue el bug de rótulos de los
+    reportes LIME.
+    """
+    summary_path = run_dir / "summary.json"
+    if summary_path.exists():
+        summary = json.loads(summary_path.read_text())
+        splits_dir = Path(summary.get("splits_dir", fallback_splits_dir))
+        class_to_idx = {
+            str(class_name): int(class_idx)
+            for class_name, class_idx in summary["class_to_idx"].items()
+        }
+        idx_to_class = {idx: class_name for class_name, idx in class_to_idx.items()}
+        image_size = summary.get("image_size", list(fallback_target_size))
+        target_size = (int(image_size[0]), int(image_size[1]))
+        return splits_dir, class_to_idx, idx_to_class, target_size
+
+    # Import diferido: evita arrastrar pandas/yaml (cadena de src.data.dataset) salvo que
+    # realmente falte summary.json.
+    from src.data.dataset import resolve_class_mapping
+
+    class_to_idx, idx_to_class = resolve_class_mapping(
+        fallback_splits_dir / "train.csv", fallback_classes
+    )
+    return fallback_splits_dir, class_to_idx, idx_to_class, fallback_target_size

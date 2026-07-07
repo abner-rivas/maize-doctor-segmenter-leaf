@@ -16,6 +16,7 @@ MODELS ?= all
 EPOCHS ?= 30
 NO_CAP ?=
 MAX_PER_CLASS ?=
+REGEN_SPLITS ?=
 BATCH_SIZE ?=
 IMAGE_SIZE ?=
 LEARNING_RATE ?=
@@ -45,6 +46,7 @@ train:
 train-baselines:
 	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --baseline \
 		$(if $(NO_CAP),--no-cap,) $(if $(MAX_PER_CLASS),--max-per-class $(MAX_PER_CLASS),) \
+		$(if $(REGEN_SPLITS),--regenerate-splits,) \
 		--epochs $(EPOCHS) \
 		$(if $(BATCH_SIZE),--batch-size $(BATCH_SIZE),) \
 		$(if $(IMAGE_SIZE),--image-size $(IMAGE_SIZE),) \
@@ -63,6 +65,7 @@ modal-seed:
 modal-train-baselines:
 	$(MODAL) run scripts/modal/train.py --models "$(MODELS)" --epochs "$(EPOCHS)" \
 		$(if $(NO_CAP),--no-cap,) $(if $(MAX_PER_CLASS),--max-per-class "$(MAX_PER_CLASS)",) \
+		$(if $(REGEN_SPLITS),--regenerate-splits,) \
 		$(if $(BATCH_SIZE),--batch-size "$(BATCH_SIZE)",) \
 		$(if $(IMAGE_SIZE),--image-size "$(IMAGE_SIZE)",) \
 		$(if $(LEARNING_RATE),--learning-rate "$(LEARNING_RATE)",) \
