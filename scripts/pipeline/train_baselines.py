@@ -1,6 +1,8 @@
 import argparse
 import json
 import logging
+import subprocess
+import sys
 from pathlib import Path
 from time import perf_counter
 
@@ -28,6 +30,8 @@ from src.training.common import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+_CREATE_SPLITS_SCRIPT = Path(__file__).parent / "create_splits.py"
+
 
 def _load_config(config_path: Path) -> dict:
     with open(config_path, "r") as f:
@@ -42,16 +46,14 @@ def _base_target_size(cfg: dict) -> tuple[int, int]:
 def _resolve_model_target_size(
     model_name: str, args: argparse.Namespace, cfg: dict
 ) -> tuple[int, int]:
-    """Resolución efectiva por modelo.
-    """
+    """Resolución efectiva por modelo."""
     if args.image_size is not None:
         return (args.image_size, args.image_size)
     return resolve_input_size(model_name, _base_target_size(cfg))
 
 
 def _scale_batch_size(base_batch: int, target_size: tuple[int, int], base: tuple[int, int]) -> int:
-    """Escala el batch inversamente al área de la imagen para acotar la memoria de activaciones.
-    """
+    """Escala el batch inversamente al área de la imagen para acotar la memoria de activaciones."""
     base_h, base_w = base
     height, width = target_size
     scaled = round(base_batch * (base_h * base_w) / (height * width))
@@ -356,7 +358,9 @@ def _train_model(
         }
     )
     predictions_df.to_csv(run_dir / "predictions.csv", index=False)
-    logger.info("[%s] Predicciones de test guardadas en %s", model_name, run_dir / "predictions.csv")
+    logger.info(
+        "[%s] Predicciones de test guardadas en %s", model_name, run_dir / "predictions.csv"
+    )
 
     _write_summary(
         run_dir,
@@ -439,6 +443,23 @@ def main() -> None:
         action="store_true",
         help="Usa splits/seed_42_baseline en vez de splits/seed_42.",
     )
+    cap_group = parser.add_mutually_exclusive_group()
+    cap_group.add_argument(
+        "--max-per-class",
+        type=int,
+        default=None,
+        dest="max_per_class",
+        help="Cap de imágenes por clase para splits/seed_42_baseline. Solo tiene efecto si "
+        "el directorio de splits aún no existe (se genera lazy con este cap); si ya existe, "
+        "se usa tal cual y este flag se ignora.",
+    )
+    cap_group.add_argument(
+        "--no-cap",
+        action="store_true",
+        dest="no_cap",
+        help="Como --max-per-class pero sin límite (100%% de imágenes por clase). Mismas "
+        "reglas de generación lazy.",
+    )
     parser.add_argument(
         "--splits-dir",
         default=None,
@@ -481,16 +502,30 @@ def main() -> None:
     output_root = get_output_root()
     split_name = "seed_42_baseline" if args.baseline else "seed_42"
     splits_dir = Path(args.splits_dir) if args.splits_dir else output_root / "splits" / split_name
-    output_dir = (
-        Path(args.output_dir)
-        if args.output_dir
-        else output_root / "baselines"
-    )
+    output_dir = Path(args.output_dir) if args.output_dir else output_root / "baselines"
     base_target_size = _base_target_size(cfg)
 
     if not splits_dir.exists():
-        command = "make splits-baseline" if args.baseline else "make splits"
-        raise SystemExit(f"No existe {splits_dir}. Genera los splits primero con: {command}")
+        if not args.baseline:
+            raise SystemExit(f"No existe {splits_dir}. Genera los splits primero con: make splits")
+
+        create_splits_args = [
+            sys.executable,
+            str(_CREATE_SPLITS_SCRIPT),
+            "--baseline",
+            "--config",
+            str(config_path),
+        ]
+        if args.no_cap:
+            create_splits_args.append("--no-cap")
+        elif args.max_per_class is not None:
+            create_splits_args += ["--max-per-class", str(args.max_per_class)]
+        logger.info(
+            "No existe %s. Generando splits/seed_42_baseline (lazy): %s",
+            splits_dir,
+            " ".join(create_splits_args),
+        )
+        subprocess.run(create_splits_args, check=True)
 
     device = select_device()
     gradcam_enabled = cfg.get("gradcam", {}).get("enabled", False)

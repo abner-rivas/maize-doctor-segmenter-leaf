@@ -7,7 +7,7 @@ description: Use when running or editing scripts/pipeline/explain_lime.py, scrip
 
 ## Flujo
 
-LIME ya no corre automáticamente al entrenar. `train_baselines.py` mantiene el flag `--lime` (útil para encadenarlo puntualmente), pero los targets `make train-baselines`/`train-baselines-full` ya no lo pasan por defecto — entrenamiento y explicabilidad son pasos separados.
+LIME ya no corre automáticamente al entrenar. `train_baselines.py` mantiene el flag `--lime` (útil para encadenarlo puntualmente), pero el target `make train-baselines` no lo pasa por defecto — entrenamiento y explicabilidad son pasos separados.
 
 ## `make explain-lime` (`scripts/pipeline/explain_lime.py`)
 

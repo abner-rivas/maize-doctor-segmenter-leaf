@@ -30,10 +30,11 @@ configurables desde `config/dataset.yaml` (sección `baseline:`) o por CLI
 
 **Por qué un subset y no el dataset completo:** los baselines son una exploración inicial, no el
 entrenamiento definitivo. Con un subconjunto acotado es posible comparar el comportamiento de las
-tres arquitecturas -detectar colapso de clases, gradientes muertos, diferencias de convergencia- en
-un tiempo de cómputo mucho menor, sin comprometer el ciclo completo de experimentación. Los modelos
-finalistas identificados aquí se re-entrenarán sobre el split completo (`make train-baselines-full`)
-en la fase de producción.
+arquitecturas -detectar colapso de clases, gradientes muertos, diferencias de convergencia- en
+un tiempo de cómputo mucho menor, sin comprometer el ciclo completo de experimentación. Si hace
+falta comparar con más imágenes por clase antes de decidir, `make train-baselines NO_CAP=1` (o
+`MAX_PER_CLASS=<n>`) entrena el mismo subset de 4 clases sin el tope de 500. El modelo finalista
+se re-entrena sobre las 9 clases completas en el pipeline principal (`train.py`), no aquí.
 
 ---
 
