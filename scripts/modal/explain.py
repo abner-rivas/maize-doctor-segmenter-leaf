@@ -54,7 +54,9 @@ def explain_lime(
     outputs_vol.commit()
 
 
-@app.function(gpu=_GPU, volumes=_VOLUMES, secrets=[modal.Secret.from_name("hf")], timeout=3600)
+# num_samples=1000 x report_sample_size=30/clase x 4 clases x 7 modelos (--models all) roza
+# la hora; 3 h dan holgura para el barrido completo sin cortes.
+@app.function(gpu=_GPU, volumes=_VOLUMES, secrets=[modal.Secret.from_name("hf")], timeout=3 * 3600)
 def explain_report(
     models: str = "all",
     run: str = "",
