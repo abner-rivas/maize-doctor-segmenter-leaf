@@ -2,23 +2,29 @@
 
 ## Normalizado
 
-Toda imagen se carga en caliente mediante `src/data/loader.py - load_and_normalize_image()`:
+Antes de que una imagen llegue al modelo tiene que pasar por un único punto de entrada que la deje en un formato consistente, sin importar si viene de una cámara de laboratorio o de un smartphone en el campo. Esto evita que diferencias de orientación, canal de color o escala se cuelen como ruido durante el entrenamiento.
 
-1. **Corrección EXIF** (`ImageOps.exif_transpose`) - corrige la orientación físca de fotos tomadas con smartphones antes de cualquier transformación.
-2. **Conversión a RGB estricta** - elimina canal alfa (RGBA) y expande imágenes monocromáticas. Garantiza 3 canales en todos los tensores.
-3. **Estadísticas de normalización** - se usan las medias y desviaciones estándar de ImageNet (`mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`). Se eligieron porque todos los backbones preentrenados esperan esta normalización. Cuando se calcule el EDA propio del dataset se podrán sustituir por estadísticas reales del corpus.
+Toda imagen se carga en caliente mediante `load_and_normalize_image()` (`src/data/loader.py`), que aplica tres pasos en orden:
+
+1. **Corrección EXIF** (`ImageOps.exif_transpose`): corrige la orientación física de fotos tomadas con smartphones antes de cualquier transformación.
+2. **Conversión a RGB estricta**: elimina el canal alfa (RGBA) y expande imágenes monocromáticas, garantizando 3 canales en todos los tensores.
+3. **Estadísticas de normalización**: se usan las medias y desviaciones estándar de ImageNet (`mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`). Se eligieron porque todos los backbones preentrenados esperan esta normalización. Cuando se calcule el EDA propio del dataset, podrán sustituirse por estadísticas reales del corpus.
 
 ## División
 
-Implementada en `src/data/splitter.py - HierarchicalStratifiedSplitter`.
+Antes de balancear clases o aplicar augmentation hace falta decidir qué imágenes ve el modelo en cada etapa (entrenamiento, validación, prueba) y garantizar que esa división sea reproducible y representativa del dataset completo.
 
-- **Proporciones:** 70% train / 15% val / 15% test.
-- **Seed fijo:** 42, declarado en `config/dataset.yaml`. Garantiza reproducibilidad exacta entre ejecuciones.
-- **Estratificación jerárquica:** se estratifica por `label + environment` (no solo por clase). Esto asegura que la proporción de imágenes de laboratorio vs campo sea consistente en los tres splits. Un split aleatorio simple podría concentrar todas las imágenes de laboratorio de una clase en train, sesgando val y test.
-- **Los CSV son inmutables:** `outputs/splits/seed_42/train.csv`, `val.csv`, `test.csv` son la fuente de verdad. No se modifican. Las exclusiones de clases se aplican en tiempo de construcción del dataset (`exclude_classes`), no en el CSV.
-- **Baseline vs. principal:** el pipeline principal usa `seed_42/` (9 clases sin cap); el baseline usa `seed_42_baseline/` (9 clases con cap de 1 500/clase). Misma estratificación y seed.
+Implementada en `HierarchicalStratifiedSplitter` (`src/data/splitter.py`), la división separa el dataset en 70% train, 15% val y 15% test, con la seed fija en 42 (declarada en `config/dataset.yaml`) para garantizar reproducibilidad exacta entre ejecuciones.
+
+La estratificación es jerárquica: se hace por `label + environment`, no solo por clase. Esto asegura que la proporción de imágenes de laboratorio frente a las de campo sea consistente en los tres splits; un split aleatorio simple podría concentrar todas las imágenes de laboratorio de una clase en train, sesgando val y test.
+
+Los CSV resultantes son inmutables: `outputs/splits/seed_42/train.csv`, `val.csv` y `test.csv` son la fuente de verdad y no se modifican a mano. Las exclusiones de clases se aplican en tiempo de construcción del dataset (`exclude_classes`), no en el CSV.
+
+Baseline vs. principal: el pipeline principal usa `seed_42/` (9 clases sin cap), mientras que el baseline usa `seed_42_baseline/` (9 clases con cap de 1500 imágenes por clase). Ambos comparten la misma estratificación y la misma seed.
 
 ## Balanceo
+
+El dataset está lejos de ser uniforme: algunas clases tienen miles de imágenes y otras apenas un par de cientos. Sin corrección, un modelo entrenado directamente sobre esa distribución tiende a ignorar las clases minoritarias porque optimizar para las mayoritarias ya le da buena precisión global. Por eso el balanceo combina un diagnóstico cuantitativo con varias técnicas complementarias.
 
 ### Diagnóstico del desbalance (train)
 
@@ -36,23 +42,27 @@ Implementada en `src/data/splitter.py - HierarchicalStratifiedSplitter`.
 
 ### Técnicas descartadas
 
+Antes de llegar a la estrategia actual se evaluaron otras alternativas más simples, y se descartaron por razones concretas:
+
 - **Undersampling agresivo:** descartado porque elimina datos reales y escasos. Con 186 imágenes de `potassium_deficiency`, reducir la mayoría a ese nivel destruiría el 97% del corpus.
 - **Oversampling físico (copias en disco):** descartado porque `WeightedRandomSampler` logra el mismo efecto en memoria, es reversible y se combina con augmentation en caliente sin duplicar archivos.
-- **Focal Loss:** descartada en esta etapa. Es más útil cuando hay muchos ejemplos fáciles que saturan el gradiente (e.g. detección de objetos con fondo masivo). En clasificación de hojas con 9 clases y muestras mayoritariamente difíciles, Weighted Cross Entropy es más interpretable. Se revisa si los resultados experimentales no mejoran.
+- **Focal Loss:** descartada en esta etapa. Es más útil cuando hay muchos ejemplos fáciles que saturan el gradiente (por ejemplo, detección de objetos con fondo masivo). En clasificación de hojas con 9 clases y muestras mayoritariamente difíciles, Weighted Cross Entropy es más interpretable. Se revisará si los resultados experimentales no mejoran.
 
 ### Estrategia adoptada: tres capas complementarias
 
-**Capa 1 - Sin exclusiones de clase:** `aphids_pest` fue considerada inicialmente pero se descartó definitivamente porque no se encontraron suficientes fuentes de imágenes adicionales - con solo ~77 fotos, el data augmentation no produciría variedad visual real sino repetición sintética. En su lugar se incorporó `lethal_necrosis` (~6 415 imágenes de campo real), que sí tiene masa crítica para el entrenamiento. El pipeline no excluye ninguna clase actualmente.
+**Capa 1: sin exclusiones de clase.** `aphids_pest` fue considerada inicialmente pero se descartó definitivamente porque no se encontraron suficientes fuentes de imágenes adicionales: con solo ~77 fotos, el data augmentation no produciría variedad visual real sino repetición sintética. En su lugar se incorporó `lethal_necrosis` (~6415 imágenes de campo real), que sí tiene masa crítica para el entrenamiento. El pipeline no excluye ninguna clase actualmente.
 
-**Capa 2 - `WeightedRandomSampler`:** cada muestra recibe un peso `1 / count_of_its_class`. El sampler repite muestras minoritarias dentro de cada epoch sin inflar su tamaño (`num_samples` = tamaño original). Combinado con augmentation en caliente, cada repetición recibe transformaciones distintas.
+**Capa 2: `WeightedRandomSampler`.** Cada muestra recibe un peso `1 / count_of_its_class`. El sampler repite muestras minoritarias dentro de cada epoch sin inflar su tamaño (`num_samples` = tamaño original). Combinado con augmentation en caliente, cada repetición recibe transformaciones distintas.
 
-**Capa 3 - `CrossEntropyLoss` ponderada:** peso por clase `w_i = total / (num_clases × count_i)`. Refuerza el gradiente de clases minoritarias incluso cuando aparecen en menor proporción dentro de un batch. Complementa al sampler que actúa sobre frecuencia de aparición.
+**Capa 3: `CrossEntropyLoss` ponderada.** Peso por clase `w_i = total / (num_clases × count_i)`. Refuerza el gradiente de clases minoritarias incluso cuando aparecen en menor proporción dentro de un batch, complementando al sampler que actúa sobre frecuencia de aparición.
 
 ## Data Augmentation
 
-Implementada en `src/data/transforms.py`. Se aplica **únicamente en train** - val y test usan transformaciones deterministas para garantizar evaluación justa.
+Además de balancear cuántas veces ve el modelo cada clase, hace falta variar cómo las ve para que no memorice detalles irrelevantes del fondo o del encuadre. La augmentation se aplica en caliente, en cada carga de imagen, y con más intensidad en las clases que más lo necesitan.
 
-### Pipeline estándar (`CornTrainingTransforms`) - todas las clases de train
+Implementada en `src/data/transforms.py`, se aplica únicamente en train; val y test usan transformaciones deterministas para garantizar una evaluación justa.
+
+### Pipeline estándar (`CornTrainingTransforms`): todas las clases de train
 
 ```
 Resize(224×224)
@@ -66,7 +76,7 @@ Normalize(ImageNet)
 
 El ColorJitter es conservador (sin saturación ni hue) porque las deficiencias nutricionales se diagnostican por color. Alteraciones agresivas de tono destruirían la señal diagnóstica.
 
-### Pipeline extendido (`CornMinorityTransforms`) - clases con ratio > 4x
+### Pipeline extendido (`CornMinorityTransforms`): clases con ratio > 4x
 
 Aplicado en caliente a `potassium_deficiency`, `nitrogen_deficiency`, `phosphorus_deficiency`, `gray_leaf_spot` y `common_rust`. `lethal_necrosis` no entra en este grupo (ratio ~1.4x, bien representada):
 
