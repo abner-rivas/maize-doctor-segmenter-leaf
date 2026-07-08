@@ -1,18 +1,19 @@
 # Baselines
 
-Los baselines cumplen un doble propósito en este proyecto:
+Antes de invertir tiempo y cómputo en el entrenamiento completo, conviene saber qué tan bien funcionan las arquitecturas candidatas con una fracción del dataset. Para eso existen los baselines de este proyecto, que cumplen un doble propósito.
 
-1. **Punto de comparación mínimo.** Cualquier arquitectura más compleja propuesta en etapas posteriores debe superar consistentemente estas cifras para justificar su mayor costo computacional o de mantenimiento.
-2. **Demo de modelos candidatos.** Antes de comprometer el entrenamiento completo, los baselines permiten observar el comportamiento inicial de cada arquitectura candidata sobre una fracción representativa del dataset, detectar problemas (colapso de clases, overfitting temprano, incompatibilidad con el pipeline) a bajo costo.
+Por un lado son un punto de comparación mínimo: cualquier arquitectura más compleja propuesta en etapas posteriores debe superar consistentemente estas cifras para justificar su mayor costo computacional o de mantenimiento. Por otro lado funcionan como demo de modelos candidatos, ya que antes de comprometer el entrenamiento completo permiten observar el comportamiento inicial de cada arquitectura sobre una fracción representativa del dataset y detectar problemas (colapso de clases, overfitting temprano, incompatibilidad con el pipeline) a bajo costo.
 
-Los tres modelos elegidos -**EfficientNet-B0**, **ShuffleNetV2-x1.0** y **EfficientNet-Lite0**- son redes convolucionales ligeras pre-entrenadas en ImageNet que cubren el eje precisión↔eficiencia y convierten a TFLite para despliegue móvil offline. Se priorizó este perfil porque el objetivo final es un sistema desplegable en entornos con recursos limitados (dispositivos móviles o cómputo en campo), y porque al tener parámetros comparables entre sí hacen que las diferencias de rendimiento sean atribuibles a la arquitectura, no al tamaño.
+Los tres modelos elegidos, **EfficientNet-B0**, **ShuffleNetV2-x1.0** y **EfficientNet-Lite0**, son redes convolucionales ligeras pre-entrenadas en ImageNet que cubren el eje precisión↔eficiencia y convierten a TFLite para despliegue móvil offline. Se priorizó este perfil porque el objetivo final es un sistema desplegable en entornos con recursos limitados (dispositivos móviles o cómputo en campo), y porque al tener parámetros comparables entre sí hacen que las diferencias de rendimiento sean atribuibles a la arquitectura, no al tamaño.
 
 ---
 
 ## Dataset utilizado
 
+Antes de mirar los modelos en sí, vale la pena entender sobre qué datos se entrenan y evalúan estos baselines, porque el recorte aplicado condiciona directamente las cifras que vienen más abajo.
+
 Los baselines se entrenan sobre el **perfil `baseline`** de `config/dataset.yaml`: las **9 clases**
-del dataset con un tope de **1 500 imágenes por clase** ("cap la cabeza, conserva la cola" - solo
+del dataset con un tope de **1 500 imágenes por clase** ("cap la cabeza, conserva la cola": solo
 se recortan las clases mayoritarias, las minoritarias quedan intactas). Se genera con
 `make splits-baseline` en `outputs/splits/seed_42_baseline/`, con la misma estratificación por
 `label + environment` y seed 42 que el split completo.
@@ -35,17 +36,18 @@ natural sin gastar cómputo en imágenes redundantes de la cabeza. El cap es con
 
 ## Modelos seleccionados
 
+A continuación se describe cada uno de los tres modelos evaluados: qué los distingue, por qué se eligieron y cómo se comportan en este dataset. El orden va de menor a mayor tamaño, empezando por el más ligero del grupo.
+
 ### ShuffleNetV2-x1.0
 
 **ShuffleNetV2-x1.0** es una CNN diseñada por Megvii (Face++) en 2018 explícitamente para
 inferencia eficiente en dispositivos móviles <sup>[[17]](#ref-17)</sup>. Su contribución es un
-conjunto de guías prácticas de diseño (no solo minimizar FLOPs, sino también el costo real de
-memoria y acceso), materializadas en dos operaciones:
-
-- **Channel split + channel shuffle:** divide los canales en dos ramas y, tras procesarlas,
-  los baraja para que la información fluya entre grupos sin convoluciones densas costosas.
-- **Sin convoluciones agrupadas 1×1:** evita el cuello de botella de acceso a memoria (MAC) que
-  penalizaba a ShuffleNetV1, priorizando velocidad real sobre FLOPs teóricos.
+conjunto de guías prácticas de diseño, que no se limitan a minimizar FLOPs sino que también
+atienden al costo real de memoria y acceso, materializadas en dos operaciones. La primera es
+**channel split + channel shuffle**, que divide los canales en dos ramas y, tras procesarlas,
+los baraja para que la información fluya entre grupos sin convoluciones densas costosas. La
+segunda es evitar las convoluciones agrupadas 1×1, esquivando así el cuello de botella de acceso
+a memoria (MAC) que penalizaba a ShuffleNetV1 y priorizando velocidad real sobre FLOPs teóricos.
 
 En ImageNet-1K alcanza ~69 % de Top-1 con solo ~2.3 M de parámetros, siendo uno de los modelos
 más pequeños del grupo (~5 MB serializado).
@@ -66,14 +68,11 @@ Se construye con `torchvision` reemplazando `model.fc` por una `nn.Linear(in_fea
 
 ### EfficientNet-B0
 
-**EfficientNet-B0** es la red base de la familia EfficientNet, propuesta por Google Brain en 2019. Su contribución central es el *compound scaling*: en lugar de escalar solo la profundidad, el ancho o la resolución de entrada de forma independiente (como hacía la práctica anterior), EfficientNet escala los tres simultáneamente con un coeficiente compuesto $\phi$ determinado por búsqueda de arquitectura (NAS) <sup>[[8]](#ref-8)</sup>.
+Si ShuffleNetV2 prioriza la eficiencia por encima de todo, EfficientNet-B0 busca el otro extremo del equilibrio: la mejor precisión posible sin disparar el costo computacional. **EfficientNet-B0** es la red base de la familia EfficientNet, propuesta por Google Brain en 2019. Su contribución central es el *compound scaling*: en lugar de escalar solo la profundidad, el ancho o la resolución de entrada de forma independiente (como hacía la práctica anterior), EfficientNet escala los tres simultáneamente con un coeficiente compuesto $\phi$ determinado por búsqueda de arquitectura (NAS) <sup>[[8]](#ref-8)</sup>.
 
-La versión B0 es el punto de partida de la familia: la arquitectura base encontrada por NAS antes de aplicar cualquier escala adicional. Usa bloques **MBConv** (Mobile Inverted Bottleneck) <sup>[[6]](#ref-6)</sup> con:
-- Conexiones residuales
-- Expansión de canales seguida de proyección
-- Squeeze-and-Excitation integrado en cada bloque <sup>[[9]](#ref-9)</sup>
+La versión B0 es el punto de partida de la familia: la arquitectura base encontrada por NAS antes de aplicar cualquier escala adicional. Usa bloques **MBConv** (Mobile Inverted Bottleneck) <sup>[[6]](#ref-6)</sup>, que combinan conexiones residuales, expansión de canales seguida de proyección, y un módulo de Squeeze-and-Excitation integrado en cada bloque <sup>[[9]](#ref-9)</sup>.
 
-En ImageNet-1K alcanza ~77.1 % de Top-1 con 5.3 M de parámetros -más del doble que ShuffleNetV2-x1.0, pero con mayor precisión.
+En ImageNet-1K alcanza ~77.1 % de Top-1 con 5.3 M de parámetros: más del doble que ShuffleNetV2-x1.0, pero con mayor precisión.
 
 **Trade-offs relevantes para este proyecto:**
 
@@ -89,11 +88,9 @@ En ImageNet-1K alcanza ~77.1 % de Top-1 con 5.3 M de parámetros -más del doble
 
 ### EfficientNet-Lite0
 
-**EfficientNet-Lite0** es una variante de EfficientNet-B0 optimizada específicamente para dispositivos de borde con aceleradores de inferencia (Coral Edge TPU, microcontroladores ARM con CMSIS-NN) <sup>[[13]](#ref-13)</sup>. Las diferencias con B0 son:
+El tercer baseline es un intento de quedarse con lo mejor de los dos mundos anteriores: la precisión de EfficientNet, pero adaptada para que funcione bien una vez cuantizada, algo crítico para el despliegue final del proyecto. **EfficientNet-Lite0** es una variante de EfficientNet-B0 optimizada específicamente para dispositivos de borde con aceleradores de inferencia (Coral Edge TPU, microcontroladores ARM con CMSIS-NN) <sup>[[13]](#ref-13)</sup>.
 
-- **Sin Squeeze-and-Excitation:** los bloques SE se eliminan porque su operación de reducción global no se mapea eficientemente en aceleradores de inferencia cuantizados.
-- **ReLU6 en lugar de Swish:** más compatible con cuantización INT8, donde Swish introduce errores de representación no triviales que hacen caer la precisión de ~75 % a ~46 % si no se sustituye <sup>[[13]](#ref-13)</sup>.
-- **Sin stem strided convolution:** la red evita algunas operaciones que rompen la compatibilidad con ciertos compiladores de modelos (TFLite, ONNX para Edge TPU).
+Las diferencias con B0 son tres. Primero, se eliminan los bloques Squeeze-and-Excitation, porque su operación de reducción global no se mapea eficientemente en aceleradores de inferencia cuantizados. Segundo, se usa ReLU6 en lugar de Swish, más compatible con cuantización INT8, ya que Swish introduce errores de representación no triviales que hacen caer la precisión de ~75 % a ~46 % si no se sustituye <sup>[[13]](#ref-13)</sup>. Tercero, la red evita el stem strided convolution, esquivando así algunas operaciones que rompen la compatibilidad con ciertos compiladores de modelos (TFLite, ONNX para Edge TPU).
 
 Se construye con `timm` (`timm.create_model("efficientnet_lite0", pretrained=True, num_classes=9)`) porque `torchvision` no incluye esta variante.
 
@@ -111,16 +108,15 @@ Se construye con `timm` (`timm.create_model("efficientnet_lite0", pretrained=Tru
 
 ## Comparación de los tres modelos
 
+Con los tres modelos ya descritos individualmente, esta tabla los pone lado a lado para facilitar la comparación directa de tamaño y precisión en ImageNet:
+
 | Modelo | Parámetros | Top-1 ImageNet | Tamaño (~) | Apto para TFLite/edge |
 |---|---:|---:|---:|---|
 | `efficientnet_b0` | 5.3 M | ~77.1 % | 16 MB | Sí (float16; INT8 aceptable) |
 | `shufflenet_v2_x1_0` | 2.3 M | ~69.4 % | 5 MB | Sí (mobile-native) |
 | `efficientnet_lite0` | 4.7 M | ~74.9 % | 14 MB | Sí (diseñado para INT8) |
 
-Los tres parten de pesos pre-entrenados en ImageNet <sup>[[16]](#ref-16)</sup> y se ajustan sobre el dataset de maíz con:
-- `CrossEntropyLoss` con pesos de clase inversamente proporcionales a la frecuencia <sup>[[12]](#ref-12)</sup>
-- `WeightedRandomSampler` para igualar la frecuencia efectiva durante entrenamiento
-- Pipeline de augmentation extendido para las 5 clases minoritarias
+Los tres parten de pesos pre-entrenados en ImageNet <sup>[[16]](#ref-16)</sup> y se ajustan sobre el dataset de maíz con el mismo tratamiento: `CrossEntropyLoss` con pesos de clase inversamente proporcionales a la frecuencia <sup>[[12]](#ref-12)</sup>, `WeightedRandomSampler` para igualar la frecuencia efectiva durante entrenamiento, y un pipeline de augmentation extendido para las 5 clases minoritarias. Al mantener fijo todo lo demás, las diferencias de resultado se pueden atribuir a la arquitectura.
 
 El modelo con mejor **macro-F1** en el conjunto de prueba establece el **umbral de referencia**: actualmente `efficientnet_b0`, con macro-F1 0.9146, que las arquitecturas posteriores (ResNet-50, ConvNeXt, ViT) deberán superar de forma consistente.
 
