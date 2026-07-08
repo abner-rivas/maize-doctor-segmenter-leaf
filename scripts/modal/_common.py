@@ -1,7 +1,7 @@
 """Imagen y Volumes de Modal compartidos entre train.py y explain.py.
 
 Factorizado para que ambos módulos usen exactamente la misma imagen (versión de torch,
-extras instalados) y los mismos Volumes — divergir entre ellos rompería la reutilización
+extras instalados) y los mismos Volumes - divergir entre ellos rompería la reutilización
 de checkpoints/splits generados por uno y consumidos por el otro.
 """
 

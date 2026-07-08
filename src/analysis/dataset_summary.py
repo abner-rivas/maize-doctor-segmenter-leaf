@@ -25,7 +25,7 @@ _COL_W = 52
 
 
 def _count_images(directory: Path) -> int:
-    """Cuenta solo extensiones de imagen — misma regla que _scan(), para que tabla y
+    """Cuenta solo extensiones de imagen - misma regla que _scan(), para que tabla y
     reporte de disco coincidan."""
     if not directory.is_dir():
         return 0

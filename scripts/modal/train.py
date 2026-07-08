@@ -72,7 +72,7 @@ def train_baselines(
     lime: bool = False,
 ) -> None:
     """Entrena los baselines indicados, persistiendo resultados en el Volume corn-outputs.
-    Espeja `make train-baselines`/`train_baselines.py` — misma CLI, mismo comportamiento
+    Espeja `make train-baselines`/`train_baselines.py` - misma CLI, mismo comportamiento
     (incluida la generación lazy de splits/seed_42_baseline si aún no existen).
     """
     dataset_vol.reload()  # ve el dataset seedeado por seed_dataset

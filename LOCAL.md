@@ -47,12 +47,12 @@ Variables relevantes:
 
 | Variable | Descripción |
 |---|---|
-| `DATASET_ROOT` | Ruta local donde vivirá el dataset fuente (debe contener `raw/`, `clean/`). Elige cualquier carpeta de tu máquina, p.ej. `C:/Users/tu_usuario/datasets/corn-leaf-diseases` en Windows o `/Users/tu_usuario/datasets/corn-leaf-diseases` en macOS/Linux. Los artefactos generados (`splits/`, resultados de entrenamiento, reports) viven aparte, en `outputs/` dentro del propio repo — ver `get_output_root()` en `src/config.py`. |
+| `DATASET_ROOT` | Ruta local donde vivirá el dataset fuente (debe contener `raw/`, `clean/`). Elige cualquier carpeta de tu máquina, p.ej. `C:/Users/tu_usuario/datasets/corn-leaf-diseases` en Windows o `/Users/tu_usuario/datasets/corn-leaf-diseases` en macOS/Linux. Los artefactos generados (`splits/`, resultados de entrenamiento, reports) viven aparte, en `outputs/` dentro del propio repo - ver `get_output_root()` en `src/config.py`. |
 | `HF_DATASET_REPO` | Repo de tipo *dataset* en Hugging Face Hub que contiene `clean/` (fuente primaria de descarga). |
 | `HF_TOKEN` | Solo necesario si el repo de HF es privado o no hiciste `huggingface-cli login`. |
 | `GDRIVE_DATASET_ID` | ID de carpeta pública de Google Drive, usada como respaldo si falla la descarga desde HF. |
 
-`DATASET_ROOT` no tiene que ser `data/` dentro del repo — puede apuntar a cualquier ruta. El directorio `data/` en la raíz del proyecto es opcionalmente un symlink de conveniencia hacia `DATASET_ROOT`; el código nunca depende de ese symlink, siempre resuelve rutas leyendo la variable de entorno `DATASET_ROOT` (ver `src/config.py`).
+`DATASET_ROOT` no tiene que ser `data/` dentro del repo - puede apuntar a cualquier ruta. El directorio `data/` en la raíz del proyecto es opcionalmente un symlink de conveniencia hacia `DATASET_ROOT`; el código nunca depende de ese symlink, siempre resuelve rutas leyendo la variable de entorno `DATASET_ROOT` (ver `src/config.py`).
 
 Si quieres ese symlink para navegar el dataset más fácilmente desde el editor:
 
@@ -96,7 +96,7 @@ make download-dataset
 Esto ejecuta `scripts/dataset/download_dataset.py`, que descarga `clean/` hacia
 `$DATASET_ROOT/clean/`, intentando primero Hugging Face Hub (`HF_DATASET_REPO`) y usando Google Drive (`GDRIVE_DATASET_ID`) como respaldo si falla. Si `$DATASET_ROOT/clean/` ya tiene contenido, el script no vuelve a descargar (usa `--force` para forzarlo).
 
-**Nunca coloques ni modifiques nada manualmente en `raw/`** — esa carpeta es inmutable y no forma parte de este flujo de descarga; `clean/` es la única fuente de verdad para el pipeline.
+**Nunca coloques ni modifiques nada manualmente en `raw/`** - esa carpeta es inmutable y no forma parte de este flujo de descarga; `clean/` es la única fuente de verdad para el pipeline.
 
 ## 6. Generar los splits
 
@@ -107,7 +107,7 @@ make splits              # Splits completos (9 clases) -> outputs/splits/seed_42
 make splits-baseline      # Splits del perfil baseline (subset + límite por clase) -> outputs/splits/seed_42_baseline/
 ```
 
-No edites los CSV de `outputs/splits/` a mano — son derivados reproducibles.
+No edites los CSV de `outputs/splits/` a mano - son derivados reproducibles.
 
 ## 7. Verificar que todo funciona
 

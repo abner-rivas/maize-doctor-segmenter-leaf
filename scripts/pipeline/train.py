@@ -131,7 +131,7 @@ def main() -> None:
         run_dir = build_run_dir(output_dir, model_name, run_id)
         logger.info(f"[{model_name}] Modelo construido. Checkpoints en {run_dir}")
 
-        # TODO: loop de entrenamiento — al implementarlo, guardar checkpoints/metrics en
+        # TODO: loop de entrenamiento - al implementarlo, guardar checkpoints/metrics en
         # run_dir y llamar a update_latest_pointer(output_dir, model_name, run_id) al final.
 
 

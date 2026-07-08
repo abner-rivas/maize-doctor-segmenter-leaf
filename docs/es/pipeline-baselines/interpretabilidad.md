@@ -22,5 +22,5 @@ etiqueta mostrada en el panel coincida con la predicción real del modelo.
 
 - En las clases fáciles (roya, necrosis letal) los mapas se concentran en el tejido de la hoja.
 - En las deficiencias N/P/K y en imágenes de campo con fondo cargado, la atribución puede
-  dispersarse hacia el fondo — señal de contexto espurio a vigilar, coherente con la confusión
+  dispersarse hacia el fondo - señal de contexto espurio a vigilar, coherente con la confusión
   entre deficiencias observada en la evaluación.
