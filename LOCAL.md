@@ -120,10 +120,10 @@ make fmt       # ruff format
 ## 8. Entrenar
 
 ```bash
-make train-baselines                          # Entrena baselines sobre el perfil baseline (4 clases, tope 500 img/clase)
+make train-baselines                          # Entrena baselines sobre el perfil baseline (9 clases, cap 1500 img/clase)
 make train-baselines MODELS=efficientnet_b0   # Solo un modelo
-make train-baselines NO_CAP=1                 # Mismas 4 clases, sin tope de imágenes
-make train-baselines MAX_PER_CLASS=1000       # Mismas 4 clases, tope custom
+make train-baselines NO_CAP=1                 # Mismas 9 clases, sin tope de imágenes
+make train-baselines MAX_PER_CLASS=1000       # Mismas 9 clases, tope custom
 make train                                    # Pipeline principal (loop de entrenamiento aún pendiente)
 ```
 
