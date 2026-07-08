@@ -117,7 +117,7 @@ class CornTransformFactory:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
 
-        # target_size es [alto, ancho] — convención (h, w) de torchvision (ver CLAUDE.md)
+        # target_size es [alto, ancho] - convención (h, w) de torchvision (ver CLAUDE.md)
         if target_size is None:
             height, width = config["dataset"]["target_size"]
             target_size = (height, width)

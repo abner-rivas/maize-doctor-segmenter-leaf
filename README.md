@@ -6,9 +6,11 @@
 
 ## Descripción
 
-DoctorMaiz es un sistema de clasificación de enfermedades foliares, plagas y deficiencias nutricionales en cultivos de maíz orientado a pequeños agricultores de subsistencia en zonas rurales sin conectividad. Utiliza un modelo de Deep Learning cuantizado (TensorFlow Lite Int8) embebido en una aplicación Android que opera completamente offline.
+DoctorMaiz es un sistema de clasificación de enfermedades foliares, plagas y deficiencias nutricionales en cultivos de maíz, pensado para pequeños agricultores de subsistencia en zonas rurales sin conectividad. Utiliza un modelo de Deep Learning cuantizado (TensorFlow Lite Int8) embebido en una aplicación Android que opera completamente offline.
 
 ### Problema
+
+El punto de partida es el peso que tiene el maíz en El Salvador y lo expuesto que está a perderse sin un diagnóstico oportuno:
 
 - El maíz representa una fuente crítica de alimentación en El Salvador, donde la agricultura aporta el **5.6% del PIB**
 - El **82.1% de los productores** son pequeños agricultores con acceso limitado a asistencia técnica
@@ -17,7 +19,7 @@ DoctorMaiz es un sistema de clasificación de enfermedades foliares, plagas y de
 
 ### Solución
 
-Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la enfermedad, plaga o deficiencia nutricional presente y orienta al agricultor sobre el tratamiento adecuado - sin necesidad de conexión a internet.
+La idea es sencilla: una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la enfermedad, plaga o deficiencia nutricional presente y orienta al agricultor sobre el tratamiento adecuado, todo sin necesidad de conexión a internet.
 
 ---
 
@@ -27,7 +29,7 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 
 | Clase | Patógeno/Agente | Síntomas | Lab | Real | Total |
 |---|---|---|---:|---:|---:|
-| Roya común *(Common Rust)* | *Puccinia sorghi* | Pústulas anaranjadas en ambas caras | 2 150 | 106 ⚠️ | 2 256 |
+| Roya común *(Common Rust)* | *Puccinia sorghi* | Pústulas anaranjadas en ambas caras | 2 150 | 106 (escasa) | 2 256 |
 | Tizón foliar del norte *(NCLB)* | *Exserohilum turcicum* | Lesiones alargadas grisáceas | 888 | 5 942 | 6 830 |
 | Mancha gris *(GLS)* | *Cercospora zeae-maydis* | Lesiones rectangulares grises | 513 | 606 | 1 119 |
 | Necrosis letal *(MLN)* | Complejo viral (MCMV + potyvirus) | Rayado clorótico, necrosis progresiva y muerte de la planta | 0 | 6 415 | 6 415 |
@@ -40,9 +42,11 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 
 | Clase | Síntomas | Lab | Real | Total |
 |---|---|---:|---:|---:|
-| Deficiencia de nitrógeno *(Nitrogen)* | Amarillamiento en "V" desde puntas de hojas inferiores | 0 | 523 ⚠️ | 523 |
-| Deficiencia de fósforo *(Phosphorus)* | Bordes y puntas moradas/rojizas en hojas jóvenes | 0 | 612 ⚠️ | 612 |
-| Deficiencia de potasio *(Potassium)* | Necrosis marginal en hojas más viejas | 0 | 266 ⚠️ | 266 |
+| Deficiencia de nitrógeno *(Nitrogen)* | Amarillamiento en "V" desde puntas de hojas inferiores | 0 | 523 (escasa) | 523 |
+| Deficiencia de fósforo *(Phosphorus)* | Bordes y puntas moradas/rojizas en hojas jóvenes | 0 | 612 (escasa) | 612 |
+| Deficiencia de potasio *(Potassium)* | Necrosis marginal en hojas más viejas | 0 | 266 (escasa) | 266 |
+
+> "(escasa)" señala clases con pocas imágenes disponibles, candidatas prioritarias a data augmentation.
 
 
 ---
@@ -55,7 +59,7 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 | Tamaño del modelo (post Int8) | ≤ 20 MB |
 | Latencia de inferencia | ≤ 300 ms/imagen |
 | Dispositivo objetivo | Android ≥ 4 GB RAM, Snapdragon 6xx |
-| Arquitectura base | En evaluación entre 6 baselines: EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0 |
+| Arquitectura base | 3 baselines sobre 9 clases: EfficientNet-B0 (líder, macro-F1 0.915), ShuffleNetV2-x1.0, EfficientNet-Lite0 |
 
 ---
 
@@ -85,27 +89,26 @@ El dataset *Corn Leaf Diseases* aplica 17 técnicas de augmentation documentadas
 
 ## Metodología
 
-El proyecto sigue el marco **CRISP-DM iterativo**:
+El proyecto avanza en fases iterativas siguiendo el marco **CRISP-DM**:
 
-1. **Comprensión del negocio** - Definición del problema agrícola y restricciones de despliegue
-2. **Comprensión de datos** - Consolidación y auditoría de 8 fuentes públicas
-3. **Preparación** - Limpieza, estandarización (224×224 px), deduplicación, augmentation
-4. **Modelado** - Fine-tuning de 6 arquitecturas baseline para comparar rápido y barato
-5. **Evaluación** - Macro F1 ≥ 0.85 en conjunto independiente de imágenes de campo real
-6. **Despliegue** - PWA offline con TFLite Int8 + sincronización opcional
+1. **Comprensión del negocio**: definición del problema agrícola y restricciones de despliegue
+2. **Comprensión de datos**: consolidación y auditoría de 8 fuentes públicas
+3. **Preparación**: limpieza, estandarización (224×224 px), deduplicación, augmentation
+4. **Modelado**: fine-tuning de 3 arquitecturas baseline para comparar rápido y barato
+5. **Evaluación**: Macro F1 ≥ 0.85 en conjunto independiente de imágenes de campo real
+6. **Despliegue**: PWA offline con TFLite Int8 + sincronización opcional
 
 ---
 
 ## Pipeline de Machine Learning
 
 El código vive en `src/` (librería instalable, `pip install -e .`) y `scripts/` (entrypoints).
-Dos pipelines paralelos sobre el mismo dataset limpio (`clean/`):
+Sobre el mismo dataset limpio (`clean/`) conviven dos pipelines paralelos:
 
-- **Baselines** (`scripts/pipeline/train_baselines.py`): 6 arquitecturas pre-entrenadas
-  (EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0),
-  funcional de punta a punta. Por defecto entrena sobre un subset configurable
-  (`config/dataset.yaml -> baseline:`, 4 clases y hasta 500 imágenes por clase) para comparar
-  arquitecturas rápido y barato — ver [Baselines](docs/es/baselines/index.md).
+- **Baselines** (`scripts/pipeline/train_baselines.py`): funcional de punta a punta, entrenado
+  sobre el perfil `baseline` (`config/dataset.yaml -> baseline:`, 9 clases, cap de 1 500
+  imágenes por clase) con 3 arquitecturas canónicas (`efficientnet_b0`, `shufflenet_v2_x1_0`,
+  `efficientnet_lite0`) pensadas para comparar rápido y barato; ver [Baselines](docs/es/baselines/index.md).
 - **Pipeline principal** (`scripts/pipeline/train.py`): comparte toda la infraestructura de
   datos y modelos con baselines; el loop de entrenamiento está pendiente de implementar.
 
@@ -135,13 +138,13 @@ make explain-lime [MODELS=<nombre> RUN=<id> IMAGE=<ruta> OUTPUT=<ruta>]   # repo
 make explain-report [MODELS=<nombre> RUN=<id> SAMPLE_SIZE=<n> NUM_SAMPLES=<n>]  # fidelidad agregada
 make explain-errors [MODELS=<nombre> RUN=<id> NUM_SAMPLES=<n>]   # LIME dirigido a errores
 
-make clean-outputs                   # borra outputs/ (splits, runs, reportes — todo regenerable)
+make clean-outputs                   # borra outputs/ (splits, runs, reportes - todo regenerable)
 make summary / make test-loader / make lint / make fmt
 ```
 
 ### Modal (GPU en la nube)
 
-Misma CLI que los comandos locales — cualquier combinación de banderas que funcione en local
+Misma CLI que los comandos locales - cualquier combinación de banderas que funcione en local
 funciona igual en Modal. Detalle completo en [docs/es/deployment/modal.md](docs/es/deployment/modal.md).
 
 ```bash
@@ -151,9 +154,6 @@ make modal-explain-lime / modal-explain-report / modal-explain-errors [MODELS=<n
 make modal-clean-outputs                                    # vacía el Volume corn-outputs
 make modal-pull                                             # trae outputs-remote/ con runs + reportes
 ```
-
-Para GPU alquilada por SSH en [vast.ai](https://vast.ai) en vez de Modal, ver
-[docs/es/deployment/vast-ai.md](docs/es/deployment/vast-ai.md).
 
 ---
 
@@ -177,13 +177,11 @@ corn-leaf-desease-project/
 ├── scripts/
 │   ├── dataset/          # Subida/descarga de clean/ (Hugging Face Hub, Google Drive)
 │   ├── pipeline/         # create_splits.py, train_baselines.py, train.py, explain_lime.py, explain_report.py
-│   ├── modal/            # Entrenamiento/explicabilidad en GPU de Modal
-│   └── vastai/           # Orquestación de GPU remota en vast.ai
+│   └── modal/            # Entrenamiento/explicabilidad en GPU de Modal
 ├── src/                  # Librería principal (pip install -e .)
 │   ├── data/             # CornDataset, loader, splitter, transforms
 │   ├── explainability/   # LIME + Grad-CAM (post-hoc, no acoplado al entrenamiento)
-│   └── models/           # Registro de modelos + 6 baselines
-├── Dockerfile            # Imagen reproducible (Python 3.11 + PyTorch CUDA) para GPU remota
+│   └── models/           # Registro de modelos + 8 arquitecturas registradas (3 baselines)
 ├── Makefile
 └── pyproject.toml
 ```
@@ -200,7 +198,7 @@ en `http://localhost:5173`).
 - [x] Análisis exploratorio de datos (EDA)
 - [x] Pipeline de preparación de datos (splits estratificados, perfil baseline configurable)
 - [x] Data augmentation para clases minoritarias (pipeline extendido por clase en `transforms.py`)
-- [x] Entrenamiento de 6 baselines (EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0) + soporte GPU remota (vast.ai, Modal)
+- [x] Baselines sobre 9 clases (EfficientNet-B0, ShuffleNetV2-x1.0, EfficientNet-Lite0; cap 1 500/clase) + entrenamiento en GPU de Modal
 - [x] Explicabilidad post-hoc (LIME + Grad-CAM, análisis de errores y fidelidad agregada)
 - [ ] Loop de entrenamiento del pipeline principal (`scripts/pipeline/train.py`)
 - [ ] Evaluación exhaustiva y selección de modelo final

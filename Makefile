@@ -12,7 +12,7 @@ else
 	MODAL   := venv/bin/modal
 endif
 
-MODELS ?= all
+MODELS ?= efficientnet_b0 shufflenet_v2_x1_0 efficientnet_lite0
 EPOCHS ?= 30
 NO_CAP ?=
 MAX_PER_CLASS ?=

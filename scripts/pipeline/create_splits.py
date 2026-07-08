@@ -25,7 +25,7 @@ _MIN_STRATUM_IMAGES = 7
 def _resolve_index_workers() -> int:
     """Nº de hilos para el indexado. Override por `SPLITS_INDEX_WORKERS` para alinearlo con la
     CPU asignada en entornos con cuota (p.ej. Modal, donde `os.cpu_count()` reporta los cores del
-    HOST, no la asignación del contenedor — sin override lanzaría demasiados hilos a ciegas).
+    HOST, no la asignación del contenedor - sin override lanzaría demasiados hilos a ciegas).
     Fallback: escala con los cores locales, acotado a 32."""
     raw = os.getenv("SPLITS_INDEX_WORKERS", "").strip()
     if raw:
@@ -165,7 +165,7 @@ def run_data_preparation_pipeline(
 
     # Fase 1 (paralela, I/O-bound): validar + hashear cada imagen. El resultado por archivo
     # es independiente del orden, así que se calcula concurrentemente para ocultar la latencia
-    # de disco — crítico en volúmenes remotos (p.ej. el de Modal), donde cada lectura es lenta.
+    # de disco - crítico en volúmenes remotos (p.ej. el de Modal), donde cada lectura es lenta.
     # Se usan hilos (no procesos): el trabajo es I/O + C de hashlib/PIL, que liberan el GIL,
     # y así se evita el coste de serializar rutas/bytes entre procesos.
     max_workers = _resolve_index_workers()
@@ -181,7 +181,7 @@ def run_data_preparation_pipeline(
 
     # Fase 2 (secuencial, en el mismo orden sorted() del escaneo): dedup determinista. Con los
     # digests ya calculados, conservar la primera copia vista sigue siendo reproducible entre
-    # máquinas, idéntico al comportamiento previo — solo que ahora sin el cuello de botella serial.
+    # máquinas, idéntico al comportamiento previo - solo que ahora sin el cuello de botella serial.
     for (class_name, environment, abs_path, rel_path), (ok, value) in zip(raw_image_paths, results):
         if not ok:
             tqdm.write(f"Imagen corrupta o ilegible, omitida: {rel_path} - {value}")
