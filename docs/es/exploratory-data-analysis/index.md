@@ -102,7 +102,6 @@ A partir de los análisis anteriores se identifican cinco sesgos que afectan dir
 | Dominio de imágenes de laboratorio | `common_rust` (95.4 % lab) | Alto |
 | Heterogeneidad visual dentro de la clase | `fall_armyworm` (daño vs. daño + gusano) | Medio-alto |
 | Fuente única en clases pequeñas | `nitrogen`, `phosphorus`, `potassium` | Medio-alto |
-| Concentración geográfica | `northern_corn_leaf_blight` | Medio |
 
 El sesgo de `fall_armyworm` es especialmente relevante, se decidió mezclar las dos fuentes de imágenes: `hoja con daño sin insecto visible` y `hoja con daño y gusano visible`. Esto se hizo porque al final la clase es `fall_armyworm` y la clasificación y recomendación de tratamiento no depende de la presencia del insecto, sino del patrón de daño foliar. Sin embargo, esto introduce un sesgo, por lo que se tendrá especial cuidado en la validación y en la interpretación de métricas,
 

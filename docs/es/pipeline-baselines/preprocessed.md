@@ -3,7 +3,7 @@
 Antes de que un modelo vea una sola imagen, esta pasa por una serie de pasos comunes a todos los
 pipelines del proyecto: normalizado, división estratificada, balanceo y data augmentation. El
 baseline no reinventa nada aquí, hereda tal cual este preprocesado compartido. La documentación
-completa vive en [Preprocesado](../preprocesado/index.md).
+completa vive en [Preprocesado](../preprocessed/index.md).
 
 ## Especificidad del baseline
 
