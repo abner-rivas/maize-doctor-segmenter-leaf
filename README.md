@@ -6,9 +6,11 @@
 
 ## Descripción
 
-DoctorMaiz es un sistema de clasificación de enfermedades foliares, plagas y deficiencias nutricionales en cultivos de maíz orientado a pequeños agricultores de subsistencia en zonas rurales sin conectividad. Utiliza un modelo de Deep Learning cuantizado (TensorFlow Lite Int8) embebido en una aplicación Android que opera completamente offline.
+DoctorMaiz es un sistema de clasificación de enfermedades foliares, plagas y deficiencias nutricionales en cultivos de maíz, pensado para pequeños agricultores de subsistencia en zonas rurales sin conectividad. Utiliza un modelo de Deep Learning cuantizado (TensorFlow Lite Int8) embebido en una aplicación Android que opera completamente offline.
 
 ### Problema
+
+El punto de partida es el peso que tiene el maíz en El Salvador y lo expuesto que está a perderse sin un diagnóstico oportuno:
 
 - El maíz representa una fuente crítica de alimentación en El Salvador, donde la agricultura aporta el **5.6% del PIB**
 - El **82.1% de los productores** son pequeños agricultores con acceso limitado a asistencia técnica
@@ -17,7 +19,7 @@ DoctorMaiz es un sistema de clasificación de enfermedades foliares, plagas y de
 
 ### Solución
 
-Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la enfermedad, plaga o deficiencia nutricional presente y orienta al agricultor sobre el tratamiento adecuado - sin necesidad de conexión a internet.
+La idea es sencilla: una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la enfermedad, plaga o deficiencia nutricional presente y orienta al agricultor sobre el tratamiento adecuado, todo sin necesidad de conexión a internet.
 
 ---
 
@@ -27,7 +29,7 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 
 | Clase | Patógeno/Agente | Síntomas | Lab | Real | Total |
 |---|---|---|---:|---:|---:|
-| Roya común *(Common Rust)* | *Puccinia sorghi* | Pústulas anaranjadas en ambas caras | 2 150 | 106 ⚠️ | 2 256 |
+| Roya común *(Common Rust)* | *Puccinia sorghi* | Pústulas anaranjadas en ambas caras | 2 150 | 106 (escasa) | 2 256 |
 | Tizón foliar del norte *(NCLB)* | *Exserohilum turcicum* | Lesiones alargadas grisáceas | 888 | 5 942 | 6 830 |
 | Mancha gris *(GLS)* | *Cercospora zeae-maydis* | Lesiones rectangulares grises | 513 | 606 | 1 119 |
 | Necrosis letal *(MLN)* | Complejo viral (MCMV + potyvirus) | Rayado clorótico, necrosis progresiva y muerte de la planta | 0 | 6 415 | 6 415 |
@@ -40,9 +42,11 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 
 | Clase | Síntomas | Lab | Real | Total |
 |---|---|---:|---:|---:|
-| Deficiencia de nitrógeno *(Nitrogen)* | Amarillamiento en "V" desde puntas de hojas inferiores | 0 | 523 ⚠️ | 523 |
-| Deficiencia de fósforo *(Phosphorus)* | Bordes y puntas moradas/rojizas en hojas jóvenes | 0 | 612 ⚠️ | 612 |
-| Deficiencia de potasio *(Potassium)* | Necrosis marginal en hojas más viejas | 0 | 266 ⚠️ | 266 |
+| Deficiencia de nitrógeno *(Nitrogen)* | Amarillamiento en "V" desde puntas de hojas inferiores | 0 | 523 (escasa) | 523 |
+| Deficiencia de fósforo *(Phosphorus)* | Bordes y puntas moradas/rojizas en hojas jóvenes | 0 | 612 (escasa) | 612 |
+| Deficiencia de potasio *(Potassium)* | Necrosis marginal en hojas más viejas | 0 | 266 (escasa) | 266 |
+
+> "(escasa)" señala clases con pocas imágenes disponibles, candidatas prioritarias a data augmentation.
 
 
 ---
@@ -85,26 +89,26 @@ El dataset *Corn Leaf Diseases* aplica 17 técnicas de augmentation documentadas
 
 ## Metodología
 
-El proyecto sigue el marco **CRISP-DM iterativo**:
+El proyecto avanza en fases iterativas siguiendo el marco **CRISP-DM**:
 
-1. **Comprensión del negocio** - Definición del problema agrícola y restricciones de despliegue
-2. **Comprensión de datos** - Consolidación y auditoría de 8 fuentes públicas
-3. **Preparación** - Limpieza, estandarización (224×224 px), deduplicación, augmentation
-4. **Modelado** - Fine-tuning de 3 arquitecturas baseline para comparar rápido y barato
-5. **Evaluación** - Macro F1 ≥ 0.85 en conjunto independiente de imágenes de campo real
-6. **Despliegue** - PWA offline con TFLite Int8 + sincronización opcional
+1. **Comprensión del negocio**: definición del problema agrícola y restricciones de despliegue
+2. **Comprensión de datos**: consolidación y auditoría de 8 fuentes públicas
+3. **Preparación**: limpieza, estandarización (224×224 px), deduplicación, augmentation
+4. **Modelado**: fine-tuning de 3 arquitecturas baseline para comparar rápido y barato
+5. **Evaluación**: Macro F1 ≥ 0.85 en conjunto independiente de imágenes de campo real
+6. **Despliegue**: PWA offline con TFLite Int8 + sincronización opcional
 
 ---
 
 ## Pipeline de Machine Learning
 
 El código vive en `src/` (librería instalable, `pip install -e .`) y `scripts/` (entrypoints).
-Dos pipelines paralelos sobre el mismo dataset limpio (`clean/`):
+Sobre el mismo dataset limpio (`clean/`) conviven dos pipelines paralelos:
 
 - **Baselines** (`scripts/pipeline/train_baselines.py`): funcional de punta a punta, entrenado
   sobre el perfil `baseline` (`config/dataset.yaml -> baseline:`, 9 clases, cap de 1 500
   imágenes por clase) con 3 arquitecturas canónicas (`efficientnet_b0`, `shufflenet_v2_x1_0`,
-  `efficientnet_lite0`) para comparar rápido y barato - ver [Baselines](docs/es/baselines/index.md).
+  `efficientnet_lite0`) pensadas para comparar rápido y barato; ver [Baselines](docs/es/baselines/index.md).
 - **Pipeline principal** (`scripts/pipeline/train.py`): comparte toda la infraestructura de
   datos y modelos con baselines; el loop de entrenamiento está pendiente de implementar.
 
