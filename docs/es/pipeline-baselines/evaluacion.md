@@ -6,6 +6,9 @@ las minoritarias); accuracy es secundaria por el desbalance.
 
 ## Resultados (test, 9 clases)
 
+Estos son los números que deciden cuál arquitectura se adopta como referencia: la tabla compara
+accuracy y macro-F1 de los tres baselines sobre el conjunto de test.
+
 | Modelo | Accuracy | macro-F1 |
 |---|---:|---:|
 | `efficientnet_b0` | 0.9521 | **0.9146** |
@@ -15,6 +18,9 @@ las minoritarias); accuracy es secundaria por el desbalance.
 `efficientnet_b0` lidera el macro-F1 y es el umbral de referencia actual.
 
 ## F1 por clase
+
+La cifra agregada esconde que el rendimiento no es parejo entre clases. Esta tabla desglosa el F1
+por clase y por modelo, y ya deja ver dónde se concentra el problema.
 
 | Clase | b0 | shufflenet | lite0 |
 |---|---:|---:|---:|
@@ -30,14 +36,20 @@ las minoritarias); accuracy es secundaria por el desbalance.
 
 ## Hallazgos
 
-- **`potassium_deficiency` es el cuello de botella universal** (266 imágenes totales, 40 en test):
-  recall muy bajo en todos los modelos y responsable de la mayor caída del macro-F1.
-- **Clúster de deficiencias N/P/K:** el potasio se confunde sobre todo con nitrógeno (en
-  `efficientnet_b0`: de 40 imágenes de potasio, 21 correctas, 13→nitrógeno, 5→fósforo). Las tres
-  deficiencias comparten síntomas de clorosis y son difíciles de separar con pocos ejemplos.
-- **Clúster de lesiones foliares:** `gray_leaf_spot` ↔ `northern_corn_leaf_blight` se confunden
-  mutuamente (lesiones visualmente parecidas).
-- **Clases fáciles:** `common_rust`, `lethal_necrosis` y `healthy` (f1 ≥ 0.96 en todos los modelos).
+Cruzando ambas tablas aparecen patrones consistentes en los tres modelos, que conviene tener en
+cuenta antes de decidir el siguiente paso.
 
-La palanca de mayor impacto para el modelo final es aumentar/rebalancear las deficiencias
+**`potassium_deficiency` es el cuello de botella universal.** Con apenas 266 imágenes totales (40
+en test), el recall es muy bajo en los tres modelos y es la clase que más castiga el macro-F1. El
+problema no aparece aislado: forma parte de un clúster de deficiencias N/P/K en el que el potasio
+se confunde sobre todo con nitrógeno (en `efficientnet_b0`, de 40 imágenes de potasio, 21 se
+clasifican correctamente, 13 se confunden con nitrógeno y 5 con fósforo). Las tres deficiencias
+comparten síntomas de clorosis y son difíciles de separar con pocos ejemplos.
+
+Hay un segundo clúster de confusión, esta vez entre lesiones foliares: `gray_leaf_spot` y
+`northern_corn_leaf_blight` se confunden mutuamente porque sus lesiones son visualmente
+parecidas. En el otro extremo están las clases fáciles, `common_rust`, `lethal_necrosis` y
+`healthy`, que mantienen un F1 igual o superior a 0.96 en los tres modelos.
+
+La palanca de mayor impacto para el modelo final es aumentar o rebalancear las deficiencias
 (especialmente potasio) antes de subir capacidad de modelo.
