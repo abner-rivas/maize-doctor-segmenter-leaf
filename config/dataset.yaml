@@ -1,6 +1,6 @@
 paths:
   raw_dir: "clean"                    # relativo a DATASET_ROOT
-  split_output_dir: "splits/seed_42"  # relativo a outputs/ (ver get_output_root())
+  split_output_dir: "splits/seed_42"  # relativo a outputs/
 
 dataset:
   target_size: [224, 224]
@@ -16,25 +16,36 @@ dataset:
     - phosphorus_deficiency
     - potassium_deficiency
 
-# Perfil reducido para el pipeline de baselines (scripts/pipeline/train_baselines.py).
-# Se activa con `create_splits.py --baseline` / `make splits-baseline`.
-# No afecta a `dataset.classes` ni al pipeline principal (train.py).
+augmentation:
+  minority_ratio_threshold: 4.0
+
 baseline:
+  # Cubre las 9 clases del dataset final, en el mismo orden canónico que dataset.classes para
+  # que el mapeo clase->índice coincida con el head entrenado. El baseline ahora es "pauta del
+  # final": mismas clases y desbalance natural, solo con cap de cabeza para ahorrar cómputo.
   classes:
-    - healthy
     - common_rust
     - fall_armyworm
+    - gray_leaf_spot
+    - healthy
+    - lethal_necrosis
     - nitrogen_deficiency
-  max_images_per_class: 500
+    - northern_corn_leaf_blight
+    - phosphorus_deficiency
+    - potassium_deficiency
+  # "Cap la cabeza, conserva la cola": limita solo las clases por encima del cap (healthy, los
+  # tizones, fall_armyworm) y deja intactas las minoritarias (potassium 266, nitrogen 523,
+  # phosphorus 612). Overridable con MAX_PER_CLASS / --max-per-class.
+  max_images_per_class: 1500
   seed: 42
 
-# Configuración para scripts/pipeline/explain_lime.py y el flag --lime de
-# train_baselines.py. images_per_class es cuántas imágenes por clase se explican
-# (muestreo balanceado del test set); num_samples es la cantidad de perturbaciones
-# internas que genera LIME por imagen (a mayor valor, heatmap más preciso y más lento).
 lime:
   images_per_class: 2
-  num_samples: 300
+  num_samples: 1000
   num_features: 5
   seed: 42
   baseline: true
+  report_sample_size: 30
+
+gradcam:
+  enabled: true

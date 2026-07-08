@@ -1,7 +1,9 @@
 import argparse
 import hashlib
+import io
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
@@ -20,8 +22,39 @@ logger = logging.getLogger(__name__)
 _MIN_STRATUM_IMAGES = 7
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _resolve_index_workers() -> int:
+    """Nº de hilos para el indexado. Override por `SPLITS_INDEX_WORKERS` para alinearlo con la
+    CPU asignada en entornos con cuota (p.ej. Modal, donde `os.cpu_count()` reporta los cores del
+    HOST, no la asignación del contenedor — sin override lanzaría demasiados hilos a ciegas).
+    Fallback: escala con los cores locales, acotado a 32."""
+    raw = os.getenv("SPLITS_INDEX_WORKERS", "").strip()
+    if raw:
+        try:
+            n = int(raw)
+        except ValueError:
+            n = 0
+        if n >= 1:
+            return n
+        logger.warning(f"SPLITS_INDEX_WORKERS inválido ({raw!r}); usando el default por cores.")
+    return min(32, (os.cpu_count() or 4) * 4)
+
+
+def _verify_and_hash(abs_path: Path) -> tuple[bool, str]:
+    """Lee el archivo una sola vez; valida integridad PIL y calcula el SHA-256.
+
+    Devuelve `(True, digest)` si la imagen es válida, o `(False, mensaje_error)` si es
+    corrupta/ilegible. Es una función pura del contenido del archivo (el resultado no
+    depende del orden ni de otras imágenes), así que es segura para ejecutarse en paralelo.
+    Lee los bytes una vez y los reutiliza para PIL (vía BytesIO) y para el hash, evitando
+    la doble lectura de disco del enfoque anterior.
+    """
+    try:
+        data = abs_path.read_bytes()
+        with Image.open(io.BytesIO(data)) as img:
+            img.verify()
+        return True, hashlib.sha256(data).hexdigest()
+    except Exception as e:  # noqa: BLE001 - cualquier fallo = imagen inutilizable, se omite
+        return False, str(e)
 
 
 def _cap_manifest_per_class(df: pd.DataFrame, max_per_class: int, seed: int) -> pd.DataFrame:
@@ -68,6 +101,7 @@ def run_data_preparation_pipeline(
     baseline: bool = False,
     classes: list[str] | None = None,
     max_per_class: int | None = None,
+    no_cap: bool = False,
 ) -> None:
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
@@ -80,9 +114,12 @@ def run_data_preparation_pipeline(
 
     baseline_cfg = config.get("baseline", {}) if baseline else {}
     allowed_classes = classes or baseline_cfg.get("classes") or config["dataset"]["classes"]
-    max_per_class = (
-        max_per_class if max_per_class is not None else baseline_cfg.get("max_images_per_class")
-    )
+    if no_cap:
+        max_per_class = None
+    else:
+        max_per_class = (
+            max_per_class if max_per_class is not None else baseline_cfg.get("max_images_per_class")
+        )
 
     clean_dir = dataset_root / config["paths"]["raw_dir"]
     base_output_dir = get_output_root() / config["paths"]["split_output_dir"]
@@ -126,25 +163,38 @@ def run_data_preparation_pipeline(
         f"Indexando {len(raw_image_paths)} imágenes con verificación SHA-256 y validación PIL..."
     )
 
-    for class_name, environment, abs_path, rel_path in tqdm(
-        raw_image_paths, desc="Indexando", unit="img"
-    ):
-        try:
-            with Image.open(abs_path) as img:
-                img.verify()
-
-            digest = _sha256(abs_path)
-            if digest in seen_hashes:
-                logger.warning(f"Duplicado exacto detectado y omitido: {rel_path}")
-                duplicates_found += 1
-                continue
-            seen_hashes.add(digest)
-            all_records.append(
-                {"image_path": rel_path, "label": class_name, "environment": environment}
+    # Fase 1 (paralela, I/O-bound): validar + hashear cada imagen. El resultado por archivo
+    # es independiente del orden, así que se calcula concurrentemente para ocultar la latencia
+    # de disco — crítico en volúmenes remotos (p.ej. el de Modal), donde cada lectura es lenta.
+    # Se usan hilos (no procesos): el trabajo es I/O + C de hashlib/PIL, que liberan el GIL,
+    # y así se evita el coste de serializar rutas/bytes entre procesos.
+    max_workers = _resolve_index_workers()
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        results = list(
+            tqdm(
+                pool.map(_verify_and_hash, (rec[2] for rec in raw_image_paths)),
+                total=len(raw_image_paths),
+                desc="Indexando",
+                unit="img",
             )
-        except Exception as e:
-            tqdm.write(f"⚠️  Imagen corrupta o ilegible, omitida: {rel_path} - {e}")
+        )
+
+    # Fase 2 (secuencial, en el mismo orden sorted() del escaneo): dedup determinista. Con los
+    # digests ya calculados, conservar la primera copia vista sigue siendo reproducible entre
+    # máquinas, idéntico al comportamiento previo — solo que ahora sin el cuello de botella serial.
+    for (class_name, environment, abs_path, rel_path), (ok, value) in zip(raw_image_paths, results):
+        if not ok:
+            tqdm.write(f"Imagen corrupta o ilegible, omitida: {rel_path} - {value}")
             corrupt_found += 1
+            continue
+        if value in seen_hashes:
+            logger.warning(f"Duplicado exacto detectado y omitido: {rel_path}")
+            duplicates_found += 1
+            continue
+        seen_hashes.add(value)
+        all_records.append(
+            {"image_path": rel_path, "label": class_name, "environment": environment}
+        )
 
     df_manifest = pd.DataFrame(all_records)
     logger.info(
@@ -228,7 +278,8 @@ if __name__ == "__main__":
         default=None,
         help="Lista explícita de clases a incluir (sobrescribe dataset.classes / baseline.classes)",
     )
-    parser.add_argument(
+    cap_group = parser.add_mutually_exclusive_group()
+    cap_group.add_argument(
         "--max-per-class",
         type=int,
         default=None,
@@ -236,10 +287,18 @@ if __name__ == "__main__":
         help="Límite de imágenes por clase, aplicado antes del split (sobrescribe "
         "baseline.max_images_per_class).",
     )
+    cap_group.add_argument(
+        "--no-cap",
+        action="store_true",
+        dest="no_cap",
+        help="Ignora baseline.max_images_per_class: usa el 100%% de las imágenes disponibles "
+        "por clase. Solo tiene efecto junto con --baseline (sin --baseline nunca hay cap).",
+    )
     args = parser.parse_args()
     run_data_preparation_pipeline(
         config_path=args.config,
         baseline=args.baseline,
         classes=args.classes,
         max_per_class=args.max_per_class,
+        no_cap=args.no_cap,
     )

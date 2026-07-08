@@ -1,6 +1,9 @@
 import argparse
 import json
 import logging
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 from time import perf_counter
 
@@ -15,7 +18,7 @@ from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_glob
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
 from src.explainability.augmentation_preview import save_augmentation_evidence
-from src.models import MODEL_REGISTRY, build_model, list_models
+from src.models import MODEL_REGISTRY, build_model, list_models, resolve_input_size
 from src.training.common import (
     build_run_dir,
     generate_run_id,
@@ -28,17 +31,34 @@ from src.training.common import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+_CREATE_SPLITS_SCRIPT = Path(__file__).parent / "create_splits.py"
+
 
 def _load_config(config_path: Path) -> dict:
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
 
-def _target_size_from_args(args: argparse.Namespace, cfg: dict) -> tuple[int, int]:
-    if args.image_size is not None:
-        return (args.image_size, args.image_size)
+def _base_target_size(cfg: dict) -> tuple[int, int]:
     height, width = cfg["dataset"]["target_size"]
     return (height, width)
+
+
+def _resolve_model_target_size(
+    model_name: str, args: argparse.Namespace, cfg: dict
+) -> tuple[int, int]:
+    """Resolución efectiva por modelo."""
+    if args.image_size is not None:
+        return (args.image_size, args.image_size)
+    return resolve_input_size(model_name, _base_target_size(cfg))
+
+
+def _scale_batch_size(base_batch: int, target_size: tuple[int, int], base: tuple[int, int]) -> int:
+    """Escala el batch inversamente al área de la imagen para acotar la memoria de activaciones."""
+    base_h, base_w = base
+    height, width = target_size
+    scaled = round(base_batch * (base_h * base_w) / (height * width))
+    return max(1, min(base_batch, scaled))
 
 
 def _build_dataloaders(
@@ -49,7 +69,9 @@ def _build_dataloaders(
     num_workers: int,
     seed: int,
     device: torch.device,
-) -> tuple[DataLoader, DataLoader, DataLoader, dict[str, int], dict[int, str]]:
+) -> tuple[
+    DataLoader, DataLoader, DataLoader, dict[str, int], dict[int, str], CornTransformFactory
+]:
     factory = CornTransformFactory(config_path=str(config_path), target_size=target_size)
 
     train_dataset = CornDataset(
@@ -81,6 +103,7 @@ def _build_dataloaders(
         train_dataset,
         batch_size=batch_size,
         sampler=sampler,
+        shuffle=sampler is None,
         num_workers=num_workers,
         pin_memory=pin_memory,
         worker_init_fn=worker_init_fn,
@@ -99,7 +122,7 @@ def _build_dataloaders(
         num_workers=num_workers,
         pin_memory=pin_memory,
     )
-    return train_loader, val_loader, test_loader, class_to_idx, idx_to_class
+    return train_loader, val_loader, test_loader, class_to_idx, idx_to_class, factory
 
 
 def _metrics_from_predictions(
@@ -121,7 +144,7 @@ def _run_epoch(
     device: torch.device,
     optimizer: torch.optim.Optimizer | None = None,
     desc: str = "",
-) -> tuple[dict[str, float], list[int], list[int]]:
+) -> tuple[dict[str, float], list[int], list[int], list[float]]:
     is_train = optimizer is not None
     model.train(is_train)
 
@@ -129,6 +152,7 @@ def _run_epoch(
     seen = 0
     labels_all: list[int] = []
     preds_all: list[int] = []
+    probs_all: list[float] = []
 
     context = torch.enable_grad() if is_train else torch.no_grad()
     with context:
@@ -150,11 +174,13 @@ def _run_epoch(
             running_loss += loss.item() * batch_size
             seen += batch_size
             labels_all.extend(labels.detach().cpu().tolist())
-            preds_all.extend(logits.argmax(dim=1).detach().cpu().tolist())
+            probs = logits.detach().softmax(dim=1)
+            preds_all.extend(probs.argmax(dim=1).cpu().tolist())
+            probs_all.extend(probs.max(dim=1).values.cpu().tolist())
 
     avg_loss = running_loss / max(seen, 1)
     metrics = _metrics_from_predictions(labels_all, preds_all, avg_loss)
-    return metrics, labels_all, preds_all
+    return metrics, labels_all, preds_all, probs_all
 
 
 def _write_test_outputs(
@@ -188,6 +214,7 @@ def _write_summary(
     run_id: str,
     args: argparse.Namespace,
     target_size: tuple[int, int],
+    batch_size: int,
     class_to_idx: dict[str, int],
     splits_dir: Path,
     best_epoch: int,
@@ -202,7 +229,7 @@ def _write_summary(
         "image_size": list(target_size),
         "splits_dir": str(splits_dir),
         "epochs": args.epochs,
-        "batch_size": args.batch_size,
+        "batch_size": batch_size,
         "learning_rate": args.learning_rate,
         "weight_decay": args.weight_decay,
         "pretrained": not args.no_pretrained,
@@ -221,6 +248,7 @@ def _train_model(
     idx_to_class: dict[int, str],
     args: argparse.Namespace,
     target_size: tuple[int, int],
+    batch_size: int,
     splits_dir: Path,
     output_dir: Path,
     device: torch.device,
@@ -238,6 +266,7 @@ def _train_model(
             train_transform=factory.get_pipeline("train"),
             minority_transform=factory.get_pipeline("minority"),
             output_dir=run_dir,
+            minority_classes=train_loader.dataset.minority_classes,
             seed=seed,
         )
 
@@ -261,7 +290,7 @@ def _train_model(
 
     for epoch in range(1, args.epochs + 1):
         started = perf_counter()
-        train_metrics, _, _ = _run_epoch(
+        train_metrics, _, _, _ = _run_epoch(
             model,
             train_loader,
             criterion,
@@ -269,7 +298,7 @@ def _train_model(
             optimizer=optimizer,
             desc=f"{model_name} train {epoch}/{args.epochs}",
         )
-        val_metrics, _, _ = _run_epoch(
+        val_metrics, _, _, _ = _run_epoch(
             model,
             val_loader,
             criterion,
@@ -311,7 +340,7 @@ def _train_model(
     if best_path.exists():
         model.load_state_dict(torch.load(best_path, map_location=device))
 
-    test_metrics, labels, predictions = _run_epoch(
+    test_metrics, labels, predictions, test_probs = _run_epoch(
         model,
         test_loader,
         criterion,
@@ -319,12 +348,28 @@ def _train_model(
         desc=f"{model_name} test",
     )
     _write_test_outputs(run_dir, idx_to_class, labels, predictions)
+
+    test_dataset = test_loader.dataset
+    predictions_df = pd.DataFrame(
+        {
+            "image_path": test_dataset.data_frame["image_path"].tolist(),
+            "label": test_dataset.data_frame["label"].tolist(),
+            "pred_label": [idx_to_class[p] for p in predictions],
+            "pred_prob": test_probs,
+        }
+    )
+    predictions_df.to_csv(run_dir / "predictions.csv", index=False)
+    logger.info(
+        "[%s] Predicciones de test guardadas en %s", model_name, run_dir / "predictions.csv"
+    )
+
     _write_summary(
         run_dir,
         model_name,
         run_id,
         args,
         target_size,
+        batch_size,
         class_to_idx,
         splits_dir,
         best_epoch,
@@ -345,6 +390,7 @@ def _generate_lime_reports(
     target_size: tuple[int, int],
     cfg: dict,
     device: torch.device,
+    gradcam_enabled: bool = True,
 ) -> None:
     try:
         from src.explainability.visual_report import explain_model_visual
@@ -381,6 +427,7 @@ def _generate_lime_reports(
         num_samples=lime_cfg["num_samples"],
         seed=lime_cfg["seed"],
         device=device,
+        enable_gradcam=gradcam_enabled,
     )
 
 
@@ -396,6 +443,31 @@ def main() -> None:
         "--baseline",
         action="store_true",
         help="Usa splits/seed_42_baseline en vez de splits/seed_42.",
+    )
+    cap_group = parser.add_mutually_exclusive_group()
+    cap_group.add_argument(
+        "--max-per-class",
+        type=int,
+        default=None,
+        dest="max_per_class",
+        help="Cap de imágenes por clase para splits/seed_42_baseline. Aplica al generar los "
+        "splits (lazy). Si el directorio ya existe se reutiliza tal cual y este flag se "
+        "ignora, salvo que se pase --regenerate-splits para forzar la regeneración.",
+    )
+    cap_group.add_argument(
+        "--no-cap",
+        action="store_true",
+        dest="no_cap",
+        help="Como --max-per-class pero sin límite (100%% de imágenes por clase). Mismas "
+        "reglas de generación lazy.",
+    )
+    parser.add_argument(
+        "--regenerate-splits",
+        action="store_true",
+        dest="regenerate_splits",
+        help="Borra y regenera splits/seed_42_baseline aunque ya exista, para que un cambio "
+        "de --max-per-class/--no-cap o de baseline.classes surta efecto (clave en el Volume "
+        "de Modal, donde los splits persisten entre corridas).",
     )
     parser.add_argument(
         "--splits-dir",
@@ -439,44 +511,84 @@ def main() -> None:
     output_root = get_output_root()
     split_name = "seed_42_baseline" if args.baseline else "seed_42"
     splits_dir = Path(args.splits_dir) if args.splits_dir else output_root / "splits" / split_name
-    output_dir = (
-        Path(args.output_dir)
-        if args.output_dir
-        else output_root / "baselines"
-    )
-    target_size = _target_size_from_args(args, cfg)
+    output_dir = Path(args.output_dir) if args.output_dir else output_root / "baselines"
+    base_target_size = _base_target_size(cfg)
+
+    if splits_dir.exists() and args.regenerate_splits:
+        if not args.baseline:
+            raise SystemExit(
+                "--regenerate-splits solo aplica al path baseline (seed_42_baseline). Para "
+                f"regenerar {splits_dir} usa: make splits"
+            )
+        logger.info("--regenerate-splits: eliminando %s para regenerarlo", splits_dir)
+        shutil.rmtree(splits_dir)
 
     if not splits_dir.exists():
-        command = "make splits-baseline" if args.baseline else "make splits"
-        raise SystemExit(f"No existe {splits_dir}. Genera los splits primero con: {command}")
+        if not args.baseline:
+            raise SystemExit(f"No existe {splits_dir}. Genera los splits primero con: make splits")
+
+        create_splits_args = [
+            sys.executable,
+            str(_CREATE_SPLITS_SCRIPT),
+            "--baseline",
+            "--config",
+            str(config_path),
+        ]
+        if args.no_cap:
+            create_splits_args.append("--no-cap")
+        elif args.max_per_class is not None:
+            create_splits_args += ["--max-per-class", str(args.max_per_class)]
+        logger.info(
+            "No existe %s. Generando splits/seed_42_baseline (lazy): %s",
+            splits_dir,
+            " ".join(create_splits_args),
+        )
+        subprocess.run(create_splits_args, check=True)
 
     device = select_device()
+    gradcam_enabled = cfg.get("gradcam", {}).get("enabled", False)
     logger.info("Modelos a entrenar: %s", model_names)
     logger.info("Splits: %s", splits_dir)
-    logger.info("Tamano de imagen: %sx%s", target_size[0], target_size[1])
 
-    factory = CornTransformFactory(config_path=str(config_path), target_size=target_size)
-    loaders = _build_dataloaders(
-        splits_dir=splits_dir,
-        config_path=config_path,
-        target_size=target_size,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        seed=seed,
-        device=device,
-    )
-    train_loader, val_loader, test_loader, class_to_idx, idx_to_class = loaders
-    dataloaders = (train_loader, val_loader, test_loader)
-
+    loader_cache: dict[tuple[tuple[int, int], int], tuple] = {}
     run_dirs: dict[str, Path] = {}
     for model_name in model_names:
+        target_size = _resolve_model_target_size(model_name, args, cfg)
+        batch_size = _scale_batch_size(args.batch_size, target_size, base=base_target_size)
+
+        scaled = batch_size != args.batch_size or target_size != base_target_size
+        logger.info(
+            "[%s] tamano %dx%d, batch %d%s",
+            model_name,
+            target_size[0],
+            target_size[1],
+            batch_size,
+            " (auto-escalado)" if scaled else "",
+        )
+
+        cache_key = (target_size, batch_size)
+        if cache_key not in loader_cache:
+            loader_cache[cache_key] = _build_dataloaders(
+                splits_dir=splits_dir,
+                config_path=config_path,
+                target_size=target_size,
+                batch_size=batch_size,
+                num_workers=args.num_workers,
+                seed=seed,
+                device=device,
+            )
+        train_loader, val_loader, test_loader, class_to_idx, idx_to_class, factory = loader_cache[
+            cache_key
+        ]
+
         run_dir = _train_model(
             model_name=model_name,
-            loaders=dataloaders,
+            loaders=(train_loader, val_loader, test_loader),
             class_to_idx=class_to_idx,
             idx_to_class=idx_to_class,
             args=args,
             target_size=target_size,
+            batch_size=batch_size,
             splits_dir=splits_dir,
             output_dir=output_dir,
             device=device,
@@ -494,6 +606,7 @@ def main() -> None:
                 target_size=target_size,
                 cfg=cfg,
                 device=device,
+                gradcam_enabled=gradcam_enabled,
             )
 
     if args.lime:

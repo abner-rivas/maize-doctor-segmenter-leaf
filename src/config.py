@@ -13,6 +13,8 @@ load_dotenv(PROJECT_ROOT / ".env")
 _raw_dataset_root = os.getenv("DATASET_ROOT", "").strip()
 DATASET_ROOT: Path | None = Path(_raw_dataset_root) if _raw_dataset_root else None
 
+_raw_output_root = os.getenv("OUTPUT_ROOT", "").strip()
+
 
 def get_dataset_root() -> Path:
     """Devuelve DATASET_ROOT validado; falla con mensaje claro si no está configurado."""
@@ -25,9 +27,12 @@ def get_dataset_root() -> Path:
 
 
 def get_output_root() -> Path:
-    """PROJECT_ROOT/outputs — raíz de artefactos generados por el pipeline (splits,
-    resultados de entrenamiento, reports), separada de DATASET_ROOT (datos fuente)."""
-    return PROJECT_ROOT / "outputs"
+    """OUTPUT_ROOT si está definido; si no, PROJECT_ROOT/outputs (default local).
+
+    Env-overridable (mismo patrón que DATASET_ROOT) para redirigir artefactos a un
+    volumen persistente en entornos remotos (p.ej. Modal). Sin OUTPUT_ROOT el
+    comportamiento local no cambia."""
+    return Path(_raw_output_root) if _raw_output_root else PROJECT_ROOT / "outputs"
 
 
 def set_global_seed(seed: int) -> None:

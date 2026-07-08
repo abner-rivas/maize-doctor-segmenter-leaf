@@ -12,7 +12,7 @@ dist/
 node_modules/
 /data
 /outputs/
-/outputs-remote/
+/outputs-remote**
 /results-remote/
 
 npm-debug.log*

@@ -1,5 +1,4 @@
 import argparse
-import json
 import logging
 from pathlib import Path
 
@@ -13,41 +12,14 @@ import src.models.baselines.ghostnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
 import src.models.baselines.shufflenet  # noqa: F401 - registra modelos
 from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_global_seed
-from src.data.dataset import resolve_class_mapping
 from src.data.loader import load_and_normalize_image
 from src.models.registry import MODEL_REGISTRY
-from src.training.common import resolve_run_dir
+from src.training.common import load_run_metadata, resolve_run_dir
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 _OUTPUT_DIR = get_output_root() / "baselines"
-
-
-def _load_run_metadata(
-    run_dir: Path,
-    fallback_splits_dir: Path,
-    fallback_classes: list[str],
-    fallback_target_size: tuple[int, int],
-) -> tuple[Path, dict[str, int], dict[int, str], tuple[int, int]]:
-    summary_path = run_dir / "summary.json"
-    if summary_path.exists():
-        summary = json.loads(summary_path.read_text())
-        splits_dir = Path(summary.get("splits_dir", fallback_splits_dir))
-        class_to_idx = {
-            str(class_name): int(class_idx)
-            for class_name, class_idx in summary["class_to_idx"].items()
-        }
-        idx_to_class = {idx: class_name for class_name, idx in class_to_idx.items()}
-        image_size = summary.get("image_size", list(fallback_target_size))
-        target_size = (int(image_size[0]), int(image_size[1]))
-        return splits_dir, class_to_idx, idx_to_class, target_size
-
-    class_to_idx, idx_to_class = resolve_class_mapping(
-        fallback_splits_dir / "train.csv",
-        fallback_classes,
-    )
-    return fallback_splits_dir, class_to_idx, idx_to_class, fallback_target_size
 
 
 def _resolve_model_names(requested: list[str]) -> list[str]:
@@ -115,6 +87,7 @@ def main() -> None:
     with open(PROJECT_ROOT / "config" / "dataset.yaml") as f:
         cfg = yaml.safe_load(f)
     lime_cfg = cfg["lime"]
+    gradcam_enabled = cfg.get("gradcam", {}).get("enabled", False)
     set_global_seed(lime_cfg["seed"])
 
     model_names = _resolve_model_names(args.models)
@@ -154,7 +127,7 @@ def main() -> None:
             )
             continue
 
-        splits_dir, _, idx_to_class, target_size = _load_run_metadata(
+        splits_dir, _, idx_to_class, target_size = load_run_metadata(
             run_dir=run_dir,
             fallback_splits_dir=fallback_splits_dir,
             fallback_classes=fallback_classes,
@@ -187,6 +160,7 @@ def main() -> None:
                 num_features=lime_cfg["num_features"],
                 seed=lime_cfg["seed"],
                 device=device,
+                model_name=model_name if gradcam_enabled else None,
             )
             logger.info(
                 f"[{model_name}] Diagnóstico: {result['predicted_label']} "
@@ -207,6 +181,7 @@ def main() -> None:
                 num_samples=lime_cfg["num_samples"],
                 seed=lime_cfg["seed"],
                 device=device,
+                enable_gradcam=gradcam_enabled,
             )
 
     logger.info("Explicaciones LIME completadas.")

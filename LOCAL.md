@@ -70,11 +70,12 @@ ln -s /ruta/a/tu/dataset data
 make install
 ```
 
-Esto corre `pip install -e ".[dev,analysis,cloud]"` dentro del venv (instala el paquete `src/` en modo editable + todos los extras necesarios para el flujo local, incluida la descarga del dataset). Extras disponibles en `pyproject.toml`:
+Esto corre `pip install -e ".[dev,analysis,xai,cloud]"` dentro del venv (instala el paquete `src/` en modo editable + todos los extras necesarios para el flujo local, incluida la descarga del dataset). Extras disponibles en `pyproject.toml`:
 
 - `dev`: ipykernel, jupyterlab, matplotlib, seaborn, ruff, pyright
 - `analysis`: imagededup, fiftyone, imageio, mongoengine, motor (necesario para deduplicación y
   exploración visual)
+- `xai`: lime, scikit-image, matplotlib (necesario para `make explain-lime`/`explain-report`/`explain-errors`)
 - `cloud`: huggingface_hub, gdown (necesario para descargar/subir el dataset)
 
 Si solo necesitas descargar el dataset sin las herramientas de desarrollo/análisis:
@@ -119,10 +120,11 @@ make fmt       # ruff format
 ## 8. Entrenar
 
 ```bash
-make train-baselines               # Entrena baselines (EfficientNet/MobileNet) sobre el perfil baseline
+make train-baselines                          # Entrena baselines sobre el perfil baseline (4 clases, tope 500 img/clase)
 make train-baselines MODELS=efficientnet_b0   # Solo un modelo
-make train-baselines-full          # Baselines sobre el dataset completo (9 clases)
-make train                          # Pipeline principal (loop de entrenamiento aún pendiente)
+make train-baselines NO_CAP=1                 # Mismas 4 clases, sin tope de imágenes
+make train-baselines MAX_PER_CLASS=1000       # Mismas 4 clases, tope custom
+make train                                    # Pipeline principal (loop de entrenamiento aún pendiente)
 ```
 
 ## Resumen rápido (happy path)

@@ -1,0 +1,150 @@
+"""Diagnóstico manual/puntual de estabilidad de LIME sobre una única imagen.
+
+Ccorre `render_visual_explanation` N veces con seeds distintas sobre la misma imagen y reporta, 
+entre corridas consecutivas:
+  - IoU de las máscaras de superpíxeles positivos (reconstruidas desde el .json/.npy
+    que ya persiste render_visual_explanation).
+  - Correlación de Pearson entre los weight_map per-píxel completos.
+
+Uso: python scripts/checks/lime_stability.py --model efficientnet_b0 --image <ruta> --runs 5
+     [--run <run_id>] [--output-dir <dir>]
+"""
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+import torch
+import yaml
+
+import src.models.baselines.efficientnet  # noqa: F401 - registra modelos
+import src.models.baselines.fastvit  # noqa: F401 - registra modelos
+import src.models.baselines.ghostnet  # noqa: F401 - registra modelos
+import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
+import src.models.baselines.shufflenet  # noqa: F401 - registra modelos
+from src.config import PROJECT_ROOT, get_output_root
+from src.data.dataset import resolve_class_mapping
+from src.data.loader import load_and_normalize_image
+from src.explainability.visual_report import render_visual_explanation
+from src.models.registry import MODEL_REGISTRY
+from src.training.common import resolve_run_dir
+
+_OUTPUT_DIR = get_output_root() / "baselines"
+
+
+def _reconstruct_mask_and_weight_map(
+    json_path: Path, npy_path: Path
+) -> tuple[np.ndarray, np.ndarray]:
+    """Reconstruye la máscara de superpíxeles positivos y el weight_map per-píxel
+    completo a partir de los artefactos ya persistidos por render_visual_explanation,
+    sin tener que re-ejecutar LIME."""
+    metadata = json.loads(json_path.read_text())
+    segments = np.load(npy_path)
+
+    weight_map = np.zeros(segments.shape, dtype=float)
+    positive_mask = np.zeros(segments.shape, dtype=bool)
+    for feature in metadata["top_features"]:
+        segment_id, weight = feature["segment_id"], feature["weight"]
+        weight_map[segments == segment_id] = weight
+        if weight > 0:
+            positive_mask[segments == segment_id] = True
+
+    return positive_mask, weight_map
+
+
+def _mask_iou(mask_a: np.ndarray, mask_b: np.ndarray) -> float:
+    intersection = np.logical_and(mask_a, mask_b).sum()
+    union = np.logical_or(mask_a, mask_b).sum()
+    return float(intersection / union) if union > 0 else 1.0
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--model", required=True, help=f"Disponibles: {MODEL_REGISTRY.list_names()}"
+    )
+    parser.add_argument("--image", required=True, help="Ruta a la imagen a auditar.")
+    parser.add_argument(
+        "--runs", type=int, default=5, help="Número de repeticiones con seeds distintas."
+    )
+    parser.add_argument("--run", default=None, help="run_id del checkpoint (default: latest.json).")
+    parser.add_argument(
+        "--baseline",
+        action="store_true",
+        default=None,
+        help="Fuerza splits/seed_42_baseline en vez de leer lime.baseline del YAML.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        dest="output_dir",
+        help="Directorio para los PNG/json/npy de cada corrida (default: "
+        "<run_dir>/lime_stability/).",
+    )
+    args = parser.parse_args()
+
+    with open(PROJECT_ROOT / "config" / "dataset.yaml") as f:
+        cfg = yaml.safe_load(f)
+    lime_cfg = cfg["lime"]
+
+    use_baseline = args.baseline if args.baseline is not None else lime_cfg["baseline"]
+    splits_dir = get_output_root() / "splits" / ("seed_42_baseline" if use_baseline else "seed_42")
+    classes = cfg["baseline"]["classes"] if use_baseline else cfg["dataset"]["classes"]
+    if not splits_dir.exists():
+        raise SystemExit(
+            f"El directorio de splits no existe: {splits_dir}\n"
+            "Genera los splits primero con: make splits  (o make splits-baseline)"
+        )
+
+    class_to_idx, idx_to_class = resolve_class_mapping(splits_dir / "train.csv", classes)
+    target_size = tuple(cfg["dataset"]["target_size"])
+
+    run_dir = resolve_run_dir(_OUTPUT_DIR, args.model, args.run)
+    checkpoint_path = run_dir / "best.pth"
+    if not checkpoint_path.exists():
+        raise SystemExit(f"Sin checkpoint completo en {run_dir}")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = MODEL_REGISTRY.build(args.model, num_classes=len(class_to_idx)).to(device)
+    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+    model.eval()
+
+    output_dir = Path(args.output_dir) if args.output_dir else run_dir / "lime_stability"
+    image = load_and_normalize_image(Path(args.image))
+    image_stem = Path(args.image).stem
+
+    masks, weight_maps = [], []
+    for seed in range(args.runs):
+        output_path = output_dir / f"{image_stem}__seed-{seed}.png"
+        result = render_visual_explanation(
+            image=image,
+            model=model,
+            idx_to_class=idx_to_class,
+            target_size=target_size,
+            output_path=output_path,
+            num_samples=lime_cfg["num_samples"],
+            num_features=lime_cfg["num_features"],
+            seed=seed,
+            device=device,
+        )
+        mask, weight_map = _reconstruct_mask_and_weight_map(
+            output_path.with_suffix(".json"), output_path.with_suffix(".npy")
+        )
+        masks.append(mask)
+        weight_maps.append(weight_map)
+        print(
+            f"seed={seed}: predicho={result['predicted_label']} "
+            f"({result['predicted_prob'] * 100:.1f}%)"
+        )
+
+    print(f"\nEstabilidad entre corridas consecutivas ({args.runs} seeds, imagen: {args.image}):")
+    print(f"{'seeds':<12}{'IoU':>10}{'correlación':>14}")
+    for i in range(len(masks) - 1):
+        iou = _mask_iou(masks[i], masks[i + 1])
+        correlation = float(np.corrcoef(weight_maps[i].ravel(), weight_maps[i + 1].ravel())[0, 1])
+        print(f"{i} vs {i + 1:<7}{iou:>10.3f}{correlation:>14.3f}")
+
+
+if __name__ == "__main__":
+    main()
