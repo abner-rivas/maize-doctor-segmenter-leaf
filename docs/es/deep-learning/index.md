@@ -6,6 +6,8 @@ Esta sección presenta los fundamentos teóricos que sustentan el pipeline de cl
 
 ## Redes Neuronales Convolucionales (CNN)
 
+Antes de entrar en las arquitecturas concretas que usa este proyecto, conviene repasar el bloque de construcción que todas comparten: la red neuronal convolucional. Entender sus tres operaciones básicas ayuda a ver después por qué EfficientNet, MobileNet o ConvNeXt toman las decisiones de diseño que toman.
+
 Una **red neuronal convolucional** (*Convolutional Neural Network*, CNN) es una clase de modelo de aprendizaje profundo diseñada para procesar datos con estructura de cuadrícula, como imágenes. A diferencia de las redes completamente conectadas, las CNNs explotan la localidad espacial y la invarianza a la traslación mediante tres operaciones clave <sup>[[15]](#ref-15)</sup>:
 
 - **Capa convolucional:** aplica un conjunto de filtros aprendibles que convoluciona la entrada para producir mapas de activación. Cada filtro detecta un patrón local (bordes, texturas, formas) y comparte sus pesos en toda la imagen, reduciendo drásticamente el número de parámetros respecto a una capa densa.
@@ -14,35 +16,31 @@ Una **red neuronal convolucional** (*Convolutional Neural Network*, CNN) es una 
 
 ### De LeNet a AlexNet
 
-Las primeras CNNs modernas fueron propuestas por LeCun et al. en la década de 1990 para reconocimiento de dígitos escritos a mano. Sin embargo, fue la aparición de **AlexNet** en 2012 la que marcó el punto de inflexión del campo <sup>[[1]](#ref-1)</sup>: con 5 capas convolucionales y 3 capas FC entrenadas sobre ImageNet-1K con dos GPUs en paralelo, AlexNet redujo la tasa de error Top-5 de 26.2 % a 15.3 %, una brecha que convenció a la comunidad de que las CNNs profundas eran el camino.
+Vale la pena situar estas ideas en el tiempo, porque el salto que las hizo prácticas ocurrió hace relativamente poco. Las primeras CNNs modernas fueron propuestas por LeCun et al. en la década de 1990 para reconocimiento de dígitos escritos a mano. Sin embargo, fue la aparición de **AlexNet** en 2012 la que marcó el punto de inflexión del campo <sup>[[1]](#ref-1)</sup>: con 5 capas convolucionales y 3 capas FC entrenadas sobre ImageNet-1K con dos GPUs en paralelo, AlexNet redujo la tasa de error Top-5 de 26.2 % a 15.3 %, una brecha que convenció a la comunidad de que las CNNs profundas eran el camino.
 
-AlexNet popularizó tres técnicas que se convirtieron en estándar:
-- **ReLU** como función de activación, acelerando la convergencia frente a sigmoid/tanh.
-- ***Dropout*** como regularización estocástica para reducir co-adaptación entre neuronas <sup>[[3]](#ref-3)</sup>.
-- ***Data augmentation*** (recortes aleatorios, reflejos horizontales) para aumentar la variabilidad efectiva del conjunto de entrenamiento.
+AlexNet popularizó tres técnicas que se convirtieron en estándar en los años siguientes. La primera es **ReLU** como función de activación, que acelera la convergencia frente a sigmoid/tanh. La segunda es ***dropout***, una regularización estocástica que reduce la co-adaptación entre neuronas <sup>[[3]](#ref-3)</sup>. La tercera es ***data augmentation*** (recortes aleatorios, reflejos horizontales), que aumenta la variabilidad efectiva del conjunto de entrenamiento.
 
 ### Batch Normalization
 
-Introducida por Ioffe y Szegedy en 2015, la **normalización por lotes** (*batch normalization*, BN) <sup>[[2]](#ref-2)</sup> normaliza las activaciones de cada capa a media cero y varianza unitaria sobre el mini-batch durante el entrenamiento, re-escalándolas luego con parámetros aprendibles $\gamma$ y $\beta$. Sus beneficios principales son:
+Entrenar redes cada vez más profundas trajo un problema práctico: las activaciones de cada capa cambian de distribución a medida que cambian los pesos de las capas anteriores, lo que hace el entrenamiento inestable. La normalización por lotes fue la respuesta a ese problema y hoy es un componente casi universal.
 
-- Permite usar tasas de aprendizaje más altas sin inestabilidad.
-- Reduce la sensibilidad a la inicialización de pesos.
-- Actúa como regularizador implícito, reduciendo la necesidad de dropout en algunas arquitecturas.
+Introducida por Ioffe y Szegedy en 2015, la **normalización por lotes** (*batch normalization*, BN) <sup>[[2]](#ref-2)</sup> normaliza las activaciones de cada capa a media cero y varianza unitaria sobre el mini-batch durante el entrenamiento, re-escalándolas luego con parámetros aprendibles $\gamma$ y $\beta$. Sus beneficios principales son tres: permite usar tasas de aprendizaje más altas sin inestabilidad, reduce la sensibilidad a la inicialización de pesos y actúa como regularizador implícito, disminuyendo la necesidad de dropout en algunas arquitecturas.
 
 BN está presente en todas las arquitecturas modernas revisadas en este proyecto (EfficientNet, MobileNetV3, ResNet).
 
 ### Convoluciones Depthwise-Separable
 
-Las **convoluciones depthwise-separable** <sup>[[5]](#ref-5)</sup> factorizan una convolución estándar $k \times k$ con $C_{in}$ canales de entrada y $C_{out}$ de salida en dos operaciones secuenciales:
+El otro gran cuello de botella de las CNNs clásicas es el costo computacional de las convoluciones estándar, que crece rápido con el número de canales. Las convoluciones depthwise-separable resuelven esto factorizando la operación, y son la pieza clave que hace viables las arquitecturas móviles usadas en este proyecto.
 
-1. **Depthwise convolution:** aplica un filtro $k \times k$ independiente *por canal*, produciendo $C_{in}$ mapas de activación.
-2. **Pointwise convolution:** combina los $C_{in}$ mapas con una convolución $1 \times 1$ para producir los $C_{out}$ mapas finales.
+Las **convoluciones depthwise-separable** <sup>[[5]](#ref-5)</sup> factorizan una convolución estándar $k \times k$ con $C_{in}$ canales de entrada y $C_{out}$ de salida en dos operaciones secuenciales. Primero, la **depthwise convolution** aplica un filtro $k \times k$ independiente *por canal*, produciendo $C_{in}$ mapas de activación. Después, la **pointwise convolution** combina esos $C_{in}$ mapas con una convolución $1 \times 1$ para producir los $C_{out}$ mapas finales.
 
-Este factorización reduce el número de operaciones en un factor de aproximadamente $1/C_{out} + 1/k^2$, que para $k=3$ y $C_{out}$ grande equivale a una reducción de ~8–9× en FLOPs, sin degradación significativa de la capacidad representacional. Es la base de la familia MobileNet y heredada en los bloques MBConv de EfficientNet.
+Esta factorización reduce el número de operaciones en un factor de aproximadamente $1/C_{out} + 1/k^2$, que para $k=3$ y $C_{out}$ grande equivale a una reducción de ~8–9× en FLOPs, sin degradación significativa de la capacidad representacional. Es la base de la familia MobileNet y se hereda en los bloques MBConv de EfficientNet.
 
 ---
 
 ## Aprendizaje por Transferencia (*Transfer Learning*)
+
+Entrenar una CNN desde cero requiere muchísimos datos etiquetados, algo que este proyecto no tiene en abundancia para todas las clases. El aprendizaje por transferencia es la vía práctica para sortear esa limitación, y es la estrategia que sostiene todo el entrenamiento de este proyecto.
 
 El **aprendizaje por transferencia** consiste en reutilizar un modelo pre-entrenado en una tarea fuente (aquí, clasificación de 1 000 categorías en ImageNet) y adaptarlo a una tarea objetivo diferente (clasificación de 9 clases de enfermedades en hojas de maíz) <sup>[[17]](#ref-17)</sup>.
 
@@ -50,10 +48,7 @@ El **aprendizaje por transferencia** consiste en reutilizar un modelo pre-entren
 
 Los modelos pre-entrenados en ImageNet aprenden una jerarquía de características: las primeras capas detectan bordes y texturas de bajo nivel (independientes del dominio), las capas intermedias detectan partes y patrones visuales, y las capas más profundas codifican conceptos semánticos específicos de las categorías de ImageNet. Para tareas de visión en dominios visualmente relacionados (como la clasificación de hojas), los mapas de características de las capas bajas e intermedias son altamente reutilizables.
 
-Esto produce beneficios concretos:
-- **Convergencia más rápida:** los pesos ya son una buena inicialización, no un punto aleatorio.
-- **Mejor generalización con pocos datos:** las características pre-aprendidas reducen el riesgo de sobreajuste cuando el dataset objetivo es pequeño.
-- **Menor costo computacional:** es posible congelar las capas tempranas y entrenar solo las últimas, reduciendo el número de parámetros a optimizar.
+Esto produce beneficios concretos. La convergencia es más rápida, porque los pesos ya son una buena inicialización y no un punto aleatorio. La generalización con pocos datos mejora, porque las características pre-aprendidas reducen el riesgo de sobreajuste cuando el dataset objetivo es pequeño. Y el costo computacional puede reducirse, ya que es posible congelar las capas tempranas y entrenar solo las últimas, disminuyendo el número de parámetros a optimizar.
 
 ### Fine-Tuning en este proyecto
 
@@ -65,6 +60,8 @@ Este enfoque es especialmente adecuado aquí porque el dataset de campo contiene
 
 ## Arquitecturas Ligeras y Escalables
 
+Con los bloques anteriores ya cubiertos (convolución, BN, factorización depthwise-separable, transferencia de conocimiento), esta sección repasa las familias de arquitecturas concretas que compiten en el proyecto: desde las redes residuales que resolvieron el problema de la profundidad hasta las variantes ultraligeras pensadas para móviles.
+
 ### Redes Residuales (ResNet)
 
 He et al. <sup>[[4]](#ref-4)</sup> demostraron que añadir más capas a una CNN no garantiza mejor rendimiento: más allá de cierta profundidad, el error de entrenamiento *aumenta* (fenómeno de degradación). Su solución fue introducir **conexiones residuales** (*skip connections*): la salida de un bloque de capas se suma directamente a su entrada, obligando a la red a aprender la función residual $\mathcal{F}(x) = H(x) - x$ en lugar de la función completa $H(x)$.
@@ -75,7 +72,7 @@ Esta reformulación facilita el flujo de gradientes hacia capas tempranas (mitig
 
 ### Familia MobileNet
 
-La familia MobileNet fue diseñada progresivamente para maximizar la precisión bajo restricciones de latencia en dispositivos móviles:
+Si ResNet resolvió el problema de entrenar redes profundas, MobileNet atacó un problema distinto: cómo llevar esas redes a un teléfono con recursos limitados sin sacrificar demasiada precisión. La familia MobileNet fue diseñada progresivamente para maximizar la precisión bajo restricciones de latencia en dispositivos móviles:
 
 | Versión | Año | Innovación principal |
 |---|---|---|
@@ -87,7 +84,7 @@ Los **bloques MBConv** de V2 invierten la lógica del bottleneck clásico: en lu
 
 ### EfficientNet y *Compound Scaling*
 
-Tan y Le <sup>[[8]](#ref-8)</sup> observaron que escalar profundidad, ancho y resolución de forma conjunta y equilibrada produce mejores resultados que hacerlo individualmente. Definieron un **coeficiente compuesto** $\phi$ tal que:
+Antes de EfficientNet, escalar una red para ganar precisión solía significar ajustar a mano y por separado la profundidad, el ancho o la resolución de entrada, un proceso costoso y poco sistemático. Tan y Le <sup>[[8]](#ref-8)</sup> observaron que escalar las tres dimensiones de forma conjunta y equilibrada produce mejores resultados que hacerlo individualmente. Definieron un **coeficiente compuesto** $\phi$ tal que:
 
 $$\text{depth} \propto \alpha^\phi, \quad \text{width} \propto \beta^\phi, \quad \text{resolution} \propto \gamma^\phi$$
 
@@ -97,19 +94,19 @@ EfficientNet-B0 alcanza ~77.1 % Top-1 en ImageNet con solo 5.3 M de parámetros,
 
 ### ConvNeXt: CNNs Modernas Inspiradas en ViT
 
+Cuando los Vision Transformers empezaron a superar a las CNNs en benchmarks de visión, surgió la pregunta de si el mérito era del mecanismo de atención en sí o simplemente de las decisiones de diseño modernas que traían consigo. ConvNeXt responde experimentalmente a esa pregunta.
+
 Liu et al. <sup>[[10]](#ref-10)</sup> partieron de ResNet-50 y aplicaron sistemáticamente las decisiones de diseño que hicieron exitosos a los Vision Transformers (tamaño de kernel más grande, capas normalizadas por capa en lugar de BN, activación GELU, menor frecuencia de downsampling). El resultado, **ConvNeXt**, es una CNN pura que supera a Swin Transformer en ImageNet con complejidad similar, sin mecanismos de atención.
 
-Sus principales modificaciones respecto a ResNet son:
-- Convoluciones $7 \times 7$ depthwise (mayor campo receptivo por bloque).
-- *Patchify stem*: stem de $4 \times 4$ con stride 4, análogo al *patch embedding* de ViT.
-- *Inverted bottleneck* y una sola capa de activación (GELU) por bloque.
-- *Layer Normalization* (LN) en lugar de BN.
+Sus principales modificaciones respecto a ResNet son cuatro: convoluciones $7 \times 7$ depthwise para un mayor campo receptivo por bloque; un *patchify stem* (un stem de $4 \times 4$ con stride 4, análogo al *patch embedding* de ViT); un *inverted bottleneck* con una sola capa de activación (GELU) por bloque; y *Layer Normalization* (LN) en lugar de BN.
 
 ConvNeXt-Tiny es uno de los modelos candidatos en la fase de experimentación completa del proyecto.
 
 ---
 
 ## Vision Transformers (ViT)
+
+Los Transformers dominaban ya el procesamiento de lenguaje cuando surgió la pregunta natural: ¿por qué no aplicarlos directamente a imágenes, sin las convoluciones que habían sido la base de la visión por computadora durante una década? Esa es la apuesta de ViT.
 
 Dosovitskiy et al. <sup>[[11]](#ref-11)</sup> demostraron que un Transformer estándar aplicado directamente a parches de imagen puede igualar o superar a las CNNs en clasificación visual cuando se pre-entrena con suficientes datos. El **Vision Transformer (ViT)** divide una imagen de $H \times W$ píxeles en $N = \frac{H \cdot W}{P^2}$ parches no solapados de $P \times P$, proyecta cada parche a un vector de dimensión $D$ (*patch embedding*), añade codificación posicional aprendible y procesa la secuencia con un encoder Transformer estándar.
 
@@ -145,7 +142,7 @@ Esto hace que los errores en clases minoritarias contribuyan más al gradiente, 
 
 ### WeightedRandomSampler
 
-El `WeightedRandomSampler` de PyTorch construye cada mini-batch muestreando ejemplos con probabilidad proporcional al inverso de la frecuencia de su clase. En combinación con la pérdida ponderada, iguala la frecuencia efectiva durante el entrenamiento sin duplicar muestras en memoria.
+La pérdida ponderada actúa sobre el gradiente, pero también ayuda a intervenir antes, en la composición misma de cada batch. El `WeightedRandomSampler` de PyTorch construye cada mini-batch muestreando ejemplos con probabilidad proporcional al inverso de la frecuencia de su clase. En combinación con la pérdida ponderada, iguala la frecuencia efectiva durante el entrenamiento sin duplicar muestras en memoria.
 
 ### Augmentation Extendido para Clases Minoritarias
 
@@ -154,6 +151,8 @@ Para las 5 clases con ratio de desbalance > 3.9× (`common_rust`, `gray_leaf_spo
 ---
 
 ## Métricas de Evaluación
+
+Con el desbalance de clases ya cubierto, queda la pregunta de cómo medir si el modelo realmente aprendió a distinguir las clases minoritarias y no solo las mayoritarias. Esta sección define las métricas que se usan para evaluar los modelos del proyecto.
 
 ### Precisión, Recall y F1 por Clase
 
@@ -175,9 +174,11 @@ El **F1-weighted** pondera por la frecuencia de cada clase, sesgándose hacia la
 
 ## Deep Learning Aplicado a Enfermedades en Plantas
 
+Todo lo anterior son herramientas generales de visión por computadora. Esta última sección las conecta con el problema concreto del proyecto: diagnosticar enfermedades en hojas de maíz, y las particularidades que trae hacerlo con imágenes de campo real en vez de fotos de laboratorio.
+
 ### Contexto del Problema
 
-El uso de CNNs para el diagnóstico automático de enfermedades foliares fue popularizado por Mohanty et al. <sup>[[14]](#ref-14)</sup>, quienes entrenaron modelos sobre el dataset PlantVillage -imágenes de laboratorio con fondo uniforme- y reportaron precisiones superiores al 99 %. Sin embargo, estos resultados no se transfieren directamente a condiciones de campo reales: variaciones de iluminación, ángulo, fondo y resolución generan un *domain shift* que puede degradar drásticamente el rendimiento.
+El uso de CNNs para el diagnóstico automático de enfermedades foliares fue popularizado por Mohanty et al. <sup>[[14]](#ref-14)</sup>, quienes entrenaron modelos sobre el dataset PlantVillage (imágenes de laboratorio con fondo uniforme) y reportaron precisiones superiores al 99 %. Sin embargo, estos resultados no se transfieren directamente a condiciones de campo reales: variaciones de iluminación, ángulo, fondo y resolución generan un *domain shift* que puede degradar drásticamente el rendimiento.
 
 ### Diferencia entre Imágenes de Laboratorio y Campo
 
