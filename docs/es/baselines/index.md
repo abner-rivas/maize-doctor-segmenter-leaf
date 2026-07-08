@@ -81,7 +81,7 @@ En ImageNet-1K alcanza ~77.1 % de Top-1 con 5.3 M de parámetros -más del doble
 |---|---|
 | Precisión | Superior a ShuffleNetV2-x1.0 en ImageNet (~77 % vs. ~69 %); también lidera tras fine-tuning (macro-F1 0.9146 vs. 0.9030) |
 | Velocidad de inferencia | Más lento que ShuffleNetV2-x1.0 en hardware móvil por las operaciones SE en cada bloque y el mayor número de parámetros |
-| Tamaño del modelo | ~20 MB serializado; más pesado que ShuffleNetV2-x1.0 (~5 MB) |
+| Tamaño del modelo | ~16 MB serializado; más pesado que ShuffleNetV2-x1.0 (~5 MB) |
 | Transfer learning | Pre-entrenado en ImageNet con `EfficientNet_B0_Weights.DEFAULT` (IMAGENET1K_V1); se reemplaza `model.classifier[1]` |
 | Regularización implícita | Los bloques MBConv con dropout estructural hacen a EfficientNet-B0 más robusto al overfitting con datasets pequeños |
 

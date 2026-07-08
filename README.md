@@ -90,7 +90,7 @@ El proyecto sigue el marco **CRISP-DM iterativo**:
 1. **Comprensión del negocio** - Definición del problema agrícola y restricciones de despliegue
 2. **Comprensión de datos** - Consolidación y auditoría de 8 fuentes públicas
 3. **Preparación** - Limpieza, estandarización (224×224 px), deduplicación, augmentation
-4. **Modelado** - Fine-tuning de 6 arquitecturas baseline para comparar rápido y barato
+4. **Modelado** - Fine-tuning de 3 arquitecturas baseline para comparar rápido y barato
 5. **Evaluación** - Macro F1 ≥ 0.85 en conjunto independiente de imágenes de campo real
 6. **Despliegue** - PWA offline con TFLite Int8 + sincronización opcional
 
