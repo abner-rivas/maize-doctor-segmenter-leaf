@@ -16,6 +16,7 @@ Implementada en `src/data/splitter.py - HierarchicalStratifiedSplitter`.
 - **Seed fijo:** 42, declarado en `config/dataset.yaml`. Garantiza reproducibilidad exacta entre ejecuciones.
 - **Estratificación jerárquica:** se estratifica por `label + environment` (no solo por clase). Esto asegura que la proporción de imágenes de laboratorio vs campo sea consistente en los tres splits. Un split aleatorio simple podría concentrar todas las imágenes de laboratorio de una clase en train, sesgando val y test.
 - **Los CSV son inmutables:** `outputs/splits/seed_42/train.csv`, `val.csv`, `test.csv` son la fuente de verdad. No se modifican. Las exclusiones de clases se aplican en tiempo de construcción del dataset (`exclude_classes`), no en el CSV.
+- **Baseline vs. principal:** el pipeline principal usa `seed_42/` (9 clases sin cap); el baseline usa `seed_42_baseline/` (9 clases con cap de 1 500/clase). Misma estratificación y seed.
 
 ## Balanceo
 
@@ -37,7 +38,7 @@ Implementada en `src/data/splitter.py - HierarchicalStratifiedSplitter`.
 
 - **Undersampling agresivo:** descartado porque elimina datos reales y escasos. Con 186 imágenes de `potassium_deficiency`, reducir la mayoría a ese nivel destruiría el 97% del corpus.
 - **Oversampling físico (copias en disco):** descartado porque `WeightedRandomSampler` logra el mismo efecto en memoria, es reversible y se combina con augmentation en caliente sin duplicar archivos.
-- **Focal Loss:** descartada en esta etapa. Es más útil cuando hay muchos ejemplos fáciles que saturan el gradiente (e.g. detección de objetos con fondo masivo). En clasificación de hojas con 8 clases y muestras mayoritariamente difíciles, Weighted Cross Entropy es más interpretable. Se revisa si los resultados experimentales no mejoran.
+- **Focal Loss:** descartada en esta etapa. Es más útil cuando hay muchos ejemplos fáciles que saturan el gradiente (e.g. detección de objetos con fondo masivo). En clasificación de hojas con 9 clases y muestras mayoritariamente difíciles, Weighted Cross Entropy es más interpretable. Se revisa si los resultados experimentales no mejoran.
 
 ### Estrategia adoptada: tres capas complementarias
 
