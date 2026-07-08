@@ -1,36 +1,26 @@
 # Baselines
 
-Antes de invertir tiempo y cómputo en el entrenamiento completo, conviene saber qué tan bien funcionan las arquitecturas candidatas con una fracción del dataset. Para eso existen los baselines de este proyecto, que cumplen un doble propósito.
+Antes de invertir tiempo y cómputo en el entrenamiento completo, conviene saber qué tan bien funcionan las arquitecturas candidatas mediante experimentos. Para eso existen los baselines de este proyecto.
 
-Por un lado son un punto de comparación mínimo: cualquier arquitectura más compleja propuesta en etapas posteriores debe superar consistentemente estas cifras para justificar su mayor costo computacional o de mantenimiento. Por otro lado funcionan como demo de modelos candidatos, ya que antes de comprometer el entrenamiento completo permiten observar el comportamiento inicial de cada arquitectura sobre una fracción representativa del dataset y detectar problemas (colapso de clases, overfitting temprano, incompatibilidad con el pipeline) a bajo costo.
+Funcionan como demo de modelos candidatos, ya que antes de comprometer el entrenamiento completo permiten observar el comportamiento inicial de cada arquitectura sobre una fracción representativa del dataset y detectar problemas (colapso de clases, overfitting temprano, incompatibilidad con el pipeline) a bajo costo.
 
-Los tres modelos elegidos, **EfficientNet-B0**, **ShuffleNetV2-x1.0** y **EfficientNet-Lite0**, son redes convolucionales ligeras pre-entrenadas en ImageNet que cubren el eje precisión↔eficiencia y convierten a TFLite para despliegue móvil offline. Se priorizó este perfil porque el objetivo final es un sistema desplegable en entornos con recursos limitados (dispositivos móviles o cómputo en campo), y porque al tener parámetros comparables entre sí hacen que las diferencias de rendimiento sean atribuibles a la arquitectura, no al tamaño.
+Los tres modelos elegidos, **EfficientNet-B0**, **ShuffleNetV2-x1.0** y **EfficientNet-Lite0**, son redes convolucionales ligeras pre-entrenadas en ImageNet que cubren el eje precisión - eficiencia y tiene compatibilidad para convertirse a TFLite para el despliegue móvil offline que es nuestra meta final.
 
 ---
 
 ## Dataset utilizado
 
-Antes de mirar los modelos en sí, vale la pena entender sobre qué datos se entrenan y evalúan estos baselines, porque el recorte aplicado condiciona directamente las cifras que vienen más abajo.
+Los baselines se entrenan sobre el **perfil `baseline`** de la configuración del pipeline: las **9 clases** del dataset actual con un tope de **1 500 imágenes por clase**, solo se recortan las clases mayoritarias, las minoritarias quedan intactas. Esto permite entrenar los modelos candidatos con un **dataset reducido (10,020 imágenes)** que conserva el desbalance natural de clases.
 
-Los baselines se entrenan sobre el **perfil `baseline`** de `config/dataset.yaml`: las **9 clases**
-del dataset con un tope de **1 500 imágenes por clase** ("cap la cabeza, conserva la cola": solo
-se recortan las clases mayoritarias, las minoritarias quedan intactas). Se genera con
-`make splits-baseline` en `outputs/splits/seed_42_baseline/`, con la misma estratificación por
-`label + environment` y seed 42 que el split completo.
-
-| Split | Imágenes (aprox.) |
+| Split | Imágenes |
 |---|---:|
-| Entrenamiento (`train.csv`, 70 %) | ~7 014 |
-| Validación (`val.csv`, 15 %) | ~1 503 |
+| Entrenamiento (`train.csv`, 70 %) | 7 014 |
+| Validación (`val.csv`, 15 %) | 1 503 |
 | Prueba (`test.csv`, 15 %) | 1 503 |
-| **Total** | **~10 020** |
+| **Total** | **10 020** |
 
-El cap conserva completas las clases minoritarias (potasio 266, nitrógeno 523, fósforo 612) y
-limita solo las mayoritarias (healthy, tizones, gusano cogollero), preservando el desbalance
-natural sin gastar cómputo en imágenes redundantes de la cabeza. El cap es configurable desde
-`config/dataset.yaml` (`baseline.max_images_per_class`) o por CLI (`--max-per-class`,
-`--regenerate-splits` para forzar la regeneración). El modelo finalista se re-entrena sobre las
-9 clases sin cap en el pipeline principal (`train.py`).
+Se conservan completas las clases minoritarias (potasio 266, nitrógeno 523, fósforo 612) y
+limita solo las mayoritarias (healthy, tizones, gusano cogollero). El cap es configurable para permitir experimentar con diferentes tamaños de dataset, pero el valor por defecto es 1 500 imágenes por clase.
 
 ---
 
@@ -116,9 +106,7 @@ Con los tres modelos ya descritos individualmente, esta tabla los pone lado a la
 | `shufflenet_v2_x1_0` | 2.3 M | ~69.4 % | 5 MB | Sí (mobile-native) |
 | `efficientnet_lite0` | 4.7 M | ~74.9 % | 14 MB | Sí (diseñado para INT8) |
 
-Los tres parten de pesos pre-entrenados en ImageNet <sup>[[16]](#ref-16)</sup> y se ajustan sobre el dataset de maíz con el mismo tratamiento: `CrossEntropyLoss` con pesos de clase inversamente proporcionales a la frecuencia <sup>[[12]](#ref-12)</sup>, `WeightedRandomSampler` para igualar la frecuencia efectiva durante entrenamiento, y un pipeline de augmentation extendido para las 5 clases minoritarias. Al mantener fijo todo lo demás, las diferencias de resultado se pueden atribuir a la arquitectura.
-
-El modelo con mejor **macro-F1** en el conjunto de prueba establece el **umbral de referencia**: actualmente `efficientnet_b0`, con macro-F1 0.9146, que las arquitecturas posteriores (ResNet-50, ConvNeXt, ViT) deberán superar de forma consistente.
+Los tres parten de pesos pre-entrenados en ImageNet <sup>[[16]](#ref-16)</sup> y se ajustan sobre el dataset de maíz con el mismo pipeline de preprocesado, estratificación y data augmentation. La diferencia entre ellos es la arquitectura y el tamaño del modelo.
 
 ---
 
