@@ -39,6 +39,30 @@ ponderada). El baseline usa una versión más simple:
   desbalance, no en pesos en la función de pérdida. Esto mantiene las corridas simples y
   comparables entre modelos.
 
+## Qué clases reciben la augmentación agresiva
+
+El pipeline tiene dos niveles de augmentation: uno estándar y uno **extendido** (recortes,
+rotación más fuerte, color y blur), reservado para clases minoritarias. Conviene aclarar cómo se
+reparte, porque es fácil imaginar que se aplica a un porcentaje fijo de imágenes. **No es así:**
+
+- La decisión es **por clase entera, no por imagen**. Una clase se marca como minoritaria si la
+  clase más frecuente del split la supera por más de 4x en número de imágenes. Si califica,
+  **todas** sus imágenes reciben el pipeline extendido en cada epoch; si no, ninguna. No hay
+  muestreo del "40 %" ni probabilidad por muestra.
+- El umbral se mide **contra la clase más grande del split**, y aquí aparece un efecto del cap:
+  al topar a las mayoritarias, el cap baja ese techo de referencia y, con él, el número de clases
+  que quedan 4x por debajo.
+
+El resultado concreto en el baseline por defecto (cap de 1 500) es que la clase más numerosa en
+train ronda las ~1 050 imágenes, así que solo cuenta como minoritaria una clase con menos de ~260.
+En la práctica **únicamente `potassium_deficiency`** cruza ese umbral; nitrógeno y fósforo, que en
+el dataset completo sí recibían la augmentación agresiva, aquí ya no la reciben porque el cap los
+dejó relativamente más cerca de las mayoritarias.
+
+Este mismo conjunto de clases minoritarias es el que activa el `WeightedRandomSampler`: si el cap
+llegara a igualar tanto las clases que ninguna quedara 4x por debajo, ni la augmentación agresiva
+ni el sampler se activarían.
+
 ## Tamaño de imagen por arquitectura
 
 El baseline entrena varias arquitecturas en la misma corrida, y no todas esperan la misma
