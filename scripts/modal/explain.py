@@ -22,7 +22,7 @@ from scripts.modal._common import REPO_ANCHOR, dataset_vol, image, outputs_vol
 app = modal.App("corn-leaf-explain", image=image)
 
 # A10 (misma que training): el costo de LIME escala linealmente con num_samples (300 hoy,
-# con planes de subir a ~1000-2000) — el mayor throughput sobre T4 amortiza esa subida
+# con planes de subir a ~1000-2000) - el mayor throughput sobre T4 amortiza esa subida
 # futura sin tener que revisar el tier de cómputo otra vez.
 _GPU = "A10"
 _VOLUMES = {"/data": dataset_vol, "/outputs": outputs_vol}
@@ -39,7 +39,7 @@ def explain_lime(
     """Reporte visual LIME+Grad-CAM por imagen. Espeja `make explain-lime`.
 
     image/output son rutas dentro del contenedor (relativas a /data o /outputs, los
-    Volumes montados) — no rutas del filesystem local del caller.
+    Volumes montados) - no rutas del filesystem local del caller.
     """
     args = [sys.executable, "scripts/pipeline/explain_lime.py", "--models", *models.split()]
     if run:

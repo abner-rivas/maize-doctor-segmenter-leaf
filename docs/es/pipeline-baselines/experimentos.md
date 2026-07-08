@@ -4,8 +4,8 @@ Antes de fijar el baseline canónico de 9 clases, se realizó una **exploración
 sobre un subconjunto reducido de **4 clases** (`healthy`, `common_rust`, `fall_armyworm`,
 `nitrogen_deficiency`), en dos regímenes de datos:
 
-- **Cap de 500 imágenes por clase** — comparación rápida y barata + sonda de eficiencia muestral.
-- **Sin límite por clase** — mismas 4 clases con todas las imágenes disponibles.
+- **Cap de 500 imágenes por clase** - comparación rápida y barata + sonda de eficiencia muestral.
+- **Sin límite por clase** - mismas 4 clases con todas las imágenes disponibles.
 
 El objetivo fue comparar el comportamiento de cada arquitectura (convergencia, colapso de clases,
 sensibilidad al volumen de datos) a bajo costo, no medir el rendimiento final.

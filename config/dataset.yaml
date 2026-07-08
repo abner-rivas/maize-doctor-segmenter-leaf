@@ -1,6 +1,6 @@
 paths:
-  raw_dir: "clean"                    # relativo a DATASET_ROOT
-  split_output_dir: "splits/seed_42"  # relativo a outputs/
+  raw_dir: "clean" # relativo a DATASET_ROOT
+  split_output_dir: "splits/seed_42" # relativo a outputs/
 
 dataset:
   target_size: [224, 224]
@@ -20,9 +20,6 @@ augmentation:
   minority_ratio_threshold: 4.0
 
 baseline:
-  # Cubre las 9 clases del dataset final, en el mismo orden canónico que dataset.classes para
-  # que el mapeo clase->índice coincida con el head entrenado. El baseline ahora es "pauta del
-  # final": mismas clases y desbalance natural, solo con cap de cabeza para ahorrar cómputo.
   classes:
     - common_rust
     - fall_armyworm
@@ -33,9 +30,6 @@ baseline:
     - northern_corn_leaf_blight
     - phosphorus_deficiency
     - potassium_deficiency
-  # "Cap la cabeza, conserva la cola": limita solo las clases por encima del cap (healthy, los
-  # tizones, fall_armyworm) y deja intactas las minoritarias (potassium 266, nitrogen 523,
-  # phosphorus 612). Overridable con MAX_PER_CLASS / --max-per-class.
   max_images_per_class: 1500
   seed: 42
 

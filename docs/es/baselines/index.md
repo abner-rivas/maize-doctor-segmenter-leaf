@@ -5,14 +5,14 @@ Los baselines cumplen un doble propósito en este proyecto:
 1. **Punto de comparación mínimo.** Cualquier arquitectura más compleja propuesta en etapas posteriores debe superar consistentemente estas cifras para justificar su mayor costo computacional o de mantenimiento.
 2. **Demo de modelos candidatos.** Antes de comprometer el entrenamiento completo, los baselines permiten observar el comportamiento inicial de cada arquitectura candidata sobre una fracción representativa del dataset, detectar problemas (colapso de clases, overfitting temprano, incompatibilidad con el pipeline) a bajo costo.
 
-Los tres modelos elegidos —**EfficientNet-B0**, **ShuffleNetV2-x1.0** y **EfficientNet-Lite0**— son redes convolucionales ligeras pre-entrenadas en ImageNet que cubren el eje precisión↔eficiencia y convierten a TFLite para despliegue móvil offline. Se priorizó este perfil porque el objetivo final es un sistema desplegable en entornos con recursos limitados (dispositivos móviles o cómputo en campo), y porque al tener parámetros comparables entre sí hacen que las diferencias de rendimiento sean atribuibles a la arquitectura, no al tamaño.
+Los tres modelos elegidos -**EfficientNet-B0**, **ShuffleNetV2-x1.0** y **EfficientNet-Lite0**- son redes convolucionales ligeras pre-entrenadas en ImageNet que cubren el eje precisión↔eficiencia y convierten a TFLite para despliegue móvil offline. Se priorizó este perfil porque el objetivo final es un sistema desplegable en entornos con recursos limitados (dispositivos móviles o cómputo en campo), y porque al tener parámetros comparables entre sí hacen que las diferencias de rendimiento sean atribuibles a la arquitectura, no al tamaño.
 
 ---
 
 ## Dataset utilizado
 
 Los baselines se entrenan sobre el **perfil `baseline`** de `config/dataset.yaml`: las **9 clases**
-del dataset con un tope de **1 500 imágenes por clase** ("cap la cabeza, conserva la cola" — solo
+del dataset con un tope de **1 500 imágenes por clase** ("cap la cabeza, conserva la cola" - solo
 se recortan las clases mayoritarias, las minoritarias quedan intactas). Se genera con
 `make splits-baseline` en `outputs/splits/seed_42_baseline/`, con la misma estratificación por
 `label + environment` y seed 42 que el split completo.

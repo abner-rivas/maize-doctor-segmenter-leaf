@@ -24,7 +24,7 @@ Se crean solos la primera vez (`create_if_missing=True`):
 # 1) Seed del dataset al volumen (una sola vez; idempotente)
 make modal-seed
 
-# 2) Entrenar baselines en GPU (A10 por defecto) — mismas banderas que make train-baselines
+# 2) Entrenar baselines en GPU (A10 por defecto) - mismas banderas que make train-baselines
 make modal-train-baselines MODELS=efficientnet_b0 EPOCHS=30
 make modal-train-baselines MODELS=efficientnet_b0 NO_CAP=1          # sin tope de imágenes
 make modal-train-baselines MODELS=efficientnet_b0 LIME=1            # + reportes LIME al terminar
@@ -43,7 +43,7 @@ make modal-clean-outputs
 
 `scripts/modal/train.py` expone la misma CLI que `train_baselines.py` (`--models`, `--epochs`,
 `--no-cap`/`--max-per-class`, `--batch-size`, `--image-size`, `--learning-rate`,
-`--weight-decay`, `--num-workers`, `--no-pretrained`, `--lime`) — cualquier combinación que
+`--weight-decay`, `--num-workers`, `--no-pretrained`, `--lime`) - cualquier combinación que
 funcione en local funciona igual en Modal. Igual para `scripts/modal/explain.py` respecto a
 `explain_lime.py`/`explain_report.py` (`--run`, `--baseline`, `--sample-size`, `--num-samples`,
 `--errors-only`; `--image`/`--output` de `explain-lime` también, pero deben ser rutas dentro
@@ -62,7 +62,7 @@ modal volume get corn-outputs / ./outputs-remote
 
 - Los resultados se versionan por corrida en `/outputs/baselines/<modelo>/<run_id>/`
   (igual que en local; `run_id` = timestamp). `make modal-pull` los baja a `./outputs-remote`.
-- Los splits baseline se generan la primera vez y se reutilizan (lazy) en corridas siguientes —
+- Los splits baseline se generan la primera vez y se reutilizan (lazy) en corridas siguientes -
   mismo comportamiento que `train_baselines.py` en local. Si ya existen con otro tope de
   imágenes, no se regeneran solos: corre `make modal-clean-outputs` primero.
 - Para cambiar la GPU, edita `gpu="A10"` en `scripts/modal/train.py`/`explain.py` (opciones:

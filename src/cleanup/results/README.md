@@ -1,4 +1,4 @@
-# results/ — registro histórico de deduplicaciones
+# results/ - registro histórico de deduplicaciones
 
 Los CSV de este directorio son la salida de `find_duplicates.py` de las deduplicaciones
 **ya aplicadas** a `clean/` durante la curación del dataset. Se conservan a propósito como

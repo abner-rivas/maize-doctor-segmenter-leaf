@@ -315,7 +315,7 @@ def _save_figure(
     fig.colorbar(mappable, cax=ax_colorbar, label="Importancia")
 
     fig.suptitle(
-        f"Diagnóstico: {diagnosis_name} — Confianza: {pred_prob * 100:.1f}%",
+        f"Diagnóstico: {diagnosis_name} - Confianza: {pred_prob * 100:.1f}%",
         fontsize=16,
         fontweight="bold",
         color=title_color,

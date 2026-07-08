@@ -40,7 +40,7 @@ def select_device() -> torch.device:
         logger.info(f"Dispositivo: GPU - {gpu_name} ({gpu_mem_gb:.1f} GB VRAM)")
     else:
         logger.warning(
-            "Dispositivo: CPU (no se detectó GPU — el entrenamiento será "
+            "Dispositivo: CPU (no se detectó GPU - el entrenamiento será "
             "significativamente más lento)"
         )
     return device
@@ -98,7 +98,7 @@ def load_run_metadata(
     Compartida por explain_lime.py y explain_report.py: garantiza que ambos traduzcan el
     argmax del modelo con EXACTAMENTE el mismo mapeo que el head entrenado. Reconstruir el
     mapeo desde `baseline.classes` (cuyo orden puede diferir del canónico `dataset.classes`
-    que usa CornDataset) produce etiquetas permutadas — ese fue el bug de rótulos de los
+    que usa CornDataset) produce etiquetas permutadas - ese fue el bug de rótulos de los
     reportes LIME.
     """
     summary_path = run_dir / "summary.json"

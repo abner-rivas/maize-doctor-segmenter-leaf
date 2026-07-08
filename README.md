@@ -104,7 +104,7 @@ Dos pipelines paralelos sobre el mismo dataset limpio (`clean/`):
 - **Baselines** (`scripts/pipeline/train_baselines.py`): funcional de punta a punta, entrenado
   sobre el perfil `baseline` (`config/dataset.yaml -> baseline:`, 9 clases, cap de 1 500
   imágenes por clase) con 3 arquitecturas canónicas (`efficientnet_b0`, `shufflenet_v2_x1_0`,
-  `efficientnet_lite0`) para comparar rápido y barato — ver [Baselines](docs/es/baselines/index.md).
+  `efficientnet_lite0`) para comparar rápido y barato - ver [Baselines](docs/es/baselines/index.md).
 - **Pipeline principal** (`scripts/pipeline/train.py`): comparte toda la infraestructura de
   datos y modelos con baselines; el loop de entrenamiento está pendiente de implementar.
 
@@ -134,13 +134,13 @@ make explain-lime [MODELS=<nombre> RUN=<id> IMAGE=<ruta> OUTPUT=<ruta>]   # repo
 make explain-report [MODELS=<nombre> RUN=<id> SAMPLE_SIZE=<n> NUM_SAMPLES=<n>]  # fidelidad agregada
 make explain-errors [MODELS=<nombre> RUN=<id> NUM_SAMPLES=<n>]   # LIME dirigido a errores
 
-make clean-outputs                   # borra outputs/ (splits, runs, reportes — todo regenerable)
+make clean-outputs                   # borra outputs/ (splits, runs, reportes - todo regenerable)
 make summary / make test-loader / make lint / make fmt
 ```
 
 ### Modal (GPU en la nube)
 
-Misma CLI que los comandos locales — cualquier combinación de banderas que funcione en local
+Misma CLI que los comandos locales - cualquier combinación de banderas que funcione en local
 funciona igual en Modal. Detalle completo en [docs/es/deployment/modal.md](docs/es/deployment/modal.md).
 
 ```bash
