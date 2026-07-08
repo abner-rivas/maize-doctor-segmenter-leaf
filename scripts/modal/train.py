@@ -1,6 +1,6 @@
 """Entrenamiento de baselines en GPU de Modal (https://modal.com/docs/guide).
 
-Coexiste con scripts/vastai/. No importa funciones internas del pipeline: orquesta por
+No importa funciones internas del pipeline: orquesta por
 subprocess el mismo script CLI que corre `make train-baselines` (train_baselines.py, que a
 su vez genera splits/seed_42_baseline de forma lazy si faltan), heredando el entorno de la
 imagen (DATASET_ROOT=/data, OUTPUT_ROOT=/outputs) para que get_dataset_root()/

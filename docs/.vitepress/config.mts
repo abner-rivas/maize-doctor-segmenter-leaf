@@ -92,7 +92,7 @@ const esDatasetSidebar = [
   {
     text: "Deployment",
     items: [
-      { text: "GPU en vast.ai", link: "/es/deployment/vast-ai" },
+      { text: "GPU en Modal", link: "/es/deployment/modal" },
     ],
   },
 ];
@@ -185,7 +185,7 @@ export default defineConfig({
           {
             text: "Deployment",
             items: [
-              { text: "GPU en vast.ai", link: "/es/deployment/vast-ai" },
+              { text: "GPU en Modal", link: "/es/deployment/modal" },
             ],
           },
         ],
