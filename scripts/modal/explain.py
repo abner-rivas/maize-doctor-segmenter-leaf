@@ -17,7 +17,7 @@ import sys
 
 import modal
 
-from scripts.modal._common import REPO_ANCHOR, dataset_vol, image, outputs_vol
+from scripts.modal._common import DEFAULT_MODELS, REPO_ANCHOR, dataset_vol, image, outputs_vol
 
 app = modal.App("corn-leaf-explain", image=image)
 
@@ -30,7 +30,7 @@ _VOLUMES = {"/data": dataset_vol, "/outputs": outputs_vol}
 
 @app.function(gpu=_GPU, volumes=_VOLUMES, secrets=[modal.Secret.from_name("hf")], timeout=3600)
 def explain_lime(
-    models: str = "all",
+    models: str = DEFAULT_MODELS,
     run: str = "",
     baseline: bool = False,
     image: str = "",
@@ -54,11 +54,12 @@ def explain_lime(
     outputs_vol.commit()
 
 
-# num_samples=1000 x report_sample_size=30/clase x 4 clases x 7 modelos (--models all) roza
-# la hora; 3 h dan holgura para el barrido completo sin cortes.
+# Techo para el peor caso: num_samples=1000 x report_sample_size=30/clase x 4 clases x 7 modelos
+# (--models all) roza la hora; 3 h dan holgura para el barrido completo sin cortes. El default
+# son 3 modelos.
 @app.function(gpu=_GPU, volumes=_VOLUMES, secrets=[modal.Secret.from_name("hf")], timeout=3 * 3600)
 def explain_report(
-    models: str = "all",
+    models: str = DEFAULT_MODELS,
     run: str = "",
     baseline: bool = False,
     sample_size: int = 0,
@@ -80,7 +81,7 @@ def explain_report(
 
 @app.function(gpu=_GPU, volumes=_VOLUMES, secrets=[modal.Secret.from_name("hf")], timeout=3600)
 def explain_errors(
-    models: str = "all", run: str = "", baseline: bool = False, num_samples: int = 0
+    models: str = DEFAULT_MODELS, run: str = "", baseline: bool = False, num_samples: int = 0
 ) -> None:
     """LIME dirigido a falsos positivos/negativos. Espeja `make explain-errors`."""
     args = [
