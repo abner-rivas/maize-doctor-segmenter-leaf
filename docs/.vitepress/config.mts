@@ -57,20 +57,19 @@ const esDatasetSidebar = [
       { text: "Flujo realizado", link: "/es/preprocesado/" },
     ],
   },
-  // {
-  //   text: "Deep Learning",
-  //   items: [
-  //     { text: "Teoría", link: "/es/deep-learning/" },
-  //     { text: "Baselines", link: "/es/baselines/" },
-  //   ],
-  // },
+  {
+    text: "Deep Learning",
+    items: [
+      { text: "Teoría", link: "/es/deep-learning/" },
+      { text: "Baselines", link: "/es/baselines/" },
+    ],
+  },
   {
     text: "Pipelines",
     items: [
       {
         text: "Baselines",
         items: [
-          { text: "Modelos", link: "/es/baselines/" },
           { text: "Preprocesado", link: "/es/pipeline-baselines/preprocesado" },
           { text: "Entrenamiento", link: "/es/pipeline-baselines/entrenamiento" },
           { text: "Evaluación", link: "/es/pipeline-baselines/evaluacion" },
@@ -151,20 +150,19 @@ export default defineConfig({
             ]
           },
           { text: "Preprocesado", link: "/es/preprocesado/" },
-          // {
-          //   text: "Deep Learning",
-          //   items: [
-          //     { text: "Teoría", link: "/es/deep-learning/" },
-          //     { text: "Baselines", link: "/es/baselines/" },
-          //   ]
-          // },
+          {
+            text: "Deep Learning",
+            items: [
+              { text: "Teoría", link: "/es/deep-learning/" },
+              { text: "Baselines", link: "/es/baselines/" },
+            ]
+          },
           {
             text: "Pipelines",
             items: [
               {
                 text: "Baselines",
                 items: [
-                  { text: "Modelos", link: "/es/baselines/" },
                   { text: "Preprocesado", link: "/es/pipeline-baselines/preprocesado" },
                   { text: "Entrenamiento", link: "/es/pipeline-baselines/entrenamiento" },
                   { text: "Evaluación", link: "/es/pipeline-baselines/evaluacion" },
