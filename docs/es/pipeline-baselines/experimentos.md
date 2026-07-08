@@ -32,4 +32,4 @@ Los outputs completos de estas corridas exploratorias (métricas, matrices de co
 LIME) se archivan por separado:
 
 <!-- TODO(davidderas50): subir el ZIP y pegar el enlace de Google Drive -->
-📦 **Resultados de experimentos (4 clases):** [ZIP en Google Drive](URL_PENDIENTE)
+📦 **Resultados de experimentos (4 clases):** [ZIP en Google Drive](https://drive.google.com/drive/folders/1lHWjZ04V3__OROMNqs38fPD5sd3t8laI?usp=sharing)
