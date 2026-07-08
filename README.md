@@ -55,7 +55,7 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 | Tamaño del modelo (post Int8) | ≤ 20 MB |
 | Latencia de inferencia | ≤ 300 ms/imagen |
 | Dispositivo objetivo | Android ≥ 4 GB RAM, Snapdragon 6xx |
-| Arquitectura base | En evaluación entre 6 baselines: EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0 |
+| Arquitectura base | 3 baselines sobre 9 clases: EfficientNet-B0 (líder, macro-F1 0.915), ShuffleNetV2-x1.0, EfficientNet-Lite0 |
 
 ---
 
@@ -101,11 +101,10 @@ El proyecto sigue el marco **CRISP-DM iterativo**:
 El código vive en `src/` (librería instalable, `pip install -e .`) y `scripts/` (entrypoints).
 Dos pipelines paralelos sobre el mismo dataset limpio (`clean/`):
 
-- **Baselines** (`scripts/pipeline/train_baselines.py`): 6 arquitecturas pre-entrenadas
-  (EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0),
-  funcional de punta a punta. Por defecto entrena sobre un subset configurable
-  (`config/dataset.yaml -> baseline:`, 4 clases y hasta 500 imágenes por clase) para comparar
-  arquitecturas rápido y barato — ver [Baselines](docs/es/baselines/index.md).
+- **Baselines** (`scripts/pipeline/train_baselines.py`): funcional de punta a punta, entrenado
+  sobre el perfil `baseline` (`config/dataset.yaml -> baseline:`, 9 clases, cap de 1 500
+  imágenes por clase) con 3 arquitecturas canónicas (`efficientnet_b0`, `shufflenet_v2_x1_0`,
+  `efficientnet_lite0`) para comparar rápido y barato — ver [Baselines](docs/es/baselines/index.md).
 - **Pipeline principal** (`scripts/pipeline/train.py`): comparte toda la infraestructura de
   datos y modelos con baselines; el loop de entrenamiento está pendiente de implementar.
 
@@ -152,9 +151,6 @@ make modal-clean-outputs                                    # vacía el Volume c
 make modal-pull                                             # trae outputs-remote/ con runs + reportes
 ```
 
-Para GPU alquilada por SSH en [vast.ai](https://vast.ai) en vez de Modal, ver
-[docs/es/deployment/vast-ai.md](docs/es/deployment/vast-ai.md).
-
 ---
 
 ## Equipo
@@ -177,13 +173,11 @@ corn-leaf-desease-project/
 ├── scripts/
 │   ├── dataset/          # Subida/descarga de clean/ (Hugging Face Hub, Google Drive)
 │   ├── pipeline/         # create_splits.py, train_baselines.py, train.py, explain_lime.py, explain_report.py
-│   ├── modal/            # Entrenamiento/explicabilidad en GPU de Modal
-│   └── vastai/           # Orquestación de GPU remota en vast.ai
+│   └── modal/            # Entrenamiento/explicabilidad en GPU de Modal
 ├── src/                  # Librería principal (pip install -e .)
 │   ├── data/             # CornDataset, loader, splitter, transforms
 │   ├── explainability/   # LIME + Grad-CAM (post-hoc, no acoplado al entrenamiento)
-│   └── models/           # Registro de modelos + 6 baselines
-├── Dockerfile            # Imagen reproducible (Python 3.11 + PyTorch CUDA) para GPU remota
+│   └── models/           # Registro de modelos + 8 arquitecturas registradas (3 baselines)
 ├── Makefile
 └── pyproject.toml
 ```
@@ -200,7 +194,7 @@ en `http://localhost:5173`).
 - [x] Análisis exploratorio de datos (EDA)
 - [x] Pipeline de preparación de datos (splits estratificados, perfil baseline configurable)
 - [x] Data augmentation para clases minoritarias (pipeline extendido por clase en `transforms.py`)
-- [x] Entrenamiento de 6 baselines (EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0) + soporte GPU remota (vast.ai, Modal)
+- [x] Baselines sobre 9 clases (EfficientNet-B0, ShuffleNetV2-x1.0, EfficientNet-Lite0; cap 1 500/clase) + entrenamiento en GPU de Modal
 - [x] Explicabilidad post-hoc (LIME + Grad-CAM, análisis de errores y fidelidad agregada)
 - [ ] Loop de entrenamiento del pipeline principal (`scripts/pipeline/train.py`)
 - [ ] Evaluación exhaustiva y selección de modelo final
