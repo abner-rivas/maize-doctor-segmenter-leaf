@@ -70,6 +70,7 @@ const esDatasetSidebar = [
       {
         text: "Baselines",
         items: [
+          { text: "Modelos", link: "/es/baselines/" },
           { text: "Preprocesado", link: "/es/pipeline-baselines/preprocesado" },
           { text: "Entrenamiento", link: "/es/pipeline-baselines/entrenamiento" },
           { text: "Evaluación", link: "/es/pipeline-baselines/evaluacion" },
@@ -163,6 +164,7 @@ export default defineConfig({
               {
                 text: "Baselines",
                 items: [
+                  { text: "Modelos", link: "/es/baselines/" },
                   { text: "Preprocesado", link: "/es/pipeline-baselines/preprocesado" },
                   { text: "Entrenamiento", link: "/es/pipeline-baselines/entrenamiento" },
                   { text: "Evaluación", link: "/es/pipeline-baselines/evaluacion" },
