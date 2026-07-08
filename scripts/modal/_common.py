@@ -1,21 +1,20 @@
 """Imagen y Volumes de Modal compartidos entre train.py y explain.py.
 
 Factorizado para que ambos módulos usen exactamente la misma imagen (versión de torch,
-extras instalados) y los mismos Volumes — divergir entre ellos rompería la reutilización
+extras instalados) y los mismos Volumes - divergir entre ellos rompería la reutilización
 de checkpoints/splits generados por uno y consumidos por el otro.
 """
 
 import modal
 
-REPO_ANCHOR = "/root"  # workdir por defecto de Modal; el código local se monta aquí
+REPO_ANCHOR = "/root"
 HF_DATASET_REPO = "daiv05/corn-leaf-diseases-pests-and-deficiencies"
 
-# Volumes persistentes: dataset (seed una vez) y artefactos (splits/pesos/métricas/LIME).
+DEFAULT_MODELS = "efficientnet_b0 shufflenet_v2_x1_0 efficientnet_lite0"
+
 dataset_vol = modal.Volume.from_name("corn-clean", create_if_missing=True)
 outputs_vol = modal.Volume.from_name("corn-outputs", create_if_missing=True)
 
-# Imagen nativa: deps horneadas; src/scripts montados en caliente (última capa, copy=False).
-# .env() va ANTES de los add_local_* porque las capas copy=False deben ser las últimas.
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
@@ -29,11 +28,6 @@ image = (
             "DATASET_ROOT": "/data",
             "OUTPUT_ROOT": "/outputs",
             "HF_DATASET_REPO": HF_DATASET_REPO,
-            # Hilos del indexado de splits. Se fija explícitamente porque os.cpu_count() en el
-            # contenedor reporta los cores del HOST, no la CPU asignada al contenedor: sin esto,
-            # create_splits lanzaría ~32 hilos a ciegas. 8 ~= 2x los cores pedidos (cpu=4.0):
-            # el indexado es I/O-bound contra el Volume, así que algo de sobre-suscripción oculta
-            # la latencia de lectura sin depender del burst de CPU.
             "SPLITS_INDEX_WORKERS": "24",
         }
     )

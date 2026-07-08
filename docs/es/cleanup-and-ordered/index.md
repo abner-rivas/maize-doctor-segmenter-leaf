@@ -18,21 +18,21 @@ Debido a que contiene imágenes procesadas (recortes, filtros, augmentaciones) y
 
 Se exploran los siguientes datasets, y se definen identificadores para cada uno, que se incluirán en los nombres de las imágenes para mantener la trazabilidad:
 
-**DATASET                                       -----> IDENTIFICADOR**
+**DATASET                                         ---> IDENTIFICADOR**
 
-`corn-leaf-roboflow                                --> corn_leaf_roboflow`
+`corn-leaf-roboflow                                ---> corn_leaf_roboflow`
 
-`cropdg-unified-multidomain                        --> cropdg`
+`cropdg-unified-multidomain                        ---> cropdg`
 
-`maize-beans-and-tomatoes-image-dataset-for-africa --> maize_africa`
+`maize-beans-and-tomatoes-image-dataset-for-africa ---> maize_africa`
 
-`maize-diseases                                    --> maize_desease`
+`maize-diseases                                    ---> maize_desease`
 
-`maize-in-field-dataset                            --> maize_field`
+`maize-in-field-dataset                            ---> maize_field`
 
-`maize-nutrient-deficiency                         --> maize_nutrient`
+`maize-nutrient-deficiency                         ---> maize_nutrient`
 
-`multicrop-disease-maiz-disease-pests-and-disease  --> multi_desease`
+`multicrop-disease-maiz-disease-pests-and-disease  ---> multi_desease`
 
 ## Clases consideradas (junio 2026)
 
@@ -58,7 +58,7 @@ Se exploran los siguientes datasets, y se definen identificadores para cada uno,
 
 9. `Deficiencia de potasio` | `Potassium Deficiency`
 
-> **Nota:** `aphids_pest` (áfidos del maíz) fue evaluada pero descartada definitivamente. Solo se hallaron ~77 imágenes en los datasets disponibles y no se encontraron fuentes adicionales. Con ese volumen, el data augmentation replicaría variaciones sintéticas de un corpus mínimo sin aportar variedad visual real, lo que sesgaría el modelo hacia artefactos de augmentation. En su lugar se incorporó `lethal_necrosis`, que cuenta con ~6 415 imágenes de campo real de dos datasets distintos.
+> **Nota:** `aphids_pest` (áfidos del maíz) fue evaluada pero descartada definitivamente. Solo se hallaron ~77 imágenes en los datasets disponibles y no se encontraron fuentes adicionales. En su lugar se incorporó `lethal_necrosis`, que cuenta con ~6 415 imágenes de campo real de dos datasets distintos.
 
 ## Flujo de trabajo implementado
 
@@ -78,7 +78,7 @@ Se exploran los siguientes datasets, y se definen identificadores para cada uno,
         - healthy
     - Agregar el identificador del dataset (ver sección de [Por procesar](./#por-procesar))
     - Incluir el ambiente: `real` o `lab`.
-    - Terminar con correlativo ascendente: `_1`, `_2`, `_3`, etc.
+    - Terminar con número random de 8 dígitos.
     - Ejemplo final: `common_rust_maize_africa_lab_1`.
 
     Este orden garantiza trazabilidad y evita colisiones entre datasets.
@@ -108,7 +108,7 @@ Tras aplicar las rutinas automatizadas de deduplicación y filtros de exclusión
 
 ## Observaciones
 
-> Junio 2026 - Las clases con menor representación son las deficiencias nutricionales (nitrógeno 523, fósforo 612, potasio 266). Se evalúa la posibilidad de incluir datasets adicionales para estas clases. Está pendiente definir un techo de imágenes por clase para evitar sesgos en el entrenamiento (500, 1000 o 2000 por clase).
+> Junio 2026 - Las clases con menor representación son las deficiencias nutricionales (nitrógeno 523, fósforo 612, potasio 266). Se evalúa la posibilidad de incluir datasets adicionales para estas clases. Está pendiente definir un techo de imágenes por clase para evitar sesgos o aplicar técnicas avanzadas para balancear el dataset (oversampling, SMOTE, etc.).
 
 ---
 
@@ -373,4 +373,3 @@ A diferencia de las otras clases de este dataset, las imágenes de Lethal Necros
 
 ### Healthy | Sana
 
--
