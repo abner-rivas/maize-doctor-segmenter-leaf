@@ -7,6 +7,10 @@ reemplazada por una lineal de 9 salidas.
 
 ## Configuración canónica
 
+Todos los baselines comparten exactamente los mismos hiperparámetros de entrenamiento. Fijarlos
+así permite que las diferencias de resultado entre arquitecturas se deban al modelo en sí, no a
+condiciones de entrenamiento distintas.
+
 | Hiperparámetro | Valor |
 |---|---|
 | Clases | 9 (perfil `baseline`, cap 1 500/clase) |
@@ -25,13 +29,13 @@ verdad del mapeo clase→índice y del `image_size` con que se entrenó el check
 ## Modelos baseline
 
 Se adoptan tres arquitecturas ligeras que cubren el eje precisión↔eficiencia y convierten a
-TensorFlow Lite para despliegue móvil offline:
-
-- `efficientnet_b0`
-- `shufflenet_v2_x1_0`
-- `efficientnet_lite0`
+TensorFlow Lite para despliegue móvil offline: `efficientnet_b0`, `shufflenet_v2_x1_0` y
+`efficientnet_lite0`.
 
 ## Ejecución
+
+El entrenamiento se puede lanzar en local o delegarlo a una GPU en Modal cuando el volumen de
+cómputo lo justifica; ambos caminos usan el mismo `train_baselines.py` por debajo.
 
 ```bash
 # Local
