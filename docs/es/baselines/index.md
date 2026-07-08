@@ -5,62 +5,62 @@ Los baselines cumplen un doble propósito en este proyecto:
 1. **Punto de comparación mínimo.** Cualquier arquitectura más compleja propuesta en etapas posteriores debe superar consistentemente estas cifras para justificar su mayor costo computacional o de mantenimiento.
 2. **Demo de modelos candidatos.** Antes de comprometer el entrenamiento completo, los baselines permiten observar el comportamiento inicial de cada arquitectura candidata sobre una fracción representativa del dataset, detectar problemas (colapso de clases, overfitting temprano, incompatibilidad con el pipeline) a bajo costo.
 
-Los tres modelos elegidos son redes convolucionales ligeras pre-entrenadas en ImageNet. Se priorizó este perfil porque el objetivo final es un sistema desplegable en entornos con recursos limitados (dispositivos móviles o cómputo en campo), y porque al tener parámetros comparables entre sí hacen que las diferencias de rendimiento sean atribuibles a la arquitectura, no al tamaño.
+Los tres modelos elegidos —**EfficientNet-B0**, **ShuffleNetV2-x1.0** y **EfficientNet-Lite0**— son redes convolucionales ligeras pre-entrenadas en ImageNet que cubren el eje precisión↔eficiencia y convierten a TFLite para despliegue móvil offline. Se priorizó este perfil porque el objetivo final es un sistema desplegable en entornos con recursos limitados (dispositivos móviles o cómputo en campo), y porque al tener parámetros comparables entre sí hacen que las diferencias de rendimiento sean atribuibles a la arquitectura, no al tamaño.
 
 ---
 
 ## Dataset utilizado
 
-Los baselines se entrenan sobre el **perfil reducido `baseline`** de `config/dataset.yaml`: 4 clases
-(`healthy`, `common_rust`, `fall_armyworm`, `nitrogen_deficiency`) con un tope de 500 imágenes por
-clase, generado con `make splits-baseline` en `outputs/splits/seed_42_baseline/`:
+Los baselines se entrenan sobre el **perfil `baseline`** de `config/dataset.yaml`: las **9 clases**
+del dataset con un tope de **1 500 imágenes por clase** ("cap la cabeza, conserva la cola" — solo
+se recortan las clases mayoritarias, las minoritarias quedan intactas). Se genera con
+`make splits-baseline` en `outputs/splits/seed_42_baseline/`, con la misma estratificación por
+`label + environment` y seed 42 que el split completo.
 
-| Split | Imágenes |
+| Split | Imágenes (aprox.) |
 |---|---:|
-| Entrenamiento (`train.csv`) | 1 400 |
-| Validación (`val.csv`) | 300 |
-| Prueba (`test.csv`) | 300 |
-| **Total** | **2 000** (500 por clase) |
+| Entrenamiento (`train.csv`, 70 %) | ~7 014 |
+| Validación (`val.csv`, 15 %) | ~1 503 |
+| Prueba (`test.csv`, 15 %) | 1 503 |
+| **Total** | **~10 020** |
 
-El split completo (`outputs/splits/seed_42/`, generado con `make splits`) usa las 9 clases sin límite por
-clase. El perfil `baseline` mantiene la misma estratificación por `label + environment` y el mismo
-seed (42), solo que sobre un subconjunto de clases y con un tope de imágenes por clase — ambos
-configurables desde `config/dataset.yaml` (sección `baseline:`) o por CLI
-(`create_splits.py --classes ... --max-per-class ...`).
-
-**Por qué un subset y no el dataset completo:** los baselines son una exploración inicial, no el
-entrenamiento definitivo. Con un subconjunto acotado es posible comparar el comportamiento de las
-arquitecturas -detectar colapso de clases, gradientes muertos, diferencias de convergencia- en
-un tiempo de cómputo mucho menor, sin comprometer el ciclo completo de experimentación. Si hace
-falta comparar con más imágenes por clase antes de decidir, `make train-baselines NO_CAP=1` (o
-`MAX_PER_CLASS=<n>`) entrena el mismo subset de 4 clases sin el tope de 500. El modelo finalista
-se re-entrena sobre las 9 clases completas en el pipeline principal (`train.py`), no aquí.
+El cap conserva completas las clases minoritarias (potasio 266, nitrógeno 523, fósforo 612) y
+limita solo las mayoritarias (healthy, tizones, gusano cogollero), preservando el desbalance
+natural sin gastar cómputo en imágenes redundantes de la cabeza. El cap es configurable desde
+`config/dataset.yaml` (`baseline.max_images_per_class`) o por CLI (`--max-per-class`,
+`--regenerate-splits` para forzar la regeneración). El modelo finalista se re-entrena sobre las
+9 clases sin cap en el pipeline principal (`train.py`).
 
 ---
 
 ## Modelos seleccionados
 
-### MobileNetV3-Large
+### ShuffleNetV2-x1.0
 
-**MobileNetV3-Large** es una red neuronal convolucional diseñada por Google para ejecutarse eficientemente en dispositivos móviles y de borde (*edge*). Publicada en 2019, combina tres innovaciones <sup>[[7]](#ref-7)</sup>:
+**ShuffleNetV2-x1.0** es una CNN diseñada por Megvii (Face++) en 2018 explícitamente para
+inferencia eficiente en dispositivos móviles <sup>[[17]](#ref-17)</sup>. Su contribución es un
+conjunto de guías prácticas de diseño (no solo minimizar FLOPs, sino también el costo real de
+memoria y acceso), materializadas en dos operaciones:
 
-- **Depthwise separable convolutions:** factoriza una convolución estándar en dos pasos (por canal, luego entre canales), reduciendo el número de operaciones en un factor de ~8–9× respecto a una convolución densa equivalente <sup>[[5]](#ref-5)</sup>.
-- **Squeeze-and-Excitation (SE) blocks:** un mecanismo de atención de canal que aprende a recalibrar la importancia relativa de cada mapa de activación, mejorando la capacidad representacional sin aumentar los FLOPs en forma significativa <sup>[[9]](#ref-9)</sup>.
-- **Hard-swish activation:** una aproximación lineal a la función Swish que es 15 % más rápida en hardware sin unidades de punto flotante sofisticadas.
+- **Channel split + channel shuffle:** divide los canales en dos ramas y, tras procesarlas,
+  los baraja para que la información fluya entre grupos sin convoluciones densas costosas.
+- **Sin convoluciones agrupadas 1×1:** evita el cuello de botella de acceso a memoria (MAC) que
+  penalizaba a ShuffleNetV1, priorizando velocidad real sobre FLOPs teóricos.
 
-La variante **Large** (vs. Small) maximiza la precisión dentro del espacio de modelos móviles. En ImageNet-1K alcanza ~75 % de Top-1 con solo 5.4 M de parámetros y ~219 M de MACs, haciéndola viable en CPU o GPU de gama baja.
+En ImageNet-1K alcanza ~69 % de Top-1 con solo ~2.3 M de parámetros, siendo uno de los modelos
+más pequeños del grupo (~5 MB serializado).
 
 **Trade-offs relevantes para este proyecto:**
 
 | Aspecto | Detalle |
 |---|---|
-| Precisión | Inferior a EfficientNet-B0 en ~2–3 pp en ImageNet, pero suficiente para tareas de clasificación de hojas con dominio controlado |
-| Velocidad de inferencia | Muy alta: diseñada explícitamente para latencia en móviles (Pixel 1: ~51 ms) |
-| Tamaño del modelo | ~21 MB serializado; desplegable sin cuantización |
-| Transfer learning | Pre-entrenada en ImageNet con `MobileNet_V3_Large_Weights.DEFAULT` (IMAGENET1K_V2); solo se reemplaza la última capa lineal del clasificador |
-| Riesgo de underfitting | Puede ser insuficiente para distinguir clases con síntomas visuales similares (`gray_leaf_spot` vs. `northern_corn_leaf_blight`) |
+| Precisión | Inferior a EfficientNet-B0 en ImageNet, pero competitiva tras fine-tuning en el dataset de maíz (macro-F1 0.9030 en 9 clases) |
+| Velocidad / tamaño | El más ligero del grupo (~5 MB, ~2.3 M params); ideal para inferencia en gama baja |
+| Transfer learning | Pre-entrenado con `ShuffleNet_V2_X1_0_Weights.DEFAULT`; se reemplaza la capa `fc` final |
+| Despliegue | Operaciones (channel shuffle, depthwise) soportadas por TFLite; convierte y cuantiza sin ops exóticas |
+| Riesgo | Capacidad limitada en clases visualmente ambiguas (deficiencias N/P/K), donde todos los baselines sufren |
 
-En el código, se construye reemplazando `model.classifier[-1]` por una `nn.Linear(in_features, 9)` para las 9 clases del proyecto.
+Se construye con `torchvision` reemplazando `model.fc` por una `nn.Linear(in_features, 9)`.
 
 ---
 
@@ -73,15 +73,15 @@ La versión B0 es el punto de partida de la familia: la arquitectura base encont
 - Expansión de canales seguida de proyección
 - Squeeze-and-Excitation integrado en cada bloque <sup>[[9]](#ref-9)</sup>
 
-En ImageNet-1K alcanza ~77.1 % de Top-1 con 5.3 M de parámetros -similar a MobileNetV3-Large en tamaño, pero con mayor precisión.
+En ImageNet-1K alcanza ~77.1 % de Top-1 con 5.3 M de parámetros -más del doble que ShuffleNetV2-x1.0, pero con mayor precisión.
 
 **Trade-offs relevantes para este proyecto:**
 
 | Aspecto | Detalle |
 |---|---|
-| Precisión | ~2–3 pp superior a MobileNetV3-Large en ImageNet; diferencia esperada también en fine-tuning |
-| Velocidad de inferencia | Más lento que MobileNetV3 en hardware móvil (~1.3–1.5× más latencia) por las operaciones SE en cada bloque |
-| Tamaño del modelo | ~20 MB serializado; comparable a MobileNetV3 |
+| Precisión | Superior a ShuffleNetV2-x1.0 en ImageNet (~77 % vs. ~69 %); también lidera tras fine-tuning (macro-F1 0.9146 vs. 0.9030) |
+| Velocidad de inferencia | Más lento que ShuffleNetV2-x1.0 en hardware móvil por las operaciones SE en cada bloque y el mayor número de parámetros |
+| Tamaño del modelo | ~20 MB serializado; más pesado que ShuffleNetV2-x1.0 (~5 MB) |
 | Transfer learning | Pre-entrenado en ImageNet con `EfficientNet_B0_Weights.DEFAULT` (IMAGENET1K_V1); se reemplaza `model.classifier[1]` |
 | Regularización implícita | Los bloques MBConv con dropout estructural hacen a EfficientNet-B0 más robusto al overfitting con datasets pequeños |
 
@@ -102,7 +102,7 @@ Se construye con `timm` (`timm.create_model("efficientnet_lite0", pretrained=Tru
 | Aspecto | Detalle |
 |---|---|
 | Precisión | ~1–2 pp inferior a EfficientNet-B0 en ImageNet (~74–75 % Top-1); compensado por facilidad de despliegue |
-| Velocidad de inferencia | Similar o superior a MobileNetV3-Large en aceleradores compatibles; sin ventaja clara en GPU estándar |
+| Velocidad de inferencia | Similar o superior a ShuffleNetV2-x1.0 en aceleradores compatibles; sin ventaja clara en GPU estándar |
 | Cuantización | Diseñada para cuantizarse a INT8 sin degradación significativa; punto fuerte para despliegue en campo |
 | Dependencia adicional | Requiere `timm` (no incluida en `torchvision`); añade una dependencia al entorno |
 | Uso en proyecto | Representa el extremo del trade-off "máxima eficiencia en edge" para comparar contra el extremo "máxima precisión" de EfficientNet-B0 |
@@ -111,28 +111,24 @@ Se construye con `timm` (`timm.create_model("efficientnet_lite0", pretrained=Tru
 
 ## Comparación de los tres modelos
 
-| Modelo | Parámetros | Top-1 ImageNet | Latencia relativa | Apto para edge cuantizado |
-|---|---:|---:|---|---|
-| `mobilenet_v3_large` | 5.4 M | ~75.2 % | ★★★ (más rápido) | Parcialmente |
-| `efficientnet_b0` | 5.3 M | ~77.1 % | ★★ | No (por SE + Swish) |
-| `efficientnet_lite0` | 4.7 M | ~74.9 % | ★★★ | Sí (diseñado para eso) |
+| Modelo | Parámetros | Top-1 ImageNet | Tamaño (~) | Apto para TFLite/edge |
+|---|---:|---:|---:|---|
+| `efficientnet_b0` | 5.3 M | ~77.1 % | 16 MB | Sí (float16; INT8 aceptable) |
+| `shufflenet_v2_x1_0` | 2.3 M | ~69.4 % | 5 MB | Sí (mobile-native) |
+| `efficientnet_lite0` | 4.7 M | ~74.9 % | 14 MB | Sí (diseñado para INT8) |
 
 Los tres parten de pesos pre-entrenados en ImageNet <sup>[[16]](#ref-16)</sup> y se ajustan sobre el dataset de maíz con:
 - `CrossEntropyLoss` con pesos de clase inversamente proporcionales a la frecuencia <sup>[[12]](#ref-12)</sup>
 - `WeightedRandomSampler` para igualar la frecuencia efectiva durante entrenamiento
 - Pipeline de augmentation extendido para las 5 clases minoritarias
 
-El modelo con mejor F1-macro en el conjunto de prueba establecerá el **umbral de referencia** que las arquitecturas posteriores (ResNet-50, ConvNeXt, ViT) deberán superar de forma consistente.
+El modelo con mejor **macro-F1** en el conjunto de prueba establece el **umbral de referencia**: actualmente `efficientnet_b0`, con macro-F1 0.9146, que las arquitecturas posteriores (ResNet-50, ConvNeXt, ViT) deberán superar de forma consistente.
 
 ---
 
 ## Referencias
 
-<a id="ref-5"></a>[5] A. Howard, M. Zhu, B. Chen, D. Kalenichenko, W. Wang, T. Weyand, M. Andreetto, y H. Adam, "MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications," *arXiv preprint arXiv:1704.04861*, Apr. 2017.
-
 <a id="ref-6"></a>[6] M. Sandler, A. Howard, M. Zhu, A. Zhmoginov, y L.-C. Chen, "MobileNetV2: Inverted Residuals and Linear Bottlenecks," in *Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)*, Salt Lake City, UT, USA, 2018, pp. 4510–4520.
-
-<a id="ref-7"></a>[7] A. Howard, R. Pang, H. Adam, Q. V. Le, M. Sandler, B. Chen, W. Wang, L.-C. Chen, M. Tan, G. Chu, V. Vasudevan, y Y. Zhu, "Searching for MobileNetV3," in *Proc. IEEE/CVF Int. Conf. Comput. Vis. (ICCV)*, Seoul, Korea, 2019, pp. 1314–1324.
 
 <a id="ref-8"></a>[8] M. Tan y Q. V. Le, "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks," in *Proc. 36th Int. Conf. Mach. Learn. (ICML)*, Long Beach, CA, USA, 2019, pp. 6105–6114.
 
@@ -143,3 +139,5 @@ El modelo con mejor F1-macro en el conjunto de prueba establecerá el **umbral d
 <a id="ref-13"></a>[13] Google Brain / TensorFlow Team, "Higher Accuracy on Vision Models with EfficientNet-Lite," *TensorFlow Blog*, Mar. 2020. [Online]. Available: https://blog.tensorflow.org/2020/03/higher-accuracy-on-vision-models-with-efficientnet-lite.html
 
 <a id="ref-16"></a>[16] J. Deng, W. Dong, R. Socher, L.-J. Li, K. Li, y L. Fei-Fei, "ImageNet: A Large-Scale Hierarchical Image Database," in *Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)*, Miami, FL, USA, 2009, pp. 248–255.
+
+<a id="ref-17"></a>[17] N. Ma, X. Zhang, H.-T. Zheng, y J. Sun, "ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design," in *Proc. Eur. Conf. Comput. Vis. (ECCV)*, Munich, Germany, 2018, pp. 116–131.
