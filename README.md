@@ -2,7 +2,6 @@
 
 > **Clasificación mediante Deep Learning en Dispositivos Móviles (Edge AI Offline)**
 
-
 ---
 
 ## Descripción
@@ -31,9 +30,11 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 | Roya común *(Common Rust)* | *Puccinia sorghi* | Pústulas anaranjadas en ambas caras | 2 150 | 106 ⚠️ | 2 256 |
 | Tizón foliar del norte *(NCLB)* | *Exserohilum turcicum* | Lesiones alargadas grisáceas | 888 | 5 942 | 6 830 |
 | Mancha gris *(GLS)* | *Cercospora zeae-maydis* | Lesiones rectangulares grises | 513 | 606 | 1 119 |
+| Necrosis letal *(MLN)* | Complejo viral (MCMV + potyvirus) | Rayado clorótico, necrosis progresiva y muerte de la planta | 0 | 6 415 | 6 415 |
 | Hoja sana *(Healthy)* | - | Sin síntomas visibles | 0 | 8 744 | 8 744 |
 | Gusano cogollero *(Fall Armyworm)* | *Spodoptera frugiperda* | Daño por masticación, excrementos en cogollo | 0 | 4 858 | 4 858 |
-| Áfidos del maíz *(Maize Aphids)* | *Rhopalosiphum maidis* | Colonias de pulgones, hojas enrolladas y amarillamiento | 0 | 77 ⚠️ | 77 |
+
+> `aphids_pest` (áfidos) se evaluó pero se descartó del alcance: solo ~77 imágenes disponibles, insuficientes para augmentation viable.
 
 ### Deficiencias nutricionales
 
@@ -54,7 +55,7 @@ Una aplicación móvil que, dada una fotografía de hoja de maíz, identifica la
 | Tamaño del modelo (post Int8) | ≤ 20 MB |
 | Latencia de inferencia | ≤ 300 ms/imagen |
 | Dispositivo objetivo | Android ≥ 4 GB RAM, Snapdragon 6xx |
-| Arquitectura base | -- Por definir -- |
+| Arquitectura base | En evaluación entre 6 baselines: EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0 |
 
 ---
 
@@ -87,9 +88,9 @@ El dataset *Corn Leaf Diseases* aplica 17 técnicas de augmentation documentadas
 El proyecto sigue el marco **CRISP-DM iterativo**:
 
 1. **Comprensión del negocio** - Definición del problema agrícola y restricciones de despliegue
-2. **Comprensión de datos** - Consolidación y auditoría de 5 fuentes públicas
+2. **Comprensión de datos** - Consolidación y auditoría de 8 fuentes públicas
 3. **Preparación** - Limpieza, estandarización (224×224 px), deduplicación, augmentation
-4. **Modelado** - Fine-tuning de MobileNetV3 (baseline V2 y EfficientNet-B0)
+4. **Modelado** - Fine-tuning de 6 arquitecturas baseline para comparar rápido y barato
 5. **Evaluación** - Macro F1 ≥ 0.85 en conjunto independiente de imágenes de campo real
 6. **Despliegue** - PWA offline con TFLite Int8 + sincronización opcional
 
@@ -97,20 +98,61 @@ El proyecto sigue el marco **CRISP-DM iterativo**:
 
 ## Pipeline de Machine Learning
 
-El código de datos/entrenamiento vive en `src/` (librería instalable) y `scripts/` (entrypoints). Hay
-dos pipelines paralelos sobre el mismo dataset limpio (`data/clean/`):
+El código vive en `src/` (librería instalable, `pip install -e .`) y `scripts/` (entrypoints).
+Dos pipelines paralelos sobre el mismo dataset limpio (`clean/`):
 
-- **Baselines** (`scripts/pipeline/train_baselines.py`): EfficientNet-B0, EfficientNet-Lite0 y MobileNetV3-Large pre-entrenados, funcional de punta a punta. Por defecto entrena sobre un subset configurable (`config/dataset.yaml -> baseline:`, 4 clases y hasta 500 imágenes por clase) para comparar arquitecturas rápido y barato; ver [Baselines](docs/es/baselines/index.md).
-- **Pipeline principal** (`scripts/pipeline/train.py`): comparte toda la infraestructura de datos y modelos; el loop de entrenamiento está pendiente de implementar.
+- **Baselines** (`scripts/pipeline/train_baselines.py`): 6 arquitecturas pre-entrenadas
+  (EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0),
+  funcional de punta a punta. Por defecto entrena sobre un subset configurable
+  (`config/dataset.yaml -> baseline:`, 4 clases y hasta 500 imágenes por clase) para comparar
+  arquitecturas rápido y barato — ver [Baselines](docs/es/baselines/index.md).
+- **Pipeline principal** (`scripts/pipeline/train.py`): comparte toda la infraestructura de
+  datos y modelos con baselines; el loop de entrenamiento está pendiente de implementar.
 
-### Quickstart
+Guía de instalación local (venv, `.env`, dataset) en [LOCAL.md](LOCAL.md).
+
+---
+
+## Comandos
+
+Todos los comandos usan `make` (detecta Windows/Linux automáticamente). Variables comunes:
+`MODELS` (nombre o "all"), `EPOCHS`, `NO_CAP=1` / `MAX_PER_CLASS=<n>` (override del tope de
+imágenes por clase del perfil baseline), `RUN` (run_id específico), `SAMPLE_SIZE`.
+
+### Locales
 
 ```bash
-cp .env.example .env && make install && make download-dataset && make splits-baseline && make train-baselines
+make install                        # pip install -e ".[dev,analysis,xai,cloud]"
+make download-dataset                # clean/ (HF Hub, fallback Google Drive)
+
+make splits                          # splits completos (9 clases) -> outputs/splits/seed_42/
+make splits-baseline [NO_CAP=1 | MAX_PER_CLASS=<n>]   # perfil baseline -> outputs/splits/seed_42_baseline/
+
+make train-baselines [MODELS=<nombre>] [NO_CAP=1 | MAX_PER_CLASS=<n>]   # genera splits (lazy) y entrena
+make train                           # pipeline principal (loop de entrenamiento pendiente)
+
+make explain-lime [MODELS=<nombre> RUN=<id> IMAGE=<ruta> OUTPUT=<ruta>]   # reporte visual LIME+Grad-CAM
+make explain-report [MODELS=<nombre> RUN=<id> SAMPLE_SIZE=<n> NUM_SAMPLES=<n>]  # fidelidad agregada
+make explain-errors [MODELS=<nombre> RUN=<id> NUM_SAMPLES=<n>]   # LIME dirigido a errores
+
+make clean-outputs                   # borra outputs/ (splits, runs, reportes — todo regenerable)
+make summary / make test-loader / make lint / make fmt
 ```
 
-Guía completa de instalación (venv, `.env`, dataset) en [LOCAL.md](LOCAL.md). Para entrenar en una GPU
-alquilada en [vast.ai](https://vast.ai) con el mismo flujo reproducible, ver
+### Modal (GPU en la nube)
+
+Misma CLI que los comandos locales — cualquier combinación de banderas que funcione en local
+funciona igual en Modal. Detalle completo en [docs/es/deployment/modal.md](docs/es/deployment/modal.md).
+
+```bash
+make modal-seed                                            # sube clean/ al Volume (una vez)
+make modal-train-baselines [MODELS=<nombre>] [NO_CAP=1 | MAX_PER_CLASS=<n>]
+make modal-explain-lime / modal-explain-report / modal-explain-errors [MODELS=<nombre> RUN=<id>]
+make modal-clean-outputs                                    # vacía el Volume corn-outputs
+make modal-pull                                             # trae outputs-remote/ con runs + reportes
+```
+
+Para GPU alquilada por SSH en [vast.ai](https://vast.ai) en vez de Modal, ver
 [docs/es/deployment/vast-ai.md](docs/es/deployment/vast-ai.md).
 
 ---
@@ -125,79 +167,29 @@ alquilada en [vast.ai](https://vast.ai) con el mismo flujo reproducible, ver
 
 ---
 
-## Documentación
-
-La documentación completa del proyecto está construida con **VitePress** y se encuentra en el directorio `docs/`.
-
-### Ejecutar la documentación localmente
-
-```bash
-# Instalar dependencias
-npm install
-
-# Servidor de desarrollo con hot-reload
-npm run docs:dev
-
-# Compilar para producción
-npm run docs:build
-
-# Vista previa de la compilación
-npm run docs:preview
-
-# Verificar tipos TypeScript
-npm run typecheck
-```
-
-La documentación estará disponible en `http://localhost:5173`.
-
----
-
 ## Estructura del Proyecto
 
 ```
 corn-leaf-desease-project/
-├── config/
-│   └── dataset.yaml            # Clases, tamaño de imagen, seed, perfil "baseline"
-├── docs/
-│   ├── .vitepress/
-│   │   ├── components/         # Componentes Vue reutilizables
-│   │   │   ├── HeroLogo.vue
-│   │   │   └── ImageCarousel.vue
-│   │   ├── theme/              # Tema y estilos personalizados
-│   │   │   ├── index.ts
-│   │   │   ├── HomeLayout.vue
-│   │   │   └── custom.css
-│   │   └── config.mts          # Configuración VitePress
-│   └── es/                     # Documentación en español
-│       ├── index.md            # Página de inicio
-│       ├── datasets/           # Documentación de datasets
-│       ├── exploratory-data-analysis/
-│       ├── baselines/          # Baselines de Deep Learning (EfficientNet, MobileNetV3)
-│       └── deployment/         # Entrenamiento reproducible en GPU (vast.ai)
-├── notebooks/
-│   └── 01_eda.ipynb            # Análisis exploratorio
-├── public/                     # Activos estáticos
-│   ├── logo.svg
-│   ├── corn-leaf-desease/      # Imágenes de ejemplo
-│   ├── maize-diseases/
-│   └── maize-in-field-dataset/
+├── config/dataset.yaml   # Clases, tamaño de imagen, seed, perfil "baseline"
+├── docs/es/              # Documentación (VitePress): datasets, EDA, baselines, deployment
+├── notebooks/            # Análisis exploratorio
 ├── scripts/
-│   ├── cleanup/                 # Limpieza por clase/dataset (one-shot, ya ejecutados)
-│   ├── dataset/                 # Subida/descarga de data/clean/ (Hugging Face Hub, Google Drive)
-│   ├── pipeline/                # create_splits.py, train_baselines.py, train.py
-│   └── vastai/                  # Orquestación de GPU remota en vast.ai
-├── src/                         # Librería principal (pip install -e .)
-│   ├── config.py
-│   ├── analysis/                # Resumen del dataset
-│   ├── cleanup/                 # Deduplicación perceptual (PHash)
-│   ├── data/                    # CornDataset, loader, splitter, transforms
-│   └── models/                  # Registro de modelos + baselines (EfficientNet, MobileNetV3)
-├── Dockerfile                   # Imagen reproducible (Python 3.11 + PyTorch CUDA) para GPU remota
-├── pyproject.toml
+│   ├── dataset/          # Subida/descarga de clean/ (Hugging Face Hub, Google Drive)
+│   ├── pipeline/         # create_splits.py, train_baselines.py, train.py, explain_lime.py, explain_report.py
+│   ├── modal/            # Entrenamiento/explicabilidad en GPU de Modal
+│   └── vastai/           # Orquestación de GPU remota en vast.ai
+├── src/                  # Librería principal (pip install -e .)
+│   ├── data/             # CornDataset, loader, splitter, transforms
+│   ├── explainability/   # LIME + Grad-CAM (post-hoc, no acoplado al entrenamiento)
+│   └── models/           # Registro de modelos + 6 baselines
+├── Dockerfile            # Imagen reproducible (Python 3.11 + PyTorch CUDA) para GPU remota
 ├── Makefile
-├── package.json
-└── tsconfig.json
+└── pyproject.toml
 ```
+
+Documentación completa construida con VitePress (`npm install && npm run docs:dev`, disponible
+en `http://localhost:5173`).
 
 ---
 
@@ -208,7 +200,8 @@ corn-leaf-desease-project/
 - [x] Análisis exploratorio de datos (EDA)
 - [x] Pipeline de preparación de datos (splits estratificados, perfil baseline configurable)
 - [x] Data augmentation para clases minoritarias (pipeline extendido por clase en `transforms.py`)
-- [x] Entrenamiento de baselines (EfficientNet-B0/Lite0, MobileNetV3-Large) + soporte GPU remota (vast.ai)
+- [x] Entrenamiento de 6 baselines (EfficientNet-B0/Lite0, MobileNetV3-Large, FastViT-T8, GhostNetV2-100, ShuffleNetV2-x1.0) + soporte GPU remota (vast.ai, Modal)
+- [x] Explicabilidad post-hoc (LIME + Grad-CAM, análisis de errores y fidelidad agregada)
 - [ ] Loop de entrenamiento del pipeline principal (`scripts/pipeline/train.py`)
 - [ ] Evaluación exhaustiva y selección de modelo final
 - [ ] Aplicación Android con TensorFlow Lite

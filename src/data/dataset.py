@@ -8,14 +8,39 @@ from torch.utils.data import Dataset, WeightedRandomSampler
 
 from src.config import PROJECT_ROOT, get_dataset_root
 from src.data.loader import load_and_normalize_image
-from src.data.transforms import MINORITY_CLASSES
 
 _DEFAULT_CONFIG = str(PROJECT_ROOT / "config" / "dataset.yaml")
 
 # Reintentos ante imágenes ilegibles antes de asumir que el dataset entero es inaccesible.
 _MAX_FALLBACK_ATTEMPTS = 5
 
+_DEFAULT_MINORITY_RATIO_THRESHOLD = 4.0
+
 logger = logging.getLogger(__name__)
+
+
+def _load_minority_ratio_threshold(config_path: str) -> float:
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+    return float(
+        config.get("augmentation", {}).get(
+            "minority_ratio_threshold", _DEFAULT_MINORITY_RATIO_THRESHOLD
+        )
+    )
+
+
+def compute_minority_classes(data_frame: pd.DataFrame, threshold: float) -> set[str]:
+    """Deriva las clases minoritarias de la distribución real del split.
+
+    Una clase es minoritaria si `max_count / count_de_la_clase > threshold`. En un split
+    balanceado el conjunto queda vacío, así que ni el augmentation agresivo ni el
+    WeightedRandomSampler se activan.
+    """
+    counts = data_frame["label"].value_counts()
+    if counts.empty:
+        return set()
+    max_count = counts.max()
+    return {str(label) for label, n in counts.items() if max_count / n > threshold}
 
 
 class CornDataset(Dataset):
@@ -32,19 +57,23 @@ class CornDataset(Dataset):
         minority_transform=None,
         exclude_classes: list[str] | None = None,
         class_to_idx: dict[str, int] | None = None,
+        minority_classes: set[str] | None = None,
     ):
         """
         Args:
             csv_path: Ruta al manifiesto del split (train.csv, val.csv o test.csv).
             config_path: Ruta al archivo de configuración paramétrica.
             transform: Pipeline de transformaciones estándar (torchvision).
-            minority_transform: Pipeline extendido aplicado a clases en MINORITY_CLASSES.
+            minority_transform: Pipeline extendido aplicado a las clases minoritarias.
                                 Si None, todas las muestras usan `transform`.
             exclude_classes: Clases a excluir del dataset en tiempo de construcción.
                              El CSV permanece inmutable; la exclusión es una decisión de pipeline.
             class_to_idx: Mapeo canónico clase->índice a reutilizar (el del split de train,
                           inyectado en val/test) para mantener índices consistentes entre
                           splits. Si None, se construye desde el YAML.
+            minority_classes: Conjunto de clases que reciben augmentation agresivo. Si None,
+                              se deriva de la distribución real del split (ver
+                              `compute_minority_classes` y `augmentation.minority_ratio_threshold`).
         """
         if not os.path.exists(csv_path):
             raise FileNotFoundError(f"No se encontró el archivo de manifiesto: {csv_path}")
@@ -87,6 +116,13 @@ class CornDataset(Dataset):
 
         self.idx_to_class = {idx: name for name, idx in self.class_to_idx.items()}
 
+        if minority_classes is not None:
+            self.minority_classes = set(minority_classes)
+        else:
+            self.minority_classes = compute_minority_classes(
+                self.data_frame, _load_minority_ratio_threshold(config_path)
+            )
+
     def __len__(self) -> int:
         """Devuelve el tamaño neto total de la muestra actual."""
         return len(self.data_frame)
@@ -121,7 +157,7 @@ class CornDataset(Dataset):
         # 3. Seleccionar pipeline: extendido para clases minoritarias, estándar para el resto
         pipeline = (
             self.minority_transform
-            if self.minority_transform is not None and class_name in MINORITY_CLASSES
+            if self.minority_transform is not None and class_name in self.minority_classes
             else self.transform
         )
         if pipeline:
@@ -147,7 +183,10 @@ def resolve_class_mapping(
     return class_to_idx, idx_to_class
 
 
-def build_weighted_sampler(dataset: "CornDataset", seed: int) -> WeightedRandomSampler:
+def build_weighted_sampler(dataset: "CornDataset", seed: int) -> WeightedRandomSampler | None:
+    if not dataset.minority_classes:
+        return None
+
     labels = dataset.data_frame["label"].tolist()
     class_counts = dataset.data_frame["label"].value_counts().to_dict()
     sample_weights = torch.tensor(

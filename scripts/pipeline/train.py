@@ -102,6 +102,7 @@ def main() -> None:
         train_dataset,
         batch_size=args.batch_size,
         sampler=sampler,
+        shuffle=sampler is None,
         num_workers=4,
         pin_memory=pin_memory,
         worker_init_fn=worker_init_fn,
