@@ -436,8 +436,10 @@ def main() -> None:
     parser.add_argument(
         "--models",
         nargs="+",
-        default=["all"],
-        help=f'Nombres de modelos, o "all". Disponibles: {list_models()}',
+        default=["efficientnet_b0", "shufflenet_v2_x1_0", "efficientnet_lite0"],
+        help=f'Nombres de modelos, o "all" para todos. '
+        f"Por defecto: efficientnet_b0, shufflenet_v2_x1_0, efficientnet_lite0. "
+        f"Disponibles: {list_models()}",
     )
     parser.add_argument(
         "--baseline",
