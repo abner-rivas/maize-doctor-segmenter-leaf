@@ -75,9 +75,6 @@ El problema es que en zonas rurales el acceso a asistencia técnica es limitado,
 
 > Conteos post-limpieza y deduplicación en `data/clean/` (junio 2026). Total consolidado: **25 362 imágenes** (3 551 lab + 21 811 campo real). Las marcas "(pocos datos)" señalan las clases con menor cantidad de imágenes disponibles.
 
-::: warning Desbalance crítico en clases con pocos datos: GLS, Roya real, Áfidos y deficiencias nutricionales
-Antes de pasar a la etapa de adaptación de dominio conviene reforzar con data augmentation las clases más escasas: **Áfidos** (77 imgs), **Roya común** (solo 106 imgs de campo real), **GLS** (1 119 total), **Potasio** (266), **Nitrógeno** (523) y **Fósforo** (612). Todavía se está evaluando cuál es el techo más conveniente por clase (500, 1 000 o 2 000 imgs).
-:::
 
 ### Metodología
 
@@ -86,7 +83,7 @@ El proyecto avanza en fases iterativas siguiendo **CRISP-DM**:
 1. **Comprensión del negocio**: análisis del impacto en el sector agrícola salvadoreño
 2. **Comprensión de los datos**: consolidación multi-fuente de datasets públicos; ver [Recopilación de datasets](/es/datasets/)
 3. **Preparación de los datos**: limpieza, estandarización a 224 × 224 px y data augmentation
-4. **Modelado**: fine-tuning de MobileNetV3 preentrenado en ImageNet; comparación con MobileNetV2 y EfficientNet-B0
+4. **Modelado**: transfer learning con modelos preentrenados en ImageNet
 5. **Evaluación**: Macro F1 ≥ 0.85 sobre conjunto de prueba independiente compuesto por imágenes de campo
 6. **Despliegue**: PWA con inferencia TFLite offline + módulo opcional de sincronización
 

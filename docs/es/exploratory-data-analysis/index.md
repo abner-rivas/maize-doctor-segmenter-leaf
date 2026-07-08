@@ -26,11 +26,11 @@ El dataset consolidado en `data/clean/` contiene **31 622 imágenes** distribuid
 
 ## 1. Distribución de clases
 
-El dataset presenta un **desbalance severo**: `healthy` (8 744 imágenes) supera en **32.9×** a `potassium_deficiency` (266). Este cociente supera el umbral donde el modelo ignoraría sistemáticamente las clases minoritarias sin intervención explícita.
+El dataset presenta un **desbalance severo**: `healthy` (8 744 imágenes) supera en **32.9×** a `potassium_deficiency` (266). Con este desbalance se corre el riesgo de que el modelo aprenda a predecir siempre la clase mayoritaria, ignorando las clases minoritarias.
 
 ![Distribución de imágenes por clase](/eda/eda_01_distribucion_clases.png)
 
-**Decisión:** se usa `WeightedRandomSampler` en el DataLoader para igualar la frecuencia efectiva de cada clase durante el entrenamiento, combinado con `class_weight='balanced'` en los baselines de sklearn. Para las clases más escasas (`potassium_deficiency`, `nitrogen_deficiency`, `phosphorus_deficiency`) se aplica un pipeline de augmentation extendido (`CornMinorityTransforms`).
+Para mitigar este desbalance, inicialmente se planea usar `WeightedRandomSampler` en el DataLoader para igualar la frecuencia efectiva de cada clase durante el entrenamiento. Para las clases más escasas (`potassium_deficiency`, `nitrogen_deficiency`, `phosphorus_deficiency`) aplicar un pipeline de augmentation mas agresivo (`CornMinorityTransforms`).
 
 - [Ver análisis completo: sección 1.2 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
@@ -44,7 +44,7 @@ La proporción de imágenes de laboratorio vs campo varía drásticamente entre 
 
 El caso más crítico es `common_rust`: **95.4 %** de sus 2 256 imágenes proviene de entorno controlado (fondo negro/blanco uniforme). En campo solo hay 106 imágenes.
 
-**Decisión:** la división de validación prioriza imágenes de campo (`real/`) sobre las de laboratorio para medir la generalización real del modelo, no su capacidad de reconocer fondos de PlantVillage. Adicionalmente, el augmentation de `common_rust` incluye variaciones de fondo y color para mitigar el sesgo de dominio.
+Esto representa un riesgo significativo de sobreajuste a condiciones de laboratorio, por lo que se deberán aplicar técnicas de augmentation específicas, asi como intentar validar solo sobre imágenes de campo, para comprobar la generalización del modelo.
 
 - [Ver análisis completo: sección 1.3 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
@@ -56,7 +56,7 @@ Las imágenes tienen resoluciones muy dispares. Las de `corn_leaf_roboflow` ya v
 
 ![Distribución de resoluciones](/eda/eda_03_resoluciones.png)
 
-**Decisión:** el pipeline aplica `Resize` a la resolución de entrada del modelo (224 × 224 px para MobileNetV3) como primera transformación, seguido de `CenterCrop` en validación y `RandomResizedCrop` en entrenamiento. El redimensionamiento desde 640 × 640 no genera pérdida significativa de información diagnóstica a esa escala.
+En el pipeline se deberá aplicar `Resize` a la resolución de entrada del modelo (224 x 224 px para MobileNetV3) como primera transformación, seguido de `CenterCrop` en validación y `RandomResizedCrop` en entrenamiento.
 
 - [Ver análisis completo: sección 1.4 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
@@ -72,8 +72,6 @@ Se evaluaron tres métricas sobre una muestra estratificada de hasta 400 imágen
 
 El porcentaje de imágenes con problemas es bajo y distribuido uniformemente entre clases, sin concentración en ninguna categoría específica. Las imágenes oscuras en clases de laboratorio (fondo negro) son artefactos del umbral global, no defectos reales.
 
-**Decisión:** no se aplica filtro automático de calidad. Las métricas no son lo suficientemente discriminativas para justificar eliminar imágenes sin revisión manual, y el volumen de clases pequeñas no admite pérdidas adicionales.
-
 - [Ver análisis completo: sección 1.5 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
 ---
@@ -86,7 +84,7 @@ Durante la etapa de construcción del dataset se detectaron duplicados entre fue
 
 Se eliminaron **8 538 imágenes** agrupadas en **8 050 grupos**. Las fuentes con mayor contaminación cruzada fueron `maize_desease` (~6 508 eliminadas) y `multi_desease` (~1 980). Sin esta limpieza, imágenes idénticas habrían aparecido tanto en train como en validación, inflando artificialmente las métricas.
 
-El dataset en `data/clean/` es **post-deduplicación**. Los registros de cada ejecución se almacenan en `src/cleanup/results/`.
+El dataset actual (y publicado en <a href="https://huggingface.co/datasets/daiv05/corn-leaf-diseases-pests-and-deficiencies" target="_blank" rel="noopener noreferrer">Hugging Face</a>) es **post-deduplicación**. Los registros de cada ejecución se almacenan en `src/cleanup/results/` del repositorio oficial.
 
 - [Ver análisis completo: sección 1.6 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
@@ -102,11 +100,11 @@ A partir de los análisis anteriores se identifican cinco sesgos que afectan dir
 |---|---|---|
 | Desbalance de clases (32.9× entre extremos) | Todas | Alto |
 | Dominio de imágenes de laboratorio | `common_rust` (95.4 % lab) | Alto |
-| Heterogeneidad visual intraclase | `fall_armyworm` (daño vs. daño+gusano) | Medio-alto |
+| Heterogeneidad visual dentro de la clase | `fall_armyworm` (daño vs. daño + gusano) | Medio-alto |
 | Fuente única en clases pequeñas | `nitrogen`, `phosphorus`, `potassium` | Medio-alto |
 | Concentración geográfica | `northern_corn_leaf_blight` | Medio |
 
-El sesgo de `fall_armyworm` es especialmente relevante porque no es cuantitativo: mezcla dos señales diagnósticas distintas según el dataset de origen - hoja con daño sin insecto visible (`corn_leaf_roboflow`, `maize_africa/Activity`) y hoja con daño y gusano visible (`maize_africa/Pest`, `multicrop`). Esto puede hacer que el modelo aprenda el insecto como atajo en lugar del patrón de daño foliar.
+El sesgo de `fall_armyworm` es especialmente relevante, se decidió mezclar las dos fuentes de imágenes: `hoja con daño sin insecto visible` y `hoja con daño y gusano visible`. Esto se hizo porque al final la clase es `fall_armyworm` y la clasificación y recomendación de tratamiento no depende de la presencia del insecto, sino del patrón de daño foliar. Sin embargo, esto introduce un sesgo, por lo que se tendrá especial cuidado en la validación y en la interpretación de métricas,
 
 - [Ver análisis completo: sección 1.7 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
@@ -114,10 +112,12 @@ El sesgo de `fall_armyworm` es especialmente relevante porque no es cuantitativo
 
 ## Conclusiones
 
-1. **Muestreo ponderado es no negociable.** El ratio 32.9× entre `healthy` y `potassium_deficiency` hace que entrenar sin `WeightedRandomSampler` o `class_weight` produzca un clasificador trivial que ignora las clases más importantes clínicamente.
+1. **Muestreo ponderado** El ratio 32.9× entre `healthy` y `potassium_deficiency` hace que entrenar sin `WeightedRandomSampler` o `class_weight` produzca un clasificador que ignorará las clases minoritarias.
 
 2. **La validación debe medir generalización de campo.** Incluir imágenes de laboratorio en validación daría una falsa sensación de buen rendimiento para clases con sesgo de dominio fuerte (`common_rust`).
 
-3. **El dataset actual es suficiente para un baseline, no para producción.** Las deficiencias nutricionales tienen una sola fuente y pocos ejemplos. Un modelo entrenado con este dataset conoce condiciones de una región específica, no universales.
+3. **Duplicados entre fuentes** La deduplicación fue crítica para la integridad de los splits: sin ella, data leakage habría inflado las métricas de validación.
 
-4. **Los duplicados estaban entre datasets, no dentro.** La deduplicación fue crítica para la integridad de los splits: sin ella, data leakage directo habría inflado las métricas de validación hasta ~10 puntos porcentuales en clases afectadas.
+4. **Resolución heterogénea:** El dataset mezcla imágenes con resoluciones muy dispares. Las de `corn_leaf_roboflow` ya vienen fijas a 640×640 px. El pipeline de entrenamiento debe aplicar redimensionamiento consistente a la resolución de entrada del modelo.
+
+5. **Fuentes limitadas en clases pequeñas:** `potassium_deficiency`, `nitrogen_deficiency` y `phosphorus_deficiency` tienen pocas fuentes de origen, lo que reduce la diversidad de condiciones de captura y aumenta el riesgo de sobreajuste a patrones específicos.
