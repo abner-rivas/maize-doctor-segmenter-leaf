@@ -1,9 +1,8 @@
 # Entrenamiento en Modal
 
 Guía para entrenar los **baselines** y correr **explicabilidad** en GPU de
-[Modal](https://modal.com/docs/guide). Modal coexiste con vast.ai (ver `vast-ai.md`); no lo
-reemplaza. A diferencia de vast.ai (VM + SSH), en Modal defines código que corre en la nube y
-se cobra por segundo, con auto-teardown (no hay que acordarse de destruir instancias).
+[Modal](https://modal.com/docs/guide). En Modal defines código que corre en la nube y se cobra
+por segundo, con auto-teardown (no hay que acordarse de destruir instancias).
 
 ## Requisitos (una sola vez)
 
