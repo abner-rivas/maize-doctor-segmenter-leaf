@@ -54,7 +54,7 @@ const esDatasetSidebar = [
   {
     text: "Preprocesado",
     items: [
-      { text: "Flujo realizado", link: "/es/preprocesado/" },
+      { text: "Flujo realizado", link: "/es/preprocessed/" },
     ],
   },
   {
@@ -70,7 +70,7 @@ const esDatasetSidebar = [
       {
         text: "Baselines",
         items: [
-          { text: "Preprocesado", link: "/es/pipeline-baselines/preprocesado" },
+          { text: "Preprocesado", link: "/es/pipeline-baselines/preprocessed" },
           { text: "Entrenamiento", link: "/es/pipeline-baselines/entrenamiento" },
           { text: "Evaluación", link: "/es/pipeline-baselines/evaluacion" },
           { text: "Interpretabilidad", link: "/es/pipeline-baselines/interpretabilidad" },
@@ -80,7 +80,7 @@ const esDatasetSidebar = [
       // {
       //   text: "Principal",
       //   items: [
-      //     { text: "Preprocesado", link: "/es/pipeline/preprocesado" },
+      //     { text: "Preprocesado", link: "/es/pipeline/preprocessed" },
       //     { text: "Entrenamiento", link: "/es/pipeline/entrenamiento" },
       //     { text: "Evaluación", link: "/es/pipeline/evaluacion" },
       //     { text: "Interpretabilidad", link: "/es/pipeline/interpretabilidad" },
@@ -149,7 +149,7 @@ export default defineConfig({
               { text: "Análisis Exploratorio", link: "/es/exploratory-data-analysis/" },
             ]
           },
-          { text: "Preprocesado", link: "/es/preprocesado/" },
+          { text: "Preprocesado", link: "/es/preprocessed/" },
           {
             text: "Deep Learning",
             items: [
@@ -163,7 +163,7 @@ export default defineConfig({
               {
                 text: "Baselines",
                 items: [
-                  { text: "Preprocesado", link: "/es/pipeline-baselines/preprocesado" },
+                  { text: "Preprocesado", link: "/es/pipeline-baselines/preprocessed" },
                   { text: "Entrenamiento", link: "/es/pipeline-baselines/entrenamiento" },
                   { text: "Evaluación", link: "/es/pipeline-baselines/evaluacion" },
                   { text: "Interpretabilidad", link: "/es/pipeline-baselines/interpretabilidad" },
@@ -173,7 +173,7 @@ export default defineConfig({
               // {
               //   text: "Principal",
               //   items: [
-              //     { text: "Preprocesado", link: "/es/pipeline/preprocesado" },
+              //     { text: "Preprocesado", link: "/es/pipeline/preprocessed" },
               //     { text: "Entrenamiento", link: "/es/pipeline/entrenamiento" },
               //     { text: "Evaluación", link: "/es/pipeline/evaluacion" },
               //     { text: "Interpretabilidad", link: "/es/pipeline/interpretabilidad" },
@@ -194,7 +194,7 @@ export default defineConfig({
           "/es/datasets/": esDatasetSidebar,
           "/es/cleanup-and-ordered/": esDatasetSidebar,
           "/es/exploratory-data-analysis/": esDatasetSidebar,
-          "/es/preprocesado/": esDatasetSidebar,
+          "/es/preprocessed/": esDatasetSidebar,
           "/es/baselines/": esDatasetSidebar,
           "/es/pipeline-baselines/": esDatasetSidebar,
           "/es/deep-learning/": esDatasetSidebar,
