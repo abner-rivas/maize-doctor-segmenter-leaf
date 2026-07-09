@@ -2,6 +2,12 @@ import { defineConfig } from "vitepress";
 
 const esDatasetSidebar = [
   {
+    text: "Antecedentes",
+    items: [
+      { text: "Trabajos previos", link: "/es/previous-work/" },
+    ],
+  },
+  {
     text: "Datasets",
     items: [
       { text: "Recopilación", link: "/es/datasets/" },
@@ -141,6 +147,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: "Inicio", link: "/es/" },
+          { text: "Trabajos previos", link: "/es/previous-work/" },
           {
             text: "Exploración",
             items: [
@@ -195,6 +202,7 @@ export default defineConfig({
           "/es/cleanup-and-ordered/": esDatasetSidebar,
           "/es/exploratory-data-analysis/": esDatasetSidebar,
           "/es/preprocessed/": esDatasetSidebar,
+          "/es/previous-work/": esDatasetSidebar,
           "/es/baselines/": esDatasetSidebar,
           "/es/pipeline-baselines/": esDatasetSidebar,
           "/es/deep-learning/": esDatasetSidebar,
