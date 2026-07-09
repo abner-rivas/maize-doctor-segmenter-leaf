@@ -71,7 +71,7 @@ Se consolidaron **8 fuentes de datos públicas** para construir el corpus de ent
 |---|---|---|---|
 | [Maize in Field](docs/es/datasets/maize-in-field-dataset.md) | Campo real (Sudáfrica) | ~2 223 | CC BY-NC-SA 4.0 |
 | [Maize Diseases](docs/es/datasets/maize-diseases.md) | Lab + campo (PlantVillage v1.0/v1.1) | ~16 162 | CC BY-NC-SA 4.0 |
-| [Corn Leaf Diseases](docs/es/datasets/corn-leaf-diseases.md) | Lab augmentado (×17) | 52 360 | MIT |
+| [Corn Leaf Diseases](docs/es/datasets/corn-leaf-diseases.md) | Lab augmentado (x17) | 52 360 | MIT |
 | [CropDG Unified Multidomain](docs/es/datasets/cropdg-unified-multidomain.md) | Multi-dominio | ~13 275 | CC BY-NC-SA 4.0 |
 | [Maize, Beans & Tomatoes Africa](docs/es/datasets/maize-beans-tomatoes-africa.md) | Campo real (África) | 23 286 | Apache 2.0 + CC |
 | [Multicrop Disease - Maize Pests and Disease](docs/es/datasets/multicrop-disease-maiz-disease-pests-and-disease.md) | Mixto | - | Desconocida |
@@ -93,7 +93,7 @@ El proyecto avanza en fases iterativas siguiendo el marco **CRISP-DM**:
 
 1. **Comprensión del negocio**: definición del problema agrícola y restricciones de despliegue
 2. **Comprensión de datos**: consolidación y auditoría de 8 fuentes públicas
-3. **Preparación**: limpieza, estandarización (224×224 px), deduplicación, augmentation
+3. **Preparación**: limpieza, estandarización (224x224 px), deduplicación, augmentation
 4. **Modelado**: fine-tuning de 3 arquitecturas baseline para comparar rápido y barato
 5. **Evaluación**: Macro F1 ≥ 0.85 en conjunto independiente de imágenes de campo real
 6. **Despliegue**: PWA offline con TFLite Int8 + sincronización opcional

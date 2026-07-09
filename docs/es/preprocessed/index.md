@@ -74,7 +74,7 @@ Esto se aplica únicamente en train, en cambio val y test usan transformaciones 
 ### Pipeline estándar de augmentación
 
 ```
-Resize(224×224)
+Resize(224x224)
 RandomHorizontalFlip(p=0.5)
 RandomVerticalFlip(p=0.5)
 RandomRotation(±15°, BILINEAR)
@@ -90,7 +90,7 @@ El ColorJitter es conservador (sin saturación ni hue) porque las deficiencias n
 Aplicado en caliente a `potassium_deficiency`, `nitrogen_deficiency`, `phosphorus_deficiency`, `gray_leaf_spot` y `common_rust`:
 
 ```
-RandomResizedCrop(224×224, scale=(0.7, 1.0))   <--- recortes aleatorios
+RandomResizedCrop(224x224, scale=(0.7, 1.0))   <--- recortes aleatorios
 RandomHorizontalFlip(p=0.5)
 RandomVerticalFlip(p=0.5)
 RandomRotation(±30°, BILINEAR)                 <--- más agresivo que estándar
@@ -105,7 +105,7 @@ Se mantiene `hue=0.05` (mínimo) para no destruir la señal de clorosis en defic
 ### Augmentación mínima para Val / Test
 
 ```
-Resize(224×224)
+Resize(224x224)
 ToTensor()
 Normalize(ImageNet)
 ```

@@ -159,7 +159,7 @@ Imágenes integradas:
 
 ### Decisiones y hallazgos
 
-- Las imágenes ya vienen redimensionadas a **640 × 640 px**, lo que puede introducir distorsión (stretch) respecto a las proporciones originales.
+- Las imágenes ya vienen redimensionadas a **640 x 640 px**, lo que puede introducir distorsión (stretch) respecto a las proporciones originales.
 - La clase `nitrogen_deficiency` (~55 instancias en etiquetas) y `phosphorus_deficiency` (~46) tienen muy baja representación.
 
 ---

@@ -82,7 +82,7 @@ El proyecto avanza en fases iterativas siguiendo **CRISP-DM**:
 
 1. **Comprensión del negocio**: análisis del impacto en el sector agrícola salvadoreño
 2. **Comprensión de los datos**: consolidación multi-fuente de datasets públicos; ver [Recopilación de datasets](/es/datasets/)
-3. **Preparación de los datos**: limpieza, estandarización a 224 × 224 px y data augmentation
+3. **Preparación de los datos**: limpieza, estandarización a 224 x 224 px y data augmentation
 4. **Modelado**: transfer learning con modelos preentrenados en ImageNet
 5. **Evaluación**: Macro F1 ≥ 0.85 sobre conjunto de prueba independiente compuesto por imágenes de campo
 6. **Despliegue**: PWA con inferencia TFLite offline + módulo opcional de sincronización
@@ -92,7 +92,7 @@ El proyecto avanza en fases iterativas siguiendo **CRISP-DM**:
 ```
 Captura / Galería
       ↓
-Preprocesamiento (224×224, normalización)
+Preprocesamiento (224x224, normalización)
       ↓
 Inferencia CNN - TensorFlow Lite (Int8)
       ↓
