@@ -20,7 +20,7 @@ Para cada dataset se registra:
 |---|---|---|---|---|
 | [Maize in Field Dataset](/es/datasets/maize-in-field-dataset) | Campo real  | ~2 223 útiles (2 355 total) | Roya, NCLB, GLS, Sano | CC BY-NC-SA 4.0 |
 | [Maize Diseases](/es/datasets/maize-diseases) | Laboratorio + campo  | ~16 162 (v1.0 + v1.1) | Roya, NCLB, GLS, Sano | CC BY-NC-SA 4.0 |
-| [Corn Leaf Diseases](/es/datasets/corn-leaf-diseases) | Laboratorio augmentado  | 52 360 (aug ×17) | Roya, NCLB, GLS, Sano | MIT |
+| [Corn Leaf Diseases](/es/datasets/corn-leaf-diseases) | Laboratorio augmentado  | 52 360 (aug x17) | Roya, NCLB, GLS, Sano | MIT |
 | [CropDG Unified Multi-Domain](/es/datasets/cropdg-unified-multidomain) | Multi-dominio  | ~13 275 (maíz + tomate) | NCLB, GLS, Sano (sin Roya) | CC BY-NC-SA 4.0 |
 | [Maize, Beans & Tomatoes - África](/es/datasets/maize-beans-tomatoes-africa) | Campo real  | 23 286 (12 clases) | Roya (~99), Sano (2 340), Cogollero | Apache 2.0 + CC |
 | [Multicrop Disease - Maize Pests and Disease](/es/datasets/multicrop-disease-maiz-disease-pests-and-disease) | Mixto  | - | Roya, NCLB, GLS, Sano | Desconocida |
@@ -80,17 +80,17 @@ Las imágenes de campo real son el activo más valioso para la robustez del mode
 
 ## Potencial de Data Augmentation
 
-El dataset **Corn Leaf Diseases** ya aplica 17 técnicas de augmentation sobre los originales de PlantVillage, con un ratio efectivo de ×17:
+El dataset **Corn Leaf Diseases** ya aplica 17 técnicas de augmentation sobre los originales de PlantVillage, con un ratio efectivo de x17:
 
 | Clase | Originales PV | Factor | Imágenes aug disponibles |
 |---|---|---|---|
-| Roya común | 953 | ×17 | 16 201 |
-| NCLB | 788 | ×17 | 13 396 |
-| GLS | 410 | ×17 | 6 970 |
-| Sano | 929 | ×17 | 15 793 |
-| **Total** | **3 080** | **×17** | **52 360** |
+| Roya común | 953 | x17 | 16 201 |
+| NCLB | 788 | x17 | 13 396 |
+| GLS | 410 | x17 | 6 970 |
+| Sano | 929 | x17 | 15 793 |
+| **Total** | **3 080** | **x17** | **52 360** |
 
-Aplicando el mismo ratio ×17 sobre las **~399 imágenes de campo real de Roya común** se obtendrían **~6 783 imágenes adicionales de campo**, equiparando su cobertura con NCLB y GLS. Técnicas adicionales recomendables para imágenes de campo: distorsión elástica, CutMix, perspectiva aleatoria y simulación de variaciones de iluminación natural. -->
+Aplicando el mismo ratio x17 sobre las **~399 imágenes de campo real de Roya común** se obtendrían **~6 783 imágenes adicionales de campo**, equiparando su cobertura con NCLB y GLS. Técnicas adicionales recomendables para imágenes de campo: distorsión elástica, CutMix, perspectiva aleatoria y simulación de variaciones de iluminación natural. -->
 
 <!-- ## Estrategia de Uso
 

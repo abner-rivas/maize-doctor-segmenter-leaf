@@ -122,7 +122,6 @@ def main() -> None:
         pin_memory=pin_memory,
     )
 
-    # El desbalance ya lo compensa el sampler; no ponderar además la loss (ver CLAUDE.md)
     criterion = torch.nn.CrossEntropyLoss()  # noqa: F841
 
     for model_name in model_names:
