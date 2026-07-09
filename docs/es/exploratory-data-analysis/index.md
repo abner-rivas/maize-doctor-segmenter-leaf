@@ -10,17 +10,44 @@ El análisis completo y reproducible, con todo el código, está en la notebook 
 
 El dataset consolidado en `data/clean/` contiene **31 622 imágenes** distribuidas en **9 clases**, procedentes de 6 fuentes públicas. Cada imagen pertenece a un entorno de captura: `lab` (fondo controlado, iluminación artificial) o `real` (campo abierto, iluminación solar).
 
+#### Enfermedades foliares
+
+| Clase | Lab | Real | Total |
+|---|---:|---:|---:|
+| `common_rust` | 2 150 | 106 | **2 256** |
+| `northern_corn_leaf_blight` | 888 | 5 942 | **6 830** |
+| `gray_leaf_spot` | 513 | 606 | **1 119** |
+| `lethal_necrosis` | 0 | 6 415 | **6 415** |
+
+#### Plagas
+
+| Clase | Lab | Real | Total |
+|---|---:|---:|---:|
+| `fall_armyworm` | 0 | 4 857 | **4 857** |
+
+#### Deficiencias nutricionales
+
+| Clase | Lab | Real | Total |
+|---|---:|---:|---:|
+| `nitrogen_deficiency` | 0 | 523 | **523** |
+| `phosphorus_deficiency` | 0 | 612 | **612** |
+| `potassium_deficiency` | 0 | 266 | **266** |
+
+#### Control (ausencia de enfermedad)
+
 | Clase | Lab | Real | Total |
 |---|---:|---:|---:|
 | `healthy` | 0 | 8 744 | **8 744** |
-| `northern_corn_leaf_blight` | 888 | 5 942 | **6 830** |
-| `lethal_necrosis` | 0 | 6 415 | **6 415** |
-| `fall_armyworm` | 0 | 4 857 | **4 857** |
-| `common_rust` | 2 150 | 106 | **2 256** |
-| `gray_leaf_spot` | 513 | 606 | **1 119** |
-| `phosphorus_deficiency` | 0 | 612 | **612** |
-| `nitrogen_deficiency` | 0 | 523 | **523** |
-| `potassium_deficiency` | 0 | 266 | **266** |
+
+---
+
+## Muestra visual representativa
+
+Antes de las métricas numéricas, un grid de 4 imágenes aleatorias por clase (seed=42) permite evaluar rápidamente la variabilidad intraclase, la calidad de las etiquetas y las diferencias entre entornos lab y campo.
+
+![Muestra visual representativa por clase](/eda/eda_00_muestra_visual.png)
+
+- [Ver análisis completo: sección 1.1 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
 ---
 
@@ -46,17 +73,39 @@ El caso más crítico es `common_rust`: **95.4 %** de sus 2 256 imágenes provie
 
 Esto representa un riesgo significativo de sobreajuste a condiciones de laboratorio, por lo que se deberán aplicar técnicas de augmentation específicas, asi como intentar validar solo sobre imágenes de campo, para comprobar la generalización del modelo.
 
+### Distribución por fuente de origen
+
+Además de la segmentación lab/real, un heatmap fuente×clase revela concentraciones de dependencia: si una clase proviene exclusivamente de una fuente, el modelo podría sobreajustarse a las condiciones específicas de captura de esa fuente.
+
+![Heatmap de distribución por fuente y clase](/eda/eda_02b_heatmap_fuente_clase.png)
+
+Las tres clases de deficiencias nutricionales provienen de una **fuente única** (`maize_nutrient`), y `lethal_necrosis` depende exclusivamente de `maize_africa`. Esto limita la diversidad de condiciones de captura y aumenta el riesgo de sobreajuste a patrones específicos de esas fuentes.
+
 - [Ver análisis completo: sección 1.3 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
 ---
 
 ## 3. Resolución y dimensiones
 
-Las imágenes tienen resoluciones muy dispares. Las de `corn_leaf_roboflow` ya vienen redimensionadas a **640 x 640 px** (Roboflow). El resto conserva su resolución original, que va desde imágenes pequeñas hasta varios megapíxeles.
+Las imágenes tienen resoluciones muy dispares. Los histogramas revelan una distribución **claramente multimodal**:
+
+- **Pico en ~256 px:** imágenes de `cropdg` (PlantVillage), capturas de laboratorio a baja resolución. Incluye la mayor parte de `common_rust` y `gray_leaf_spot` en entorno lab.
+- **Pico dominante en ~600-640 px:** asociado a `corn_leaf_roboflow` (pre-redimensionadas a 640×640) y `maize_nutrient`. Aquí caen las tres clases de deficiencias nutricionales y parte de `fall_armyworm`.
+- **Cola larga hacia 1000-5000+ px:** imágenes de alta resolución de `maize_africa` y `maize_field`, capturadas con cámaras de campo. Incluye la mayoría de `northern_corn_leaf_blight`, `lethal_necrosis` y `healthy`.
 
 ![Distribución de resoluciones](/eda/eda_03_resoluciones.png)
 
-En el pipeline se deberá aplicar `Resize` a la resolución de entrada del modelo (224 x 224 px para MobileNetV3) como primera transformación, seguido de `CenterCrop` en validación y `RandomResizedCrop` en entrenamiento.
+Al redimensionar a 224×224 (target del proyecto), las imágenes del primer grupo apenas pierden información, mientras que las de alta resolución sufren una reducción de ~13x, perdiendo detalles finos de las lesiones.
+
+### Resolución y aspect ratio por clase
+
+Los violin plots confirman que **la resolución no es independiente de la clase**:
+
+![Resolución y aspect ratio por clase](/eda/eda_03b_resolucion_por_clase.png)
+
+- **Deficiencias nutricionales y `fall_armyworm`:** concentradas en ~640 px con aspect ratio ~1.0 (cuadradas). El resize a 224×224 es moderado (~2.9x) y sin distorsión.
+- **`common_rust` y `gray_leaf_spot`:** distribuciones bimodales (lab ~256 px, campo ~640 px).
+- **`healthy`, `lethal_necrosis` y `northern_corn_leaf_blight`:** colas más largas (hasta 3000-5000+ px), con mayor dispersión de aspect ratio. Estas clases sufren la mayor pérdida de detalle durante el resize, y el resize a cuadrado distorsionará la geometría de las lesiones en imágenes con aspect ratio lejos de 1.0.
 
 - [Ver análisis completo: sección 1.4 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
@@ -64,13 +113,27 @@ En el pipeline se deberá aplicar `Resize` a la resolución de entrada del model
 
 ## 4. Calidad de imagen
 
-Se evaluaron tres métricas sobre una muestra estratificada de hasta 400 imágenes por clase: desenfoque (varianza del Laplaciano), subexposición (brillo medio < 40) y sobreexposición (brillo medio > 230).
+Se evaluaron tres métricas sobre una muestra estratificada de hasta 400 imágenes por clase (seed=42): desenfoque (varianza del Laplaciano), subexposición (brillo medio < 40) y sobreexposición (brillo medio > 230).
 
 ![Problemas de calidad por clase](/eda/eda_04_calidad.png)
 
 ![Distribuciones de calidad por clase](/eda/eda_04b_calidad_boxplots.png)
 
-El porcentaje de imágenes con problemas es bajo y distribuido uniformemente entre clases, sin concentración en ninguna categoría específica. Las imágenes oscuras en clases de laboratorio (fondo negro) son artefactos del umbral global, no defectos reales.
+**El desenfoque es el único problema de calidad significativo.** Las categorías de subexposición y sobreexposición son prácticamente inexistentes (~0%). En contraste, el blur afecta de forma desigual: `gray_leaf_spot` es la clase más afectada (~38%), seguida de `nitrogen_deficiency` (~28%) y `potassium_deficiency` (~21%) — precisamente clases minoritarias, lo que agrava el problema.
+
+**Hallazgo en los boxplots de brillo:** `common_rust` presenta un brillo mediano notablemente inferior (~95) comparado con el resto (~120-140). Esto es evidencia cuantitativa directa del sesgo de dominio: sus imágenes de laboratorio usan fondos oscuros que bajan el brillo global. Si el modelo aprende a asociar brillo bajo con `common_rust`, fallará en imágenes de campo con fondo de vegetación.
+
+> **Nota metodológica:** el umbral de blur (varianza del Laplaciano < 100) es absoluto y no normaliza por resolución. Imágenes de alta resolución naturalmente tienen mayor varianza que imágenes pequeñas, lo que podría subestimar el blur en imágenes de baja resolución (~256 px) y sobreestimarlo en imágenes grandes (~3000+ px).
+
+### Distribución de color (HSV) por clase
+
+En un problema de enfermedades foliares, el color es una señal diagnóstica primaria: `common_rust` produce pústulas anaranjadas, `nitrogen_deficiency` causa amarillamiento generalizado, y `gray_leaf_spot` genera manchas grisáceas.
+
+![Distribución de canales HSV por clase](/eda/eda_04c_color_hsv.png)
+
+![Hue medio: lab vs real](/eda/eda_04d_hue_lab_vs_real.png)
+
+El análisis del canal Hue por clase y entorno permite verificar si las firmas cromáticas de cada enfermedad son detectables estadísticamente, y si existen diferencias de dominio de color entre imágenes lab y real que podrían actuar como shortcuts para el modelo.
 
 - [Ver análisis completo: sección 1.5 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
@@ -117,6 +180,8 @@ El sesgo de `fall_armyworm` es especialmente relevante, se decidió mezclar las 
 
 3. **Duplicados entre fuentes** La deduplicación fue crítica para la integridad de los splits: sin ella, data leakage habría inflado las métricas de validación.
 
-4. **Resolución heterogénea:** El dataset mezcla imágenes con resoluciones muy dispares. Las de `corn_leaf_roboflow` ya vienen fijas a 640x640 px. El pipeline de entrenamiento debe aplicar redimensionamiento consistente a la resolución de entrada del modelo.
+4. **Resolución heterogénea y dependiente de la clase:** El dataset mezcla resoluciones multimodales (~256 px lab, ~640 px Roboflow, ~3000+ px campo). Las clases de deficiencias están concentradas en ~640 px mientras que `healthy` y `lethal_necrosis` tienen colas hasta 5000+ px. El pipeline aplica resize uniforme a 224×224.
 
-5. **Fuentes limitadas en clases pequeñas:** `potassium_deficiency`, `nitrogen_deficiency` y `phosphorus_deficiency` tienen pocas fuentes de origen, lo que reduce la diversidad de condiciones de captura y aumenta el riesgo de sobreajuste a patrones específicos.
+5. **Fuentes limitadas en clases pequeñas:** `potassium_deficiency`, `nitrogen_deficiency` y `phosphorus_deficiency` tienen una sola fuente de origen (`maize_nutrient`), lo que reduce la diversidad de condiciones de captura y aumenta el riesgo de sobreajuste a patrones específicos.
+
+6. **El brillo bajo de `common_rust` es evidencia del sesgo lab:** su mediana de brillo (~95) es significativamente inferior al resto de clases (~120-140), reflejando los fondos oscuros de laboratorio. El modelo podría usar esta señal como shortcut en lugar de aprender los síntomas foliares.
