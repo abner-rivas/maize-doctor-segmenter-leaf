@@ -26,7 +26,7 @@ El dataset consolidado en `data/clean/` contiene **31 622 imágenes** distribuid
 
 ## 1. Distribución de clases
 
-El dataset presenta un **desbalance severo**: `healthy` (8 744 imágenes) supera en **32.9×** a `potassium_deficiency` (266). Con este desbalance se corre el riesgo de que el modelo aprenda a predecir siempre la clase mayoritaria, ignorando las clases minoritarias.
+El dataset presenta un **desbalance severo**: `healthy` (8 744 imágenes) supera en **32.9x** a `potassium_deficiency` (266). Con este desbalance se corre el riesgo de que el modelo aprenda a predecir siempre la clase mayoritaria, ignorando las clases minoritarias.
 
 ![Distribución de imágenes por clase](/eda/eda_01_distribucion_clases.png)
 
@@ -52,7 +52,7 @@ Esto representa un riesgo significativo de sobreajuste a condiciones de laborato
 
 ## 3. Resolución y dimensiones
 
-Las imágenes tienen resoluciones muy dispares. Las de `corn_leaf_roboflow` ya vienen redimensionadas a **640 × 640 px** (Roboflow). El resto conserva su resolución original, que va desde imágenes pequeñas hasta varios megapíxeles.
+Las imágenes tienen resoluciones muy dispares. Las de `corn_leaf_roboflow` ya vienen redimensionadas a **640 x 640 px** (Roboflow). El resto conserva su resolución original, que va desde imágenes pequeñas hasta varios megapíxeles.
 
 ![Distribución de resoluciones](/eda/eda_03_resoluciones.png)
 
@@ -98,7 +98,7 @@ A partir de los análisis anteriores se identifican cinco sesgos que afectan dir
 
 | Sesgo | Clases afectadas | Riesgo |
 |---|---|---|
-| Desbalance de clases (32.9× entre extremos) | Todas | Alto |
+| Desbalance de clases (32.9x entre extremos) | Todas | Alto |
 | Dominio de imágenes de laboratorio | `common_rust` (95.4 % lab) | Alto |
 | Heterogeneidad visual dentro de la clase | `fall_armyworm` (daño vs. daño + gusano) | Medio-alto |
 | Fuente única en clases pequeñas | `nitrogen`, `phosphorus`, `potassium` | Medio-alto |
@@ -111,12 +111,12 @@ El sesgo de `fall_armyworm` es especialmente relevante, se decidió mezclar las 
 
 ## Conclusiones
 
-1. **Muestreo ponderado** El ratio 32.9× entre `healthy` y `potassium_deficiency` hace que entrenar sin `WeightedRandomSampler` o `class_weight` produzca un clasificador que ignorará las clases minoritarias.
+1. **Muestreo ponderado** El ratio 32.9x entre `healthy` y `potassium_deficiency` hace que entrenar sin `WeightedRandomSampler` o `class_weight` produzca un clasificador que ignorará las clases minoritarias.
 
 2. **La validación debe medir generalización de campo.** Incluir imágenes de laboratorio en validación daría una falsa sensación de buen rendimiento para clases con sesgo de dominio fuerte (`common_rust`).
 
 3. **Duplicados entre fuentes** La deduplicación fue crítica para la integridad de los splits: sin ella, data leakage habría inflado las métricas de validación.
 
-4. **Resolución heterogénea:** El dataset mezcla imágenes con resoluciones muy dispares. Las de `corn_leaf_roboflow` ya vienen fijas a 640×640 px. El pipeline de entrenamiento debe aplicar redimensionamiento consistente a la resolución de entrada del modelo.
+4. **Resolución heterogénea:** El dataset mezcla imágenes con resoluciones muy dispares. Las de `corn_leaf_roboflow` ya vienen fijas a 640x640 px. El pipeline de entrenamiento debe aplicar redimensionamiento consistente a la resolución de entrada del modelo.
 
 5. **Fuentes limitadas en clases pequeñas:** `potassium_deficiency`, `nitrogen_deficiency` y `phosphorus_deficiency` tienen pocas fuentes de origen, lo que reduce la diversidad de condiciones de captura y aumenta el riesgo de sobreajuste a patrones específicos.

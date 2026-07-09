@@ -11,7 +11,7 @@ Antes de entrar en las arquitecturas concretas que usa este proyecto, conviene r
 Una **red neuronal convolucional** (*Convolutional Neural Network*, CNN) es una clase de modelo de aprendizaje profundo diseñada para procesar datos con estructura de cuadrícula, como imágenes. A diferencia de las redes completamente conectadas, las CNNs explotan la localidad espacial y la invarianza a la traslación mediante tres operaciones clave <sup>[[14]](#ref-15)</sup>:
 
 - **Capa convolucional:** aplica un conjunto de filtros aprendibles que convoluciona la entrada para producir mapas de activación. Cada filtro detecta un patrón local (bordes, texturas, formas) y comparte sus pesos en toda la imagen, reduciendo drásticamente el número de parámetros respecto a una capa densa.
-- **Capa de *pooling*:** reduce la resolución espacial de los mapas de activación (por ejemplo, *max pooling* 2×2 con stride 2), introduciendo cierta invarianza a pequeñas traslaciones y reduciendo el costo computacional de las capas siguientes.
+- **Capa de *pooling*:** reduce la resolución espacial de los mapas de activación (por ejemplo, *max pooling* 2x2 con stride 2), introduciendo cierta invarianza a pequeñas traslaciones y reduciendo el costo computacional de las capas siguientes.
 - **Capas completamente conectadas (*fully connected*):** al final de la red, transforman el vector de características extraídas por las capas convolucionales en una distribución de probabilidad sobre las clases mediante una función *softmax*.
 
 ### De LeNet a AlexNet
@@ -34,7 +34,7 @@ El otro gran cuello de botella de las CNNs clásicas es el costo computacional d
 
 Las **convoluciones depthwise-separable** <sup>[[5]](#ref-5)</sup> factorizan una convolución estándar $k \times k$ con $C_{in}$ canales de entrada y $C_{out}$ de salida en dos operaciones secuenciales. Primero, la **depthwise convolution** aplica un filtro $k \times k$ independiente *por canal*, produciendo $C_{in}$ mapas de activación. Después, la **pointwise convolution** combina esos $C_{in}$ mapas con una convolución $1 \times 1$ para producir los $C_{out}$ mapas finales.
 
-Esta factorización reduce el número de operaciones en un factor de aproximadamente $1/C_{out} + 1/k^2$, que para $k=3$ y $C_{out}$ grande equivale a una reducción de ~8–9× en FLOPs, sin degradación significativa de la capacidad representacional. Es la base de la familia MobileNet y se hereda en los bloques MBConv de EfficientNet.
+Esta factorización reduce el número de operaciones en un factor de aproximadamente $1/C_{out} + 1/k^2$, que para $k=3$ y $C_{out}$ grande equivale a una reducción de ~8–9x en FLOPs, sin degradación significativa de la capacidad representacional. Es la base de la familia MobileNet y se hereda en los bloques MBConv de EfficientNet.
 
 ---
 
@@ -102,7 +102,7 @@ EfficientNet-B0 alcanza ~77.1 % Top-1 en ImageNet con solo 5.3 M de parámetros,
 
 ## Manejo del Desbalance de Clases
 
-El dataset de este proyecto presenta un desbalance severo: la clase más representada (*healthy*) supera en ~33× a la menos representada (*potassium_deficiency*). Sin intervención, un modelo puede alcanzar alta *accuracy* pero fallar estrepitosamente en las clases minoritarias.
+El dataset de este proyecto presenta un desbalance severo: la clase más representada (*healthy*) supera en ~33x a la menos representada (*potassium_deficiency*). Sin intervención, un modelo puede alcanzar alta *accuracy* pero fallar estrepitosamente en las clases minoritarias.
 
 ### Función de Pérdida con Pesos de Clase
 
@@ -176,7 +176,7 @@ El uso de modelos ligeros como MobileNetV3 y EfficientNet-B0 en lugar de arquite
 
 <a id="ref-10"></a>[10] Z. Liu, H. Mao, C.-Y. Wu, C. Feichtenhofer, T. Darrell, y S. Xie, "A ConvNet for the 2020s," in *Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)*, New Orleans, LA, USA, 2022, pp. 11976–11986.
 
-<a id="ref-11"></a>[11] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, y N. Houlsby, "An Image is Worth 16×16 Words: Transformers for Image Recognition at Scale," in *Proc. Int. Conf. Learn. Representations (ICLR)*, 2021.
+<a id="ref-11"></a>[11] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, y N. Houlsby, "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale," in *Proc. Int. Conf. Learn. Representations (ICLR)*, 2021.
 
 <a id="ref-12"></a>[12] T.-Y. Lin, P. Goyal, R. Girshick, K. He, y P. Dollár, "Focal Loss for Dense Object Detection," in *Proc. IEEE Int. Conf. Comput. Vis. (ICCV)*, Venice, Italy, 2017, pp. 2980–2988.
 

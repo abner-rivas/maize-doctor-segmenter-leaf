@@ -46,7 +46,7 @@ Las anotaciones mezclan formato YOLO bbox (5 campos por línea) y segmentación 
 ## Aspectos importantes
 
 - La clase dominante en anotaciones es `Leaf Spot` (ID 2), con ~3 946 instancias frente a ~55 de Nitrogen Deficiency y ~46 de Phosphorus Deficiency. El desbalance es significativo.
-- Las imágenes fueron preprocesadas: auto-orientación EXIF y redimensionado a **640 × 640 px** (stretch). No se aplicaron técnicas de augmentation.
+- Las imágenes fueron preprocesadas: auto-orientación EXIF y redimensionado a **640 x 640 px** (stretch). No se aplicaron técnicas de augmentation.
 - Las imágenes son de campo real; no existen contrapartes de laboratorio en este dataset.
 
 ::: warning Desbalance severo en deficiencias nutricionales
@@ -56,7 +56,7 @@ Las clases `Nitrogen Deficiency` (~55 instancias), `Phosphorus Deficiency` (~46)
 ## Tamaño y distribución
 
 - **Total de imágenes:** 3 943
-- **Resolución:** 640 × 640 px
+- **Resolución:** 640 x 640 px
 - **Formato:** JPEG / JPG
 
 Distribución aproximada de instancias por clase (conteo de etiquetas en todos los splits):
