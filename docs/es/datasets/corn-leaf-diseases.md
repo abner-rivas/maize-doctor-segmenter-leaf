@@ -78,7 +78,7 @@ Imágenes en formato .jpg
 
 ## Citación
 
-- Shuvo Kumar Basak. (2025). Corn Leaf Diseases Plant Village Augmented Data [Dataset]. Kaggle. https://doi.org/10.34740/KAGGLE/DSV/12009963
+- Shuvo Kumar Basak. (2025). Plant Village Augmented Dataset New and Update Tec [Data set]. Kaggle. https://doi.org/10.34740/KAGGLE/DSV/11077233
 
 Dataset e investigación original de PlantVillage:
 
