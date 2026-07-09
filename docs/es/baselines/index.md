@@ -36,7 +36,7 @@ conjunto de guías prácticas de diseño, que no se limitan a minimizar FLOPs si
 atienden al costo real de memoria y acceso, materializadas en dos operaciones. La primera es
 **channel split + channel shuffle**, que divide los canales en dos ramas y, tras procesarlas,
 los baraja para que la información fluya entre grupos sin convoluciones densas costosas. La
-segunda es evitar las convoluciones agrupadas 1×1, esquivando así el cuello de botella de acceso
+segunda es evitar las convoluciones agrupadas 1x1, esquivando así el cuello de botella de acceso
 a memoria (MAC) que penalizaba a ShuffleNetV1 y priorizando velocidad real sobre FLOPs teóricos.
 
 En ImageNet-1K alcanza ~69 % de Top-1 con solo ~2.3 M de parámetros, siendo uno de los modelos
