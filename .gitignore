@@ -14,6 +14,11 @@ node_modules/
 /outputs/
 /outputs-remote**
 /results-remote/
+/reports/**/*.aux
+/reports/**/*.log
+/reports/**/*.out
+/reports/**/*.toc
+
 
 npm-debug.log*
 yarn-debug.log*
