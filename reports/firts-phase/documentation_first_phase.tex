@@ -120,7 +120,7 @@ El dataset consolidado en \texttt{clean/} re\'une \textbf{31~623 im\'agenes} en 
 Maize in Field Dataset & Campo real & CC BY-NC-SA 4.0 \\
 Maize Diseases & Lab + campo & CC BY-NC-SA 4.0 \\
 CropDG Unified Multi-Domain & Multi-dominio & CC BY-NC-SA 4.0 \\
-Maize/Beans/Tomatoes -- \'Africa & Campo real & Apache 2.0 + CC \\
+Maize / Beans / Tomatoes -- \'Africa & Campo real & Apache 2.0 + CC \\
 Maize Nutrient Deficiency & Campo real & CC BY 4.0 \\
 Corn Leaf -- Roboflow & Campo real & CC BY 4.0 \\
 \bottomrule
@@ -314,12 +314,12 @@ En los casos correctamente clasificados por los tres modelos priorizados (p.~ej.
 \label{fig:lime_correct}
 \end{figure}
 
-Adicionalmente, la Figura~\ref{fig:lime_nitrogen} muestra un caso sumamente interesante de la clase \texttt{nitrogen\_deficiency} (campo real) correctamente diagnosticada. LIME evidencia c\'omo el modelo concentra su atenci\'on en el patr\'on de decoloraci\'on caracter\'istico (clorosis) de la hoja, demostrando que la red ha aprendido las se\~nales agron\'omicas cl\'ave de la deficiencia nutricional y no s\'olo atajos del fondo.
+Adicionalmente, la Figura~\ref{fig:lime_nitrogen} muestra un caso sumamente interesante de EfficientNet-B0 sobre la clase \texttt{nitrogen\_deficiency} (campo real), correctamente diagnosticada con 99.99\% de confianza. LIME evidencia c\'omo el modelo concentra su atenci\'on en el patr\'on de decoloraci\'on caracter\'istico (clorosis) de la hoja, demostrando que la red ha aprendido las se\~nales agron\'omicas cl\'ave de la deficiencia nutricional y no s\'olo atajos del fondo.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.85\linewidth]{images/lime/nitrogen_deficiency_corn_leaf_roboflow_real_81272128__true-nitrogen_deficiency.png}
-\caption{Explicaci\'on LIME de un acierto en deficiencia nutricional (clase \texttt{nitrogen\_deficiency}, campo real).}
+\includegraphics[width=0.85\linewidth]{images/lime/b0_nitrogen_correct.png}
+\caption{Explicaci\'on LIME de un acierto de EfficientNet-B0 en deficiencia nutricional (\texttt{nitrogen\_deficiency}, campo real, 99.99\% de confianza).}
 \label{fig:lime_nitrogen}
 \end{figure}
 
