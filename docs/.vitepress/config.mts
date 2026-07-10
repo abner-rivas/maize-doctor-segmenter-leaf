@@ -148,27 +148,37 @@ export default defineConfig({
       themeConfig: {
         nav: [
           {
-            text: "Exploración",
-            items: [
-              { text: "Datasets", link: "/es/datasets/" },
-              { text: "Limpieza", link: "/es/cleanup-and-ordered/" },
-              { text: "Análisis Exploratorio", link: "/es/exploratory-data-analysis/" },
-            ]
-          },
-          { text: "Preprocesado", link: "/es/preprocessed/" },
-          {
-            text: "Deep Learning",
-            items: [
-              { text: "Teoría", link: "/es/deep-learning/" },
-              { text: "Interpretabilidad (XAI)", link: "/es/deep-learning/interpretabilidad-teoria" },
-              { text: "Baselines", link: "/es/baselines/" },
-            ]
-          },
-          {
-            text: "Pipelines",
+            text: "Datos",
             items: [
               {
-                text: "Baselines",
+                text: "Exploración",
+                items: [
+                  { text: "Datasets", link: "/es/datasets/" },
+                  { text: "Limpieza", link: "/es/cleanup-and-ordered/" },
+                  { text: "Análisis Exploratorio", link: "/es/exploratory-data-analysis/" },
+                ],
+              },
+              {
+                text: "Procesamiento",
+                items: [
+                  { text: "Preprocesado", link: "/es/preprocessed/" },
+                ],
+              },
+            ],
+          },
+          {
+            text: "Modelado",
+            items: [
+              {
+                text: "Deep Learning",
+                items: [
+                  { text: "Teoría", link: "/es/deep-learning/" },
+                  { text: "Interpretabilidad (XAI)", link: "/es/deep-learning/interpretabilidad-teoria" },
+                  { text: "Baselines", link: "/es/baselines/" },
+                ],
+              },
+              {
+                text: "Pipeline · Baselines",
                 items: [
                   { text: "Preprocesado", link: "/es/pipeline-baselines/preprocessed" },
                   { text: "Entrenamiento", link: "/es/pipeline-baselines/entrenamiento" },
@@ -178,7 +188,7 @@ export default defineConfig({
                 ],
               },
               // {
-              //   text: "Principal",
+              //   text: "Pipeline · Principal",
               //   items: [
               //     { text: "Preprocesado", link: "/es/pipeline/preprocessed" },
               //     { text: "Entrenamiento", link: "/es/pipeline/entrenamiento" },
@@ -187,7 +197,7 @@ export default defineConfig({
               //     { text: "Experimentos", link: "/es/pipeline/experimentos" },
               //   ],
               // },
-            ]
+            ],
           },
           {
             text: "Deployment",
