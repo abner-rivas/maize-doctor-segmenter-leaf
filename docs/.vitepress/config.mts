@@ -146,8 +146,6 @@ export default defineConfig({
         "Detección de Enfermedades Foliares en Cultivos de Maíz mediante Deep Learning en Dispositivos Móviles",
       themeConfig: {
         nav: [
-          { text: "Inicio", link: "/es/" },
-          { text: "Trabajos previos", link: "/es/previous-work/" },
           {
             text: "Exploración",
             items: [
