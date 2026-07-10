@@ -67,6 +67,7 @@ const esDatasetSidebar = [
     text: "Deep Learning",
     items: [
       { text: "Teoría", link: "/es/deep-learning/" },
+      { text: "Interpretabilidad (XAI)", link: "/es/deep-learning/interpretabilidad-teoria" },
       { text: "Baselines", link: "/es/baselines/" },
     ],
   },
@@ -159,6 +160,7 @@ export default defineConfig({
             text: "Deep Learning",
             items: [
               { text: "Teoría", link: "/es/deep-learning/" },
+              { text: "Interpretabilidad (XAI)", link: "/es/deep-learning/interpretabilidad-teoria" },
               { text: "Baselines", link: "/es/baselines/" },
             ]
           },
