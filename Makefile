@@ -26,7 +26,7 @@ NO_PRETRAINED ?=
 LIME ?=
 NUM_SAMPLES ?=
 
-.PHONY: install download-dataset splits splits-baseline train train-baselines explain-lime explain-report explain-errors test-loader summary docs-eda lint lint-fix fmt check clean-outputs modal-seed modal-train-baselines modal-clean-outputs modal-explain-lime modal-explain-report modal-explain-errors modal-pull
+.PHONY: compile-pdf install download-dataset splits splits-baseline train train-baselines explain-lime explain-report explain-errors test-loader summary docs-eda lint lint-fix fmt check clean-outputs modal-seed modal-train-baselines modal-clean-outputs modal-explain-lime modal-explain-report modal-explain-errors modal-pull
 
 install:
 	$(PIP) install -e ".[dev,analysis,xai,cloud]"
@@ -126,3 +126,7 @@ fmt:
 
 check:
 	$(PYRIGHT) src/ scripts/
+
+compile-pdf:
+	cd reports/firts-phase && pdflatex -interaction=nonstopmode documentation_first_phase.tex
+	cd reports/firts-phase && pdflatex -interaction=nonstopmode documentation_first_phase.tex
