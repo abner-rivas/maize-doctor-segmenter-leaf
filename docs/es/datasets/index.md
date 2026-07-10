@@ -22,8 +22,8 @@ Para cada dataset se registra:
 | [Maize Diseases](/es/datasets/maize-diseases) | Laboratorio + campo  | ~16 162 (v1.0 + v1.1) | Roya, NCLB, GLS, Sano | CC BY-NC-SA 4.0 |
 | [Corn Leaf Diseases](/es/datasets/corn-leaf-diseases) | Laboratorio augmentado  | 52 360 (aug x17) | Roya, NCLB, GLS, Sano | MIT |
 | [CropDG Unified Multi-Domain](/es/datasets/cropdg-unified-multidomain) | Multi-dominio  | ~13 275 (maíz + tomate) | NCLB, GLS, Sano (sin Roya) | CC BY-NC-SA 4.0 |
-| [Maize, Beans & Tomatoes - África](/es/datasets/maize-beans-tomatoes-africa) | Campo real  | 23 286 (12 clases) | Roya (~99), Sano (2 340), Cogollero | Apache 2.0 + CC |
-| [Multicrop Disease - Maize Pests and Disease](/es/datasets/multicrop-disease-maiz-disease-pests-and-disease) | Mixto  | - | Roya, NCLB, GLS, Sano | Desconocida |
+| [Maize, Beans & Tomatoes - África](/es/datasets/maize-beans-tomatoes-africa) | Campo real  | 23 286 (12 clases) | Roya (~99), Sano (2 340), Cogollero, Necrosis Letal | Apache 2.0 + CC |
+| [Maize Crop Disease (Leaf)](/es/datasets/multicrop-disease-maiz-disease-pests-and-disease) | Mixto  | 30 120 | Roya, NCLB, GLS, Sano, Cogollero, Necrosis Letal | CC BY 4.0 |
 | [Maize Nutrient Deficiency](/es/datasets/maize-nutrient-deficiency) | Campo real  | 463 | N, P, K, Mg, Sano | CC BY 4.0 |
 | [Corn Leaf - Roboflow](/es/datasets/corn-leaf-roboflow) | Campo real  | 3 943 | Cogollero, NCLB, GLS, Sano, N, P, K, Mg | CC BY 4.0 |
 
@@ -40,7 +40,8 @@ Conteo consolidado de imágenes **originales únicas** (sin augmentación sinté
 | NCLB | ~985 (PV) + ~192 (PlantDoc) | ~554 (ZA) + ~5 029 (CCMT) + ~292 (RF) | **~7 052** |
 | GLS | ~513 (PV) + ~68 (PlantDoc) | ~1 084 (ZA) + ~4 285 (CCMT) + ~3 946 (RF) | **~9 896** |
 | Sano | ~1 162 (PV) + ~1 041 (CCMT) | ~285 (ZA) + ~2 340 (África) + ~619 (RF) | **~5 447** |
-| Cogollero *(Fall Armyworm)* | - | ~77 (África) + ~4 858 (RF) | **~4 935** |
+| Cogollero *(Fall Armyworm)* | - | ~2 448 (África) + ~503 (RF) + ~2 560 (MCD) | **~5 511** |
+| Necrosis Letal | - | ~3 980 (África) + ~3 231 (MCD) | **~7 211** |
 
 ### Clases de deficiencia nutricional
 
@@ -50,7 +51,7 @@ Conteo consolidado de imágenes **originales únicas** (sin augmentación sinté
 | Fósforo | - | ~113 (MND) + ~612 (RF) | **~725** |
 | Potasio | - | ~56 (MND) + ~266 (RF) | **~322** |
 
-> ZA = Maize in Field Dataset (Sudáfrica). CCMT = dominio campo de CropDG. PlantDoc = dominio PD de CropDG. RF = Corn Leaf Roboflow. MND = Maize Nutrient Deficiency. África = Maize, Beans & Tomatoes Africa.
+> ZA = Maize in Field Dataset (Sudáfrica). CCMT = dominio campo de CropDG. PlantDoc = dominio PD de CropDG. RF = Corn Leaf Roboflow. MND = Maize Nutrient Deficiency. África = Maize, Beans & Tomatoes Africa. MCD = Maize Crop Disease (Leaf).
 
 ## Material de Campo Real
 
@@ -64,7 +65,8 @@ Las imágenes de campo real son el activo más valioso para la robustez del mode
 | NCLB | 554 | 5 029 | 192 | - | ~292 | **~6 067** |
 | GLS | 1 084 | 4 285 | 68 | - | ~3 946 | **~9 383** |
 | Sano | 285 | 1 041 | - | 2 340 | ~619 | **~4 285** |
-| Cogollero | - | - | - | ~77 | ~4 858 | **~4 935** |
+| Cogollero | - | - | - | ~2 448 | ~503 | **~2 951** |
+| Necrosis Letal | - | - | - | ~3 980 | - | **~3 980** |
 
 ### Deficiencias nutricionales
 
@@ -102,7 +104,8 @@ El objetivo de corpus es alcanzar **≥ 2 000 imágenes de campo real por clase*
 | NCLB | ~6 067 | ≥ 2 000 | Cubierto ✓ |
 | GLS | ~9 383 | ≥ 2 000 | Cubierto ✓ |
 | Sano | ~4 285 | ≥ 2 000 | Cubierto ✓ |
-| Cogollero | ~4 935 | ≥ 2 000 | Cubierto ✓ |
+| Cogollero | ~5 511 | ≥ 2 000 | Cubierto ✓ |
+| Necrosis Letal | ~7 211 | ≥ 2 000 | Cubierto ✓ |
 | Nitrógeno | ~622 | ≥ 2 000 | Requiere augmentation  |
 | Fósforo | ~725 | ≥ 2 000 | Requiere augmentation  |
 | Potasio | ~322 | ≥ 2 000 | Requiere augmentation  |
