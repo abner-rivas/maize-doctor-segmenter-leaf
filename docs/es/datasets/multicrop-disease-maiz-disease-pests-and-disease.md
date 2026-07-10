@@ -1,4 +1,4 @@
-# Multicrop Disease - Maize Disease, Pests and Disease
+# Maize Crop Disease (Leaf)
 
 ## Descripción
 
