@@ -22,4 +22,11 @@
   background: none !important;
   border-radius: 0 !important;
   filter: none !important;
+  height: auto !important;
+}
+
+@media (max-width: 959px) {
+  .VPHero .image {
+    margin: 0;
+  }
 }
