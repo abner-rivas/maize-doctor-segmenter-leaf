@@ -253,7 +253,7 @@ ShuffleNetV2-x1.0 & 2.3 M & $\sim$69.4\% & $\bigstar\bigstar\bigstar\bigstar$ (m
 
 \textbf{ShuffleNetV2-x1.0} (Ma et al., 2018) fue dise\~nada expl\'icitamente para inferencia eficiente en m\'oviles, usando operaciones de \textit{channel split} y \textit{channel shuffle} para esquivar el cuello de botella de memoria de convoluciones densas, resultando ser el modelo m\'as peque\~no de los evaluados ($\sim$5 MB serializado). \textbf{EfficientNet-B0} (Tan \& Le, 2019) usa bloques MBConv con SE integrado y es el punto de partida de la familia con \textit{compound scaling}. \textbf{EfficientNet-Lite0} es una variante de B0 sin bloques SE y con ReLU6 en lugar de Swish, dise\~nada expl\'icitamente para cuantizarse a INT8 sin p\'erdida significativa de precisi\'on (Google Brain/TensorFlow Team, 2020).
 
-Entrenamiento: 30 \'epocas, batch 32, tasa de aprendizaje $10^{-4}$, \textit{weight decay} $10^{-4}$, pesos preentrenados.
+Entrenamiento: 20 \'epocas, batch 32, tasa de aprendizaje $10^{-4}$, \textit{weight decay} $10^{-4}$, pesos preentrenados.
 
 \section{Resultados y M\'etricas}
 
@@ -268,19 +268,19 @@ La Tabla~\ref{tab:results} resume el desempe\~no en prueba de los tres modelos s
 \toprule
 \textbf{Modelo} & \textbf{Macro F1} & \textbf{Accuracy} & \textbf{Errores aprox.} \\
 \midrule
-EfficientNet-B0 & \textbf{0.9900} & \textbf{99.00\%} & $\sim$25 \\
-MobileNetV3-Large & 0.9667 & 96.67\% & $\sim$82 \\
-EfficientNet-Lite0 & 0.9604 & 96.00\% & $\sim$98 \\
+EfficientNet-B0 & \textbf{0.9903} & \textbf{99.19\%} & $\sim$20 \\
+ShuffleNetV2-x1.0 & 0.9900 & 99.23\% & $\sim$19 \\
+EfficientNet-Lite0 & 0.9894 & 99.10\% & $\sim$22 \\
 \bottomrule
 \end{tabular}
 \end{singlespace}
 \end{table}
 
-\textit{Nota:} el conteo de errores es una estimaci\'on (accuracy publicada $\times$ 2~457 im\'agenes de test); no se dispone de la matriz de confusi\'on exacta de esta corrida para un conteo por clase.
+\textit{Nota:} el conteo de errores se estima como $(1 - \text{accuracy}) \times 2{,}457$ im\'agenes de test.
 
-\textbf{EfficientNet-B0} obtiene el mejor resultado, con la menor tasa de error del grupo ($\sim$25 errores estimados sobre 2~457), pese al desbalance del test (soporte \texttt{nitrogen\_deficiency}=78 vs.\ \texttt{healthy}=1~311). \textbf{MobileNetV3-Large} queda por debajo de lo esperado frente a B0 ($\sim$82 errores estimados). \textbf{EfficientNet-Lite0} obtiene el resultado m\'as bajo de los tres ($\sim$98 errores estimados), consistente con su dise\~no: sacrifica capacidad representacional (sin SE, ReLU6 en vez de Swish) a cambio de compatibilidad con cuantizaci\'on.
+Los tres modelos obtienen resultados pr\'acticamente id\'enticos en macro-F1 ($\sim$0.99), con diferencias de menos de 1 punto porcentual. \textbf{EfficientNet-B0} lidera por un margen m\'inimo en macro-F1 (0.9903), pese al desbalance del test (soporte \texttt{nitrogen\_deficiency}=78 vs.\ \texttt{healthy}=1~311). \textbf{ShuffleNetV2-x1.0} obtiene la mejor accuracy (99.23\%) y el resultado m\'as cercano a B0 en macro-F1 (0.9900), con la ventaja adicional de ser el modelo m\'as peque\~no ($\sim$5~MB vs.\ $\sim$16~MB de B0). \textbf{EfficientNet-Lite0} queda ligeramente por debajo (0.9894), consistente con su dise\~no: sacrifica capacidad representacional (sin SE, ReLU6 en vez de Swish) a cambio de compatibilidad nativa con cuantizaci\'on INT8.
 
-\textbf{Hallazgo transversal -- \texttt{fall\_armyworm} como clase ``im\'an'' de errores.} En los tres modelos, de forma consistente, \texttt{fall\_armyworm} concentra la mayor\'ia de los falsos positivos: recall alto pero precisi\'on notablemente m\'as baja (Tabla~\ref{tab:fallarmyworm}, misma corrida con dataset natural/desbalanceado de la Tabla~\ref{tab:results}). Esto coincide con lo detectado en el EDA: \texttt{fall\_armyworm} mezcla dos se\~nales visuales seg\'un la fuente de origen, lo que la hace m\'as heterog\'enea que las otras tres clases del baseline.
+\textbf{Hallazgo transversal -- \texttt{fall\_armyworm} como clase con mayor concentraci\'on de errores.} En los tres modelos, de forma consistente, \texttt{fall\_armyworm} concentra la mayor\'ia de los falsos positivos: recall ligeramente inferior y precisi\'on alta (Tabla~\ref{tab:fallarmyworm}, misma corrida con dataset natural/desbalanceado de la Tabla~\ref{tab:results}). Esto coincide con lo detectado en el EDA: \texttt{fall\_armyworm} mezcla dos se\~nales visuales seg\'un la fuente de origen -- hoja con da\~no sin insecto vs.\ hoja con da\~no y gusano visible -- lo que la hace m\'as heterog\'enea que las otras tres clases del baseline.
 
 \begin{table}[htbp]
 \caption{Recall y precisi\'on de \texttt{fall\_armyworm} por modelo}
@@ -346,7 +346,7 @@ Google Brain / TensorFlow Team. (2020, marzo). \textit{Higher accuracy on vision
 
 \par\bigskip
 \noindent\hangindent=1.27cm\hangafter=1
-Howard, A., Pang, R., Adam, H., Le, Q. V., Sandler, M., Chen, B., Wang, W., Chen, L.-C., Tan, M., Chu, G., Vasudevan, V., \& Zhu, Y. (2019). Searching for MobileNetV3. En \textit{Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)} (pp. 1314--1324). Seoul, Korea.
+Ma, N., Zhang, X., Zheng, H.-T., \& Sun, J. (2018). ShuffleNet V2: Practical guidelines for efficient CNN architecture design. En \textit{Proceedings of the European Conference on Computer Vision (ECCV)} (pp. 116--131). Munich, Germany.
 
 \par\bigskip
 \noindent\hangindent=1.27cm\hangafter=1
