@@ -2,6 +2,12 @@ import { defineConfig } from "vitepress";
 
 const esDatasetSidebar = [
   {
+    text: "Antecedentes",
+    items: [
+      { text: "Trabajos previos", link: "/es/previous-work/" },
+    ],
+  },
+  {
     text: "Datasets",
     items: [
       { text: "Recopilación", link: "/es/datasets/" },
@@ -61,6 +67,7 @@ const esDatasetSidebar = [
     text: "Deep Learning",
     items: [
       { text: "Teoría", link: "/es/deep-learning/" },
+      { text: "Interpretabilidad (XAI)", link: "/es/deep-learning/interpretabilidad-teoria" },
       { text: "Baselines", link: "/es/baselines/" },
     ],
   },
@@ -140,28 +147,38 @@ export default defineConfig({
         "Detección de Enfermedades Foliares en Cultivos de Maíz mediante Deep Learning en Dispositivos Móviles",
       themeConfig: {
         nav: [
-          { text: "Inicio", link: "/es/" },
           {
-            text: "Exploración",
-            items: [
-              { text: "Datasets", link: "/es/datasets/" },
-              { text: "Limpieza", link: "/es/cleanup-and-ordered/" },
-              { text: "Análisis Exploratorio", link: "/es/exploratory-data-analysis/" },
-            ]
-          },
-          { text: "Preprocesado", link: "/es/preprocessed/" },
-          {
-            text: "Deep Learning",
-            items: [
-              { text: "Teoría", link: "/es/deep-learning/" },
-              { text: "Baselines", link: "/es/baselines/" },
-            ]
-          },
-          {
-            text: "Pipelines",
+            text: "Datos",
             items: [
               {
-                text: "Baselines",
+                text: "Exploración",
+                items: [
+                  { text: "Datasets", link: "/es/datasets/" },
+                  { text: "Limpieza", link: "/es/cleanup-and-ordered/" },
+                  { text: "Análisis Exploratorio", link: "/es/exploratory-data-analysis/" },
+                ],
+              },
+              {
+                text: "Procesamiento",
+                items: [
+                  { text: "Preprocesado", link: "/es/preprocessed/" },
+                ],
+              },
+            ],
+          },
+          {
+            text: "Modelado",
+            items: [
+              {
+                text: "Deep Learning",
+                items: [
+                  { text: "Teoría", link: "/es/deep-learning/" },
+                  { text: "Interpretabilidad (XAI)", link: "/es/deep-learning/interpretabilidad-teoria" },
+                  { text: "Baselines", link: "/es/baselines/" },
+                ],
+              },
+              {
+                text: "Pipeline · Baselines",
                 items: [
                   { text: "Preprocesado", link: "/es/pipeline-baselines/preprocessed" },
                   { text: "Entrenamiento", link: "/es/pipeline-baselines/entrenamiento" },
@@ -171,7 +188,7 @@ export default defineConfig({
                 ],
               },
               // {
-              //   text: "Principal",
+              //   text: "Pipeline · Principal",
               //   items: [
               //     { text: "Preprocesado", link: "/es/pipeline/preprocessed" },
               //     { text: "Entrenamiento", link: "/es/pipeline/entrenamiento" },
@@ -180,7 +197,7 @@ export default defineConfig({
               //     { text: "Experimentos", link: "/es/pipeline/experimentos" },
               //   ],
               // },
-            ]
+            ],
           },
           {
             text: "Deployment",
@@ -195,6 +212,7 @@ export default defineConfig({
           "/es/cleanup-and-ordered/": esDatasetSidebar,
           "/es/exploratory-data-analysis/": esDatasetSidebar,
           "/es/preprocessed/": esDatasetSidebar,
+          "/es/previous-work/": esDatasetSidebar,
           "/es/baselines/": esDatasetSidebar,
           "/es/pipeline-baselines/": esDatasetSidebar,
           "/es/deep-learning/": esDatasetSidebar,
