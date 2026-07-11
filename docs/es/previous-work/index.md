@@ -43,7 +43,7 @@ Bajo esta investigación se ha podido constatar que un sistema robusto para el d
 
 El alcance de este proyecto se ideó para abordar la segunda etapa, la clasificación, con la idea de que en un futuro cercano se pueda integrar un módulo de segmentación.
 
-Es en esta etapa de clasificación donde reside el "juicio" agronómico del sistema, se priorizará la evaluación sobre imágenes de campo real y no solo de laboratorio para no caer en la ilusión de fiabilidad de la brecha de dominio, se adopta el F1-macro con umbral de 0.85 como criterio de viabilidad para que las clases minoritarias pesen igual que las mayoritarias, se eligen arquitecturas ligeras como las del tipo EfficientNet-B0 pensando en el despliegue TFLite offline con un modelo muy liviano y una latencia por debajo de 300 ms.
+Es en esta etapa de clasificación donde reside el "juicio" agronómico del sistema, se priorizará la evaluación sobre imágenes de campo real y no solo de laboratorio para no caer en esa ilusión de fiabilidad, se adopta el F1-macro con umbral de 0.85 como criterio de viabilidad para que las clases minoritarias pesen igual que las mayoritarias, se eligen arquitecturas ligeras como las del tipo EfficientNet-B0 pensando en el despliegue TFLite offline con un modelo muy liviano y una latencia por debajo de 300 ms.
 
 El clasificador que se trabaja en este proyecto está diseñado para operar sobre la hoja como región de interés, de modo que el día en que se anteponga un módulo de segmentación, ya sea una red en cascada o un recorte por profundidad, este componente o pipeline pueda recibir la hoja aislada sin la necesidad de rediseñarse en gran medida.
 
