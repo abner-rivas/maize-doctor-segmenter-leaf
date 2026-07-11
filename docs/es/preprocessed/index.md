@@ -4,11 +4,12 @@
 
 Antes de que una imagen llegue al modelo tiene que pasar por un único punto de entrada que la deje en un formato consistente, sin importar si viene de una cámara de laboratorio o de un smartphone en el campo. Esto evita que se cuele ruido en nuestro dataset y que el modelo aprenda artefactos irrelevantes.
 
-Toda imagen se carga en caliente, mediante tres pasos en orden:
+Toda imagen se carga en caliente, mediante dos pasos en orden:
 
 1. **Corrección EXIF**: corrige la orientación física de fotos tomadas con smartphones antes de cualquier transformación.
 2. **Conversión a RGB estricta**: elimina el canal alfa (RGBA) y expande imágenes monocromáticas, garantizando 3 canales en todos los tensores.
-3. **Estadísticas de normalización**: se usan las medias y desviaciones estándar de ImageNet (`mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`). Se eligieron porque todos los backbones preentrenados esperan esta normalización.
+
+Ya como parte de los pipelines de transformación, cada tensor se normaliza con las medias y desviaciones estándar de ImageNet (`mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`). Se eligieron porque todos los backbones preentrenados esperan esta normalización.
 
 ## División
 
@@ -38,8 +39,8 @@ El dataset completo que se tiene a la fecha está lejos de ser uniforme, algunas
 | phosphorus_deficiency | 428 | 14.3x |
 | gray_leaf_spot | 778 | 7.9x |
 | common_rust | 1575 | 3.9x |
-| lethal_necrosis | 4491 | 1.4x |
 | fall_armyworm | 3223 | 1.9x |
+| lethal_necrosis | 4491 | 1.4x |
 | northern_corn_leaf_blight | 4774 | 1.3x |
 | healthy | 6118 | 1.0x |
 

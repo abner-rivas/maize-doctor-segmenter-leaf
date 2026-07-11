@@ -1,21 +1,23 @@
 # Interpretabilidad y Explicabilidad (XAI)
 
-Una CNN entrenada para diagnosticar enfermedades del maíz es por defecto una caja negra, nos entrega una etiqueta pero no nos dice en qué se fijó para llegar a esa decisión.
+Una CNN es por defecto una caja negra, nos entrega una etiqueta pero no nos dice en qué se fijó para llegar a esa decisión.
 
-Haremos un repaso de las tres técnicas de explicabilidad más usadas en este campo, LIME, SHAP y Grad-CAM, para después justificar cuáles adoptamos en este proyecto.
+Existen tres técnicas de explicabilidad más usadas en este campo: LIME, SHAP y Grad-CAM, primero veremos un poco de teoría para después justificar cuáles adoptamos en este proyecto.
 
-Una clasificación equivocada se puede traducir en una decisión de manejo equivocada, como aplicar el fertilizante que no era o fumigar sin necesidad, y por eso, tal como vimos con la brecha de dominio en los trabajos previos, no es suficiente con que el modelo acierte, necesitamos poder revisar que realmente está mirando el síntoma correcto.
+¿Por qué es importante la explicabilidad en modelos de deep learning?
+
+Una clasificación equivocada se puede traducir en una decisión de manejo equivocada, como aplicar el fertilizante que no era o fumigar sin necesidad, y por eso, tal como vimos con la brecha de dominio en los trabajos previos, no es suficiente con que el modelo acierte, necesitamos poder revisar que realmente está mirando dónde está el problema.
 
 ---
 
-Estas herramientas se pueden diferenciar en su aplicación y en que tipo de explicación producen.
+Estas herramientas en general se pueden diferenciar en su aplicación y en que tipo de explicación producen.
 
 En su aplicación:
 - LIME y SHAP son agnósticos al modelo, tratan a la red como una función de caja negra y solo necesitan poder consultarla.
 - Grad-CAM en cambio es un método que aprovecha la estructura interna de la CNN, sus mapas de activación y sus gradientes, y por lo tanto solo sirven para esa familia de modelos.
 
 En su tipo de explicación:
-- Explicaciones locales, que justifican una predicción concreta, del tipo por qué esta hoja fue clasificada como roya.
+- Explicaciones locales, que justifican una predicción concreta, del tipo "¿por qué esta hoja fue clasificada como roya?".
 - Y explicaciones globales, que describen el comportamiento del modelo en promedio sobre todo el conjunto. 
 
 Las tres técnicas que se han decidido aplicar son fundamentalmente locales, aunque SHAP se puede agregar para aproximar una visión global, todas producen atribuciones, es decir un valor de importancia por cada componente de la entrada, ya sea un píxel, un superpíxel o una región espacial, que nos indica cuánto empujó ese componente hacia la clase predicha.
@@ -30,13 +32,15 @@ El resultado que se busca es un mapa donde los superpíxeles que sostienen la pr
 
 Entre las ventajas de usar LIME está que es agnóstico al modelo, muy intuitivo visualmente, y que produce importancias con signo, distinguiendo lo que va a favor de lo que va en contra. 
 
-Entre ssu desventajas podemos mencionar dos cosas: es el más costoso de los tres porque requiere alrededor de mil inferencias por imagen, y sobre todo es el más inestable, ya que al ser las perturbaciones aleatorias, dos ejecuciones con semillas distintas pueden dar explicaciones diferentes. Aunque para medir precisamente esto es que en el proyecto se incluirá una auditoría de estabilidad que correrá varias semillas y comparará los mapas resultantes.
+Entre sus desventajas podemos mencionar dos cosas: es el más costoso de los tres porque requiere alrededor de mil inferencias por imagen, y sobre todo es el más inestable, ya que al ser las perturbaciones aleatorias, dos ejecuciones con semillas distintas pueden dar explicaciones diferentes. Aunque para medir precisamente esto es que en el proyecto se incluirá una auditoría de estabilidad que correrá varias semillas y comparará los mapas resultantes.
 
 ## SHAP
 
 SHAP le asigna a cada característica una importancia basada en los valores de Shapley, un concepto que viene de la teoría de juegos cooperativos. La idea es tratar cada superpíxel como si fuera un jugador y repartir de forma justa el crédito de la predicción entre todos ellos, promediando la contribución que aporta cada uno cuando se suma a las distintas combinaciones posibles de los demás.
 
 Su gran atractivo teórico es que es el único método de atribución que cumple a la vez un conjunto de propiedades deseables, como la consistencia y que las características irrelevantes reciban importancia cero. En la práctica se usan aproximaciones, ya sea KernelSHAP, que es agnóstico al modelo y se puede ver como una versión con mejor fundamento teórico de LIME, o variantes como DeepSHAP y GradientSHAP, que son específicas para redes neuronales y mucho más rápidas porque aprovechan los gradientes. A diferencia de LIME, estas atribuciones son aditivas y consistentes, se pueden comparar entre imágenes distintas, y se pueden agregar sobre muchas imágenes para obtener una lectura global, por ejemplo qué regiones importan sistemáticamente para la clase de roya común. Su costo es alto en la variante KernelSHAP, aunque menor que el de LIME, y las variantes rápidas para redes profundas dependen de la arquitectura y de una elección cuidadosa de la línea base, que introduce sus propias suposiciones.
+
+![SHAP vs LIME](/xai/shap_vs_lime.png)
 
 ## Grad-CAM
 
@@ -48,7 +52,7 @@ La lectura será directa: se superpone el mapa de calor sobre la imagen y las zo
 
 Sus ventajas son que es órdenes de magnitud más rápida, con una sola pasada hacia adelante y hacia atrás, que es determinista y por lo tanto no arrastra el problema de estabilidad de LIME, y que resulta muy legible para un experto de dominio. 
 
-Como desventaja tiene que solo aplica a CNN, que su resolución está limitada por la del mapa de activación de la última capa convolucional, con lo que localiza regiones amplias pero no bordes finos, y que no separa la evidencia a favor de la que va en contra con el mismo detalle que LIME o SHAP.
+Como desventaja tiene que solo aplica a CNN, que su resolución está limitada por el mapa de activación de la última capa convolucional, con lo que localiza regiones amplias pero no bordes finos.
 
 ## Comparativa
 
@@ -64,17 +68,11 @@ Las diferencias principales entre las tres técnicas son las siguientes:
 | Estabilidad | Baja, por la perturbación aleatoria | Alta, determinista | Alta, determinista |
 | Fundamento teórico | Heurístico | Fuerte, axiomas de Shapley | Basado en gradientes |
 
-> Lo importante es que las tres son complementarias y no excluyentes. Grad-CAM nos dice dónde mira el modelo de forma barata y estable, mientras que LIME y SHAP nos dicen qué evidencia sostiene la decisión con importancias que tienen signo. La literatura reciente en imagen médica y agrícola las suele combinar precisamente por esta razón.
+---
 
-## Qué usamos en este proyecto
+Bajo esta investigación decidimos adoptar la pareja LIME más Grad-CAM como base de explicabilidad, en las primeras etapas y experimentos con baselines, y dejar SHAP para el pipeline principal y los análisis globales una vez que tengamos un modelo final estable.
 
-Bajo esta investigación decidimos adoptar la pareja LIME más Grad-CAM como base de explicabilidad, desde las primeras etapas y experimentos con baselines, y dejar SHAP para el pipeline principal y los análisis globales una vez que tengamos un modelo final estable.
-
-Grad-CAM es prácticamente una técnica de referencia obligada en la clasificación de enfermedades foliares con CNN, porque es barata, estable y responde directamente a la pregunta que más nos interesa, que es validar que el modelo mira la lesión y no el fondo, un problema que ya identificamos como crítico en los trabajos previos. Su costo marginal además es mínimo, porque se añade como un panel adicional opcional sobre el pipeline que ya teníamos. LIME lo complementa aportando lo que a Grad-CAM le falta, que son las importancias con signo a nivel de superpíxel, muy útiles para el análisis de errores dirigido sobre los casos donde la etiqueta real y la predicha no coinciden, y su inestabilidad la gestionamos con la auditoría de estabilidad en lugar de ignorarla.
-
-Una vez que fijemos el modelo del pipeline principal, SHAP, idealmente en su variante DeepSHAP o GradientSHAP por rapidez, sería la vía natural para una lectura global y consistente, por ejemplo para cuantificar qué regiones sostienen sistemáticamente la confusión entre las deficiencias de nitrógeno, fósforo y potasio que observamos en la evaluación, algo que ni LIME ni Grad-CAM nos dan de forma nativa. Queda entonces como una línea de trabajo futura y no como una carencia del análisis actual.
-
-El detalle operativo de todo esto, los scripts concretos, las banderas y cómo se leen los paneles sobre las imágenes de maíz, está en [Interpretabilidad del pipeline de baselines](../pipeline-baselines/interpretabilidad.md).
+El detalle de los primeros análisis está en [Interpretabilidad del pipeline de baselines](../pipeline-baselines/interpretabilidad.md).
 
 ---
 
