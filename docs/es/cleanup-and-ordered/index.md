@@ -96,7 +96,7 @@ Tras aplicar las rutinas automatizadas de deduplicación y filtros de exclusión
 | Clase                        | Lab    | Real   | Total  |
 |------------------------------|-------:|-------:|-------:|
 | `common_rust`                |  2 150 |    106 |  2 256 |
-| `fall_armyworm`              |      0 |  4 858 |  4 858 |
+| `fall_armyworm`              |      0 |  4 857 |  4 857 |
 | `gray_leaf_spot`             |    513 |    606 |  1 119 |
 | `healthy`                    |      0 |  8 744 |  8 744 |
 | `lethal_necrosis`            |      0 |  6 415 |  6 415 |
@@ -104,7 +104,7 @@ Tras aplicar las rutinas automatizadas de deduplicación y filtros de exclusión
 | `northern_corn_leaf_blight`  |    888 |  5 942 |  6 830 |
 | `phosphorus_deficiency`      |      0 |    612 |    612 |
 | `potassium_deficiency`       |      0 |    266 |    266 |
-| **TOTAL**                    |  **3 551** | **28 072** | **31 623** |
+| **TOTAL**                    |  **3 551** | **28 071** | **31 622** |
 
 ## Observaciones
 

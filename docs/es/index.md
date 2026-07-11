@@ -18,9 +18,9 @@ hero:
 
 features:
   - title: "9 Clases"
-    details: "Clasificación de 6 enfermedades foliares y plagas (roya, NCLB, GLS, cogollero, áfidos, sana) y 3 deficiencias nutricionales (N, P, K) mediante CNN con transferencia de aprendizaje."
+    details: "Clasificación de 6 enfermedades foliares y plagas (roya, NCLB, GLS, necrosis letal, cogollero, sana) y 3 deficiencias nutricionales (N, P, K) mediante CNN con transferencia de aprendizaje."
   - title: "Edge AI Offline"
-    details: "Modelo TensorFlow Lite con cuantización Int8, objetivo ≤ 20 MB y latencia ≤ 300 ms en CPU Snapdragon serie 6xx o equivalente."
+    details: "Entrenamiento en PyTorch y exportación a TensorFlow Lite con cuantización Int8, con objetivo ≤ 20 MB y latencia ≤ 300 ms en CPU Snapdragon serie 6xx o equivalente."
   - title: "Orientado al Campo"
     details: "Evaluación priorizada sobre imágenes reales de campo. El conjunto de prueba es independiente y de dominio real para garantizar robustez agrícola."
   - title: "Meta Macro F1 ≥ 0.85"
@@ -61,9 +61,9 @@ El problema es que en zonas rurales el acceso a asistencia técnica es limitado,
 | **Roya común** | Common Rust | *Puccinia sorghi* | Pústulas anaranjadas dispersas en ambas caras de la hoja | 2 150 | 106 (pocos datos) | 2 256 |
 | **Tizón foliar del norte (NCLB)** | Northern Corn Leaf Blight | *Exserohilum turcicum* | Lesiones alargadas grisáceas o marrones con bordes difusos | 888 | 5 942 | 6 830 |
 | **Mancha gris de la hoja (GLS)** | Gray Leaf Spot | *Cercospora zeae-maydis* | Lesiones rectangulares grises o marrones delimitadas por nervaduras | 513 | 606 | 1 119 |
+| **Necrosis letal del maíz (MLN)** | Lethal Necrosis | *MCMV + SCMV* | Moteado clorótico severo, necrosis y muerte progresiva de la planta | 0 | 6 415 | 6 415 |
 | **Hoja sana** | Healthy | - | Sin síntomas foliares de enfermedad | 0 | 8 744 | 8 744 |
-| **Gusano cogollero** | Fall Armyworm | *Spodoptera frugiperda* | Daño por masticación con excrementos en el cogollo y hojas | 0 | 4 858 | 4 858 |
-| **Áfidos del maíz** | Maize Aphids | *Rhopalosiphum maidis* | Colonias de pulgones en hojas y cogollo, hojas enrolladas y amarillamiento | 0 | 77 (pocos datos) | 77 |
+| **Gusano cogollero** | Fall Armyworm | *Spodoptera frugiperda* | Daño por masticación con excrementos en el cogollo y hojas | 0 | 4 857 | 4 857 |
 
 #### Deficiencias nutricionales
 
@@ -73,7 +73,7 @@ El problema es que en zonas rurales el acceso a asistencia técnica es limitado,
 | **Deficiencia de fósforo** | Phosphorus Deficiency | Bordes y puntas moradas/rojizas en hojas jóvenes | 0 | 612 (pocos datos) | 612 |
 | **Deficiencia de potasio** | Potassium Deficiency | Necrosis marginal en hojas más viejas | 0 | 266 (pocos datos) | 266 |
 
-> Conteos post-limpieza y deduplicación en `data/clean/` (junio 2026). Total consolidado: **25 362 imágenes** (3 551 lab + 21 811 campo real). Las marcas "(pocos datos)" señalan las clases con menor cantidad de imágenes disponibles.
+> Conteos post-limpieza y deduplicación en `data/clean/` (junio 2026). Total consolidado: **31 622 imágenes** (3 551 lab + 28 071 campo real). Las marcas "(pocos datos)" señalan las clases con menor cantidad de imágenes disponibles. La clase `aphids_pest` (áfidos del maíz) fue evaluada pero descartada por escasez de datos (~77 imágenes); en su lugar se incorporó `lethal_necrosis`.
 
 
 ### Metodología
@@ -83,9 +83,9 @@ El proyecto avanza en fases iterativas siguiendo **CRISP-DM**:
 1. **Comprensión del negocio**: análisis del impacto en el sector agrícola salvadoreño
 2. **Comprensión de los datos**: consolidación multi-fuente de datasets públicos; ver [Recopilación de datasets](/es/datasets/)
 3. **Preparación de los datos**: limpieza, estandarización a 224 x 224 px y data augmentation
-4. **Modelado**: transfer learning con modelos preentrenados en ImageNet
+4. **Modelado**: transfer learning en PyTorch con modelos preentrenados en ImageNet
 5. **Evaluación**: Macro F1 ≥ 0.85 sobre conjunto de prueba independiente compuesto por imágenes de campo
-6. **Despliegue**: PWA con inferencia TFLite offline + módulo opcional de sincronización
+6. **Despliegue**: exportación del modelo PyTorch a TFLite (Int8) y PWA con inferencia offline + módulo opcional de sincronización
 
 ### Arquitectura del Sistema
 
@@ -94,7 +94,7 @@ Captura / Galería
       ↓
 Preprocesamiento (224x224, normalización)
       ↓
-Inferencia CNN - TensorFlow Lite (Int8)
+Inferencia CNN - TensorFlow Lite (Int8, exportado desde PyTorch)
       ↓
 Clase predicha + nivel de confianza
       ↓ (cuando hay conexión)

@@ -68,28 +68,18 @@ cada clase real) hace visible que los errores **no son ruido aleatorio**.
 
 ![Matriz de confusión de efficientnet_b0](/baselines/baseline_confusion_b0.png)
 
-**Clúster 1 - deficiencias nutricionales (N/P/K).** El bloque inferior-derecho concentra casi todo
-el error del modelo. De las 40 imágenes de potasio, solo 21 se clasifican bien; **13 se confunden
-con nitrógeno y 5 con fósforo**. La observación clave es que este error es *dirigido*: si se toman
-todas las predicciones de las tres deficiencias juntas, el **97 % permanece dentro del propio
-clúster N/P/K** (solo 6 de 211 se escapan a una clase no nutricional). El modelo *sabe* que está
-viendo una deficiencia; lo que no logra es discriminar **cuál** de las tres, porque comparten el
-mismo síntoma base de clorosis y potasio es la clase con menos ejemplos de todo el dataset (266
-imágenes totales).
+**Clúster 1 - deficiencias nutricionales (N/P/K).** El bloque inferior-derecho concentra casi todo el error del modelo. De las 40 imágenes de potasio, solo 21 se clasifican bien; **13 se confunden con nitrógeno y 5 con fósforo**. La observación clave es que este error es *dirigido*: si se toman todas las predicciones de las tres deficiencias juntas, el **97 % permanece dentro del propio clúster N/P/K** (solo 6 de 211 se escapan a una clase no nutricional). El modelo *sabe* que está viendo una deficiencia; lo que no logra es discriminar **cuál** de las tres, porque comparten el mismo síntoma base de clorosis y potasio es la clase con menos ejemplos de todo el dataset (266 imágenes totales).
 
 **Clúster 2 - lesiones foliares (GLS ↔ NCLB).** `gray_leaf_spot` y `northern_corn_leaf_blight` se
-confunden mutuamente (4–5 imágenes en cada sentido para b0) porque sus lesiones alargadas
-grisáceas/marrones son visualmente muy parecidas. Es un error de menor magnitud pero también
-consistente entre los tres modelos.
+confunden mutuamente (4–5 imágenes en cada sentido para b0) porque sus lesiones alargadas grisáceas/marrones son visualmente muy parecidas. Es un error de menor magnitud pero también consistente entre los tres modelos.
 
-Fuera de esos dos clústeres, la matriz es prácticamente diagonal: `common_rust`, `lethal_necrosis`
-y `healthy` se clasifican con recall ≥ 0.99.
+Fuera de esos dos clústeres, la matriz es prácticamente diagonal: `common_rust`, `lethal_necrosis` y `healthy` se clasifican con recall ≥ 0.99.
 
 ## Hallazgos y recomendaciones
 
 1. **`potassium_deficiency` es el único cuello de botella que impide subir la métrica.** Con 40 imágenes en test y recall de 0.38–0.53, es la clase que más castiga el macro-F1. Aislarla revela que el clasificador base ya vale ~0.95.
 
-2. **El modelo ya "detecta" deficiencias nutricionales con altísima fiabilidad.** El modelo detecta la categoría "deficiencia nutricional" con altísima fiabilidad (97 % de contención en el clúster) pero no separa N/P/K entre sí. Para este baseline tenemos un baseline que puede dar una respuesta del tipo "deficiencia nutricional" como confiable, aunque el no pueda decir cuál de las tres.
+2. **El modelo ya "detecta" deficiencias nutricionales con altísima fiabilidad.** El modelo detecta la categoría "deficiencia nutricional" con altísima fiabilidad (97 % de contención en el clúster) pero no separa N/P/K entre sí. Para este baseline tenemos un modelo que puede dar una respuesta del tipo "deficiencia nutricional" como confiable, aunque no pueda decir cuál de las tres.
 
 3. **Lo que se necesitan son datos.** Mas que aumentar la capacidad del modelo, lo rentable es aumentar/rebalancear las deficiencias (especialmente potasio): más imágenes reales, augmentation dirigida, o incluso pérdida ponderada por clase (que el baseline de momento no usa).
 

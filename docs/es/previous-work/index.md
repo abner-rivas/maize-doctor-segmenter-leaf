@@ -1,6 +1,6 @@
 # Trabajos previos
 
-El diagnóstico automatizado de enfermedades foliares en maíz (*Zea mays L.*) ha dado grandes pasos desde la inspección visual en los campos, hacia sistemas de visión por computadora basados en aprendizaje profundo. Haremos un resumen de los trabajos previos de este campo, para después justificar por qué el alcance de este proyecto se concentra en la clasificación y cómo lo hemos porpuesto como un paso intermedio hacia un sistema completo de segmentación y clasificación.
+El diagnóstico automatizado de enfermedades foliares en maíz (*Zea mays L.*) ha dado grandes pasos desde la inspección visual en los campos, hacia sistemas de visión por computadora basados en aprendizaje profundo. Haremos un resumen de los trabajos previos de este campo, para después justificar por qué el alcance de este proyecto se concentra en la clasificación y cómo lo hemos propuesto como un paso intermedio hacia un sistema completo de segmentación y clasificación.
 
 ---
 
@@ -10,13 +10,13 @@ Los primeros proyectos se apoyaban en el aprendizaje automático clásico: SVM, 
 
 Dentro de toda la investigación realizada, el problema más crítico que se ha documentado es la brecha de dominio entre laboratorio y campo. La mayoría de los modelos pioneros se entrenaron con *PlantVillage*, un conjunto que captura hojas aisladas sobre fondos homogéneos y con iluminación controlada, donde las CNN alcanzan con regularidad exactitudes de entre 95.81 % y 99.53 % <sup>[[2]](#ref-2)</sup>, pero aún con esas cifras, cuando esos mismos modelos se evalúan contra conjuntos capturados en campo real, como *PlantDoc*, *FieldPlant* o *CD&S*, la precisión llega a desplomarse a rangos críticos de entre 33.27 % y 39.87 % <sup>[[2]](#ref-2)</sup>.
 
-Ya exiten muchas investigaciones que han llegado a los mismos análisis y conclusiones, y es que en el campo, tenemos hojas enfermas que se superponen con hojas sanas, malezas, suelo y otras estructuras de la planta, además de sombras, reflejos solares y una variabilidad en la luz que afecta la visibilidad de los rasgos. 
+Ya existen muchas investigaciones que han llegado a los mismos análisis y conclusiones, y es que en el campo tenemos hojas enfermas que se superponen con hojas sanas, malezas, suelo y otras estructuras de la planta, además de sombras, reflejos solares y una variabilidad en la luz que afecta la visibilidad de los rasgos. 
 
-Para intentar combatir esos probkemas, algunos trabajos han recurrido a aumento de datos agresivo (data augmentation), a mezclar imágenes de laboratorio y campo en el entrenamiento y a técnicas de eliminación de fondo mediante canales RGBA. Con esas correcciones, arquitecturas como DenseNet169 logran estabilizar la precisión de generalización cruzada en un rango del 77.50 % al 81.60 % bajo condiciones reales <sup>[[3]](#ref-3)</sup>.
+Para intentar combatir esos problemas, algunos trabajos han recurrido a aumento de datos agresivo (data augmentation), a mezclar imágenes de laboratorio y campo en el entrenamiento y a técnicas de eliminación de fondo mediante canales RGBA. Con esas correcciones, arquitecturas como DenseNet169 logran estabilizar la precisión de generalización cruzada en un rango del 77.50 % al 81.60 % bajo condiciones reales <sup>[[3]](#ref-3)</sup>.
 
 ## Tecnologías y limitaciones actuales
 
-Investigaciones actuales cambian la arquitectuea de la solución, de CNN puras hacia esquemas híbridos y en cascada que separan el problema para intenar lidiar con los problemas que mencionamos arriba.
+Investigaciones actuales cambian la arquitectura de la solución, de CNN puras hacia esquemas híbridos y en cascada que separan el problema para intenar lidiar con los problemas que mencionamos arriba.
 
 Uno de los esquemas actuales combina Redes Neuronales Convolucionales con Vision Transformers: las CNN extraen las texturas finas del patógeno, mientras que el Vision Transformer modela mediante autoatención las relaciones de largo alcance entre lesiones separadas dentro de la misma hoja. Trabajos como el híbrido CNN-ViT de Shandilya et al. reportan un F1-score cercano al 99.13 % sobre conjuntos mixtos <sup>[[4]](#ref-4)</sup>, y sistemas desplegados en campo como ZeaWatch alcanzan métricas de validación casi perfectas, aunque su confianza de predicción documentada cae al 70.8 % una vez instalado en los lugares a utilizar <sup>[[5]](#ref-5)</sup>, lo que de nuevo nos trae a la brecha de dominio lab / real.
 

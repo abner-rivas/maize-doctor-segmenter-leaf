@@ -25,11 +25,7 @@ En una imagen de laboratorio de `common_rust` bien clasificada, LIME resalta sup
 
 ### Caso de error: potasio diagnosticado como nitrógeno
 
-Este panel es uno de los más informativo de todo el análisis, el modelo clasifica una imagen de
-`potassium_deficiency` como `nitrogen_deficiency` **con 99.7 % de confianza**. Grad-CAM se enciende
-sobre la punta necrótica y amarillenta de la hoja, un síntoma real de clorosis, pero ese mismo
-rasgo es ambiguo entre las tres deficiencias. El modelo mira el lugar correcto y aun así llega a la
-etiqueta equivocada.
+Este panel es uno de los más informativos de todo el análisis, el modelo clasifica una imagen de `potassium_deficiency` como `nitrogen_deficiency` **con 99.7 % de confianza**. Grad-CAM se enciende sobre la punta necrótica y amarillenta de la hoja, un síntoma real de clorosis, pero ese mismo rasgo es ambiguo entre las tres deficiencias. El modelo mira el lugar correcto y aun así llega a la etiqueta equivocada.
 
 ![LIME + Grad-CAM: potasio clasificado como nitrógeno con alta confianza](/baselines/samples/lime_potasio_error_nitrogeno.png)
 
@@ -47,4 +43,4 @@ El modelo **se equivoca con alta confianza**, cuando falla, no lo hace "dudando"
 
 Este hallazgo inicial es muy importante para el caso de uso que busca darle, un mensaje del tipo "confianza baja, consulte a un técnico" no capturaría estos casos donde el modelo esté equivocado.
 
-En caso de que no se logre llegar a mejores reusltados, una alternativa más prometedora sería agrupar N/P/K en una respuesta de "deficiencia nutricional" cuando la predicción caiga dentro de ese clúster, pero eso es algo que se decidirá luego de continuar con el pipeline principal.
+En caso de que no se logre llegar a mejores resultados, una alternativa más prometedora sería agrupar N/P/K en una respuesta de "deficiencia nutricional" cuando la predicción caiga dentro de ese clúster, pero eso es algo que se decidirá luego de continuar con el pipeline principal.
