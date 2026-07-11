@@ -119,7 +119,7 @@ Se evaluaron tres métricas sobre una muestra estratificada de hasta 400 imágen
 
 ![Distribuciones de calidad por clase](/eda/eda_04b_calidad_boxplots.png)
 
-**El desenfoque es el único problema de calidad significativo.** Las categorías de subexposición y sobreexposición son prácticamente inexistentes (~0%). En contraste, el blur afecta de forma desigual: `gray_leaf_spot` es la clase más afectada (~38%), seguida de `nitrogen_deficiency` (~28%) y `potassium_deficiency` (~21%) — precisamente clases minoritarias, lo que agrava el problema.
+**El desenfoque es el único problema de calidad significativo.** Las categorías de subexposición y sobreexposición son prácticamente inexistentes (~0%). En contraste, el blur afecta de forma desigual: `gray_leaf_spot` es la clase más afectada (~38%), seguida de `nitrogen_deficiency` (~28%) y `potassium_deficiency` (~21%), precisamente clases minoritarias, lo que agrava el problema.
 
 **Hallazgo en los boxplots de brillo:** `common_rust` presenta un brillo mediano notablemente inferior (~95) comparado con el resto (~120-140). Esto es evidencia cuantitativa directa del sesgo de dominio: sus imágenes de laboratorio usan fondos oscuros que bajan el brillo global. Si el modelo aprende a asociar brillo bajo con `common_rust`, fallará en imágenes de campo con fondo de vegetación.
 

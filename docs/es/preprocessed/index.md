@@ -48,15 +48,19 @@ El dataset completo que se tiene a la fecha está lejos de ser uniforme, algunas
 
 Antes de llegar a la estrategia actual se evaluaron otras alternativas más simples, y se descartaron por razones concretas:
 
-- **Undersampling agresivo:** esta idea se descartó porque elimina datos reales y escasos. Reducir la enorme variedad de imágenes de clases como `healthy` o `lethal_necrosis` a 500 o 1 000 imágenes por clase sería un desperdicio de información valiosa. Además, el modelo perdería la oportunidad de aprender patrones de fondo y variaciones de iluminación que solo aparecen en clases mayoritarias.
-- **Oversampling físico (crear más copias fisicas en disco):** se descartó (de momento) porque con técnicas como el uso de `WeightedRandomSampler` se podría lograr el mismo efecto en memoria, es reversible y se combina con la augmentation en caliente que se ha propuesto.
-- **Focal Loss:** Se revisará si los resultados experimentales no mejoran, sobre todo en clases minoritarias. Por ahora se mantiene la CrossEntropyLoss ponderada, que es más simple y funciona bien con el sampler.
+- **Undersampling agresivo:** se descartó porque elimina datos reales y escasos. Bajar la enorme variedad de imágenes de clases como `healthy` o `lethal_necrosis` a 500 o 1 000 imágenes por clase sería un desperdicio de información valiosa. Además, el modelo perdería la oportunidad de aprender patrones de fondo y variaciones de iluminación que solo aparecen en clases mayoritarias.
+- **Oversampling físico (crear más copias físicas en disco):** se descartó (de momento) porque con técnicas como `WeightedRandomSampler` se logra el mismo efecto en memoria, es reversible y se combina con la augmentation en caliente.
+- **Focal Loss:** se contempla como opción para el pipeline principal si los resultados no mejoran en las clases minoritarias.
 
-### Estrategia adoptada: 2 capas complementarias
+### Estrategia planeada: 2 capas complementarias
+
+Para el pipeline principal se plantea una estrategia de balanceo de **dos capas**:
 
 **Capa 1: `WeightedRandomSampler`.** Cada muestra recibe un peso `1 / count_of_its_class`. El sampler repite muestras minoritarias dentro de cada epoch sin inflar su tamaño (`num_samples` = tamaño original). Combinado con augmentation en caliente, cada repetición recibe transformaciones distintas.
 
-**Capa 2: `CrossEntropyLoss` ponderada.** Peso por clase `w_i = total / (num_clases x count_i)`. Refuerza el gradiente de clases minoritarias incluso cuando aparecen en menor proporción dentro de un batch, complementando al sampler que actúa sobre frecuencia de aparición.
+**Capa 2: `CrossEntropyLoss` ponderada.** Peso por clase `w_i = total / (num_clases x count_i)`. Reforzaría el gradiente de clases minoritarias incluso cuando aparecen en menor proporción dentro de un batch, complementando al sampler que actúa sobre la frecuencia de aparición.
+
+> El **pipeline de baselines** implementa por ahora solo la Capa 1 (sampler) con una `CrossEntropyLoss` estándar sin ponderar, para mantener las corridas simples y comparables entre arquitecturas.
 
 ## Data Augmentation
 
@@ -68,7 +72,7 @@ augmentation:
   minority_ratio_threshold: 4.0
 ```
 
-Lo que se traduce en que las clases con ratio mayor a 4x respecto a la clase `healthy` reciben un pipeline de augmentación más agresivo, mientras que las clases con ratio menor o igual a 4x reciben un pipeline estándar.
+Lo que se traduce en que las clases cuya frecuencia es superada en **más de 4x** por la clase más numerosa del split reciben un pipeline de augmentación más agresivo, mientras que las que quedan por debajo de ese umbral reciben el pipeline estándar. El umbral se evalúa sobre la distribución real del split de train, no sobre el dataset completo.
 
 Esto se aplica únicamente en train, en cambio val y test usan transformaciones deterministas para garantizar una evaluación justa.
 
@@ -88,7 +92,7 @@ El ColorJitter es conservador (sin saturación ni hue) porque las deficiencias n
 
 ### Pipeline extendido de augmentación para clases minoritarias
 
-Aplicado en caliente a `potassium_deficiency`, `nitrogen_deficiency`, `phosphorus_deficiency`, `gray_leaf_spot` y `common_rust`:
+Sobre el dataset completo (train, con `healthy` = 6 118 como techo de referencia), las clases que cruzan el umbral de 4x son cuatro: `potassium_deficiency` (32.9x), `nitrogen_deficiency` (16.8x), `phosphorus_deficiency` (14.3x) y `gray_leaf_spot` (7.9x). `common_rust` (3.9x) queda justo por debajo y recibe el pipeline estándar. A esas cuatro clases se les aplica en caliente el pipeline extendido:
 
 ```
 RandomResizedCrop(224x224, scale=(0.7, 1.0))   <--- recortes aleatorios

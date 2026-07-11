@@ -24,9 +24,10 @@
 
 ## Clases del dataset
 
-Definidas en `config/dataset.yaml -> dataset.classes` (orden canónico para `class_to_idx`). Minoritarias:
+Definidas en `config/dataset.yaml -> dataset.classes` (orden canónico para `class_to_idx`). Ratios de desbalance vs. `healthy`:
 `common_rust` (3.9x), `gray_leaf_spot` (7.9x), `nitrogen_deficiency` (16.8x), `phosphorus_deficiency` (14.3x), `potassium_deficiency` (32.9x).
-El perfil `baseline` usa por defecto `healthy`, `common_rust`, `fall_armyworm`, `nitrogen_deficiency` (500 img/clase).
+El pipeline extendido de augmentación / el `WeightedRandomSampler` se activan con umbral estricto `max_count/count > 4.0`, así que sobre el dataset completo califican `gray_leaf_spot`, `nitrogen_deficiency`, `phosphorus_deficiency` y `potassium_deficiency` (no `common_rust`, que queda en 3.9x).
+El perfil `baseline` (`config/dataset.yaml -> baseline:`) usa las 9 clases con un tope de 1500 img/clase (`max_images_per_class`).
 
 ## Explicabilidad
 

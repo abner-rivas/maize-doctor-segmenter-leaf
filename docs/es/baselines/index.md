@@ -8,7 +8,7 @@ Los tres modelos elegidos, **EfficientNet-B0**, **ShuffleNetV2-x1.0** y **Effici
 
 ---
 
-## Dataset utilizado
+## Dataset a utilizar
 
 Los baselines se entrenan sobre el **perfil `baseline`** de la configuración del pipeline: las **9 clases** del dataset actual con un tope de **1 500 imágenes por clase**, solo se recortan las clases mayoritarias, las minoritarias quedan intactas. Esto permite entrenar los modelos candidatos con un **dataset reducido (10,020 imágenes)** que conserva el desbalance natural de clases.
 
@@ -26,7 +26,7 @@ limita solo las mayoritarias (healthy, tizones, gusano cogollero). El cap es con
 
 ## Modelos seleccionados
 
-A continuación se describe cada uno de los tres modelos evaluados: qué los distingue, por qué se eligieron y cómo se comportan en este dataset. El orden va de menor a mayor tamaño, empezando por el más ligero del grupo.
+A continuación se describe cada uno de los tres modelos a evaluar: qué los distingue, por qué se eligieron y cómo se comportan en este dataset. El orden va de menor a mayor tamaño, empezando por el más ligero del grupo.
 
 ### ShuffleNetV2-x1.0
 
