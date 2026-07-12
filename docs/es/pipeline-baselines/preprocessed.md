@@ -7,7 +7,7 @@ documentada en [Preprocesado](../preprocessed/index.md) y aquí no se repite.
 Lo que cambia en el baseline es **qué datos llega a ver** y **cómo se balancean en la práctica**,
 no cómo se procesa cada imagen individual. Esta página cubre solo esas diferencias.
 
-## Qué subconjunto ve el baseline
+## Baseline
 
 El baseline consume un split generado por un comando específico del pipeline. Incluye las mismas 9 clases del dataset completo, pero sobre cada una se aplica un **límite de 1,500 imágenes por clase**.
 
@@ -25,14 +25,13 @@ barato**, y un tope por clase reduce el coste de cada corrida sin tocar el datas
 es un valor por defecto configurable: se puede subir, bajar, o desactivar por completo para
 entrenar con el 100 % de las imágenes disponibles.
 
-## Cómo se balancea
+## Balanceo de clases
 
-El pipeline compartido describe una estrategia de balanceo de dos capas (sampler + pérdida
-ponderada). El baseline usa una versión más simple:
+Para el pipeline principal se plantea una estrategia de balanceo de dos capas (sampler + pérdida ponderada), en el baseline una versión más simple:
 
 - **El propio cap ya actúa como un undersampling suave** de las clases mayoritarias: al topar a 1 500 imágenes, reduce su dominio frente a las minoritarias antes de que empiece el entrenamiento. Es reversible (se regenera el split) y no borra datos del dataset original.
 - **`WeightedRandomSampler`** (la primera capa) se aplica igual: repite las muestras minoritarias dentro de cada epoch, y como la augmentation es en caliente cada repetición se ve distinta.
-- **La pérdida es una `CrossEntropyLoss` estándar, sin ponderar por clase.** A diferencia de la estrategia completa (en la que se ha dejado abierta la posibilidad) , el baseline se apoya solo en el cap y en el sampler para compensar el desbalance, no en pesos en la función de pérdida. Esto mantiene las corridas simples y comparables entre modelos.
+- **`CrossEntropyLoss` estándar sin ponderar por clase.** Esto mantiene las corridas simples y comparables entre modelos, que es lo que se busca en un baseline.
 
 ## Qué clases reciben la augmentación agresiva
 

@@ -1,12 +1,10 @@
 # Deep Learning
 
-Esta sección presenta los fundamentos teóricos que sustentan el pipeline de clasificación. Comenzando con conceptos básicos de redes neuronales convolucionales, se revisan las arquitecturas utilizadas en el proyecto y se discuten las estrategias para manejar el desbalance de clases propio del dataset.
+Esta sección presenta los fundamentos teóricos que sustentan una tarea de clasificación de imágenes con aprendizaje profundo. Comenzando con conceptos básicos de redes neuronales convolucionales, se revisan las familias de arquitecturas relevantes y se discuten las estrategias para manejar el desbalance de clases, que es un un problema habitual en este tipo de conjuntos de datos.
 
 ---
 
 ## Redes Neuronales Convolucionales (CNN)
-
-Antes de entrar en las arquitecturas concretas que usa este proyecto, conviene repasar el bloque de construcción que todas comparten: la red neuronal convolucional.
 
 Una **red neuronal convolucional** (*Convolutional Neural Network*, CNN) es una clase de modelo de aprendizaje profundo diseñada para procesar datos con estructura de cuadrícula, como imágenes. A diferencia de las redes completamente conectadas, las CNNs explotan la localidad espacial y la invarianza a la traslación mediante tres operaciones clave <sup>[[14]](#ref-15)</sup>:
 
@@ -26,11 +24,11 @@ Entrenar redes cada vez más profundas trajo un problema práctico: las activaci
 
 Introducida por Ioffe y Szegedy en 2015, la **normalización por lotes** (*batch normalization*, BN) <sup>[[2]](#ref-2)</sup> normaliza las activaciones de cada capa a media cero y varianza unitaria sobre el mini-batch durante el entrenamiento, re-escalándolas luego con parámetros aprendibles $\gamma$ y $\beta$. Sus beneficios principales son tres: permite usar tasas de aprendizaje más altas sin inestabilidad, reduce la sensibilidad a la inicialización de pesos y actúa como regularizador implícito, disminuyendo la necesidad de dropout en algunas arquitecturas.
 
-BN está presente en todas las arquitecturas modernas revisadas en este proyecto (EfficientNet, MobileNetV3, ResNet).
+BN está presente en prácticamente todas las arquitecturas convolucionales modernas (EfficientNet, MobileNet, ResNet, entre otras).
 
 ### Convoluciones Depthwise-Separable
 
-El otro gran cuello de botella de las CNNs clásicas es el costo computacional de las convoluciones estándar, que crece rápido con el número de canales. Las convoluciones depthwise-separable resuelven esto factorizando la operación, y son la pieza clave que hace viables las arquitecturas móviles usadas en este proyecto.
+El otro gran cuello de botella de las CNNs clásicas es el costo computacional de las convoluciones estándar, que crece rápido con el número de canales. Las convoluciones depthwise-separable resuelven esto factorizando la operación, y son la pieza clave que hace viables las arquitecturas pensadas para dispositivos móviles.
 
 Las **convoluciones depthwise-separable** <sup>[[5]](#ref-5)</sup> factorizan una convolución estándar $k \times k$ con $C_{in}$ canales de entrada y $C_{out}$ de salida en dos operaciones secuenciales. Primero, la **depthwise convolution** aplica un filtro $k \times k$ independiente *por canal*, produciendo $C_{in}$ mapas de activación. Después, la **pointwise convolution** combina esos $C_{in}$ mapas con una convolución $1 \times 1$ para producir los $C_{out}$ mapas finales.
 
@@ -40,7 +38,7 @@ Esta factorización reduce el número de operaciones en un factor de aproximadam
 
 ## Aprendizaje por Transferencia (*Transfer Learning*)
 
-Entrenar una CNN desde cero requiere muchísimos datos etiquetados, algo que este proyecto no tiene en abundancia para todas las clases. El aprendizaje por transferencia es la vía práctica para sortear esa limitación, y es la estrategia que sostiene todo el entrenamiento de este proyecto.
+Entrenar una CNN desde cero requiere muchísimos datos etiquetados, el aprendizaje por transferencia es la vía práctica para sortear esa limitación, y mas aún cuando se tienen pocos datos.
 
 El **aprendizaje por transferencia** consiste en reutilizar un modelo pre-entrenado en una tarea fuente y adaptarlo a una tarea objetivo diferente <sup>[[15]](#ref-17)</sup>.
 
@@ -54,17 +52,17 @@ Esto produce algunos beneficios:
 - La generalización con pocos datos mejora, porque las características pre-aprendidas reducen el riesgo de sobreajuste cuando el dataset objetivo es pequeño.
 - Y el costo computacional puede reducirse, ya que es posible congelar las capas tempranas y entrenar solo las últimas, disminuyendo el número de parámetros a optimizar.
 
-### Fine-Tuning en este proyecto
+### Fine-Tuning
 
-La estrategia adoptada es **fine-tuning de la capa clasificadora**: se preservan todos los pesos del *backbone* pre-entrenado en ImageNet y se reemplaza únicamente la última capa lineal (el clasificador) por una `nn.Linear(in_features, 9)` para las 9 clases del proyecto. El backbone completo se deja entrenable (*unfrozen*) con una tasa de aprendizaje reducida para evitar destruir las representaciones pre-aprendidas.
+Una estrategia habitual es el **fine-tuning de la capa clasificadora**: se preservan los pesos del *backbone* pre-entrenado en ImageNet y se reemplaza únicamente la última capa lineal (el clasificador) por una nueva capa dimensionada al número de clases de la tarea objetivo. A partir de ahí, el backbone puede congelarse por completo o dejarse entrenable (*unfrozen*) con una tasa de aprendizaje reducida, para adaptar las representaciones sin destruir lo pre-aprendido.
 
-Este enfoque es especialmente adecuado aquí porque el dataset de campo contiene texturas y patrones visuales (nervaduras de hoja, manchas foliares, coloraciones) que comparten estructura de bajo nivel con las categorías de ImageNet.
+
 
 ---
 
 ## Arquitecturas Ligeras y Escalables
 
-Con los bloques anteriores ya cubiertos, esta sección repasa las familias de arquitecturas concretas que compiten en el proyecto.
+Con los bloques anteriores ya cubiertos, veámos las familias de arquitecturas convolucionales más relevantes para la clasificación de imágenes, PERO, evaluadas por su eficiencia y capacidad, ordenadas de mayor a menor. Las redes llamadas residuales aportan el principio de las conexiones de salto, mientras que las familias como MobileNet y EfficientNet lo heredan y lo optimizan para eficiencia.
 
 ### Redes Residuales (ResNet)
 
@@ -72,7 +70,7 @@ He et al. <sup>[[4]](#ref-4)</sup> demostraron que añadir más capas a una CNN 
 
 $$x_{l+1} = \mathcal{F}(x_l, \{W_l\}) + x_l$$
 
-Esta reformulación facilita el flujo de gradientes hacia capas tempranas (mitigando el desvanecimiento del gradiente) y permite entrenar redes de 50, 101 o 152 capas con convergencia estable. ResNet-50 es uno de los modelos candidatos en la etapa de experimentación completa de este proyecto.
+Esta reformulación facilita el flujo de gradientes hacia capas tempranas (mitigando el desvanecimiento del gradiente) y permite entrenar redes de 50, 101 o 152 capas con convergencia estable. Las conexiones residuales no son exclusivas de ResNet: se heredan en los bloques MBConv de las familias MobileNet y EfficientNet, que son las arquitecturas ligeras que dominan el despliegue en dispositivos móviles.
 
 ### Familia MobileNet
 
@@ -98,15 +96,15 @@ EfficientNet-B0 alcanza ~77.1 % Top-1 en ImageNet con solo 5.3 M de parámetros,
 
 ---
 
-### Limitaciones con Datos Limitados
-
 ## Manejo del Desbalance de Clases
 
-El dataset de este proyecto presenta un desbalance severo: la clase más representada (*healthy*) supera en ~33x a la menos representada (*potassium_deficiency*). Sin intervención, un modelo puede alcanzar alta *accuracy* pero fallar estrepitosamente en las clases minoritarias.
+Un conjunto de datos con desbalance severo, donde la clase más representada supera por decenas de veces a la menos representad, plantea el riesgo de que sin intervención, un modelo puede alcanzar alta *accuracy* pero fallar estrepitosamente en las clases minoritarias, prediciendo casi siempre las mayoritarias.
+
+A continuación se describen las dos herramientas teóricas más comunes para mitigar el desbalance: la ponderación de la función de pérdida y el muestreo balanceado.
 
 ### Función de Pérdida con Pesos de Clase
 
-La **entropía cruzada ponderada** (*weighted cross-entropy*) asigna a cada clase $c$ un peso $w_c$ inversamente proporcional a su frecuencia <sup>[[12]](#ref-12)</sup>:
+La **entropía cruzada ponderada** (*weighted cross-entropy*) asigna a cada clase $c$ un peso $w_c$ inversamente proporcional a su frecuencia:
 
 $$w_c = \frac{N}{C \cdot n_c}$$
 
@@ -116,11 +114,15 @@ $$\mathcal{L} = -\sum_{c=1}^{C} w_c \cdot y_c \log \hat{p}_c$$
 
 Esto hace que los errores en clases minoritarias contribuyan más al gradiente, empujando al modelo a aprender sus patrones.
 
-### WeightedRandomSampler
+### Muestreo Ponderado
 
-La pérdida ponderada actúa sobre el gradiente, pero también ayuda a intervenir antes, en la composición misma de cada batch. El `WeightedRandomSampler` de PyTorch construye cada mini-batch muestreando ejemplos con probabilidad proporcional al inverso de la frecuencia de su clase. En combinación con la pérdida ponderada, iguala la frecuencia efectiva durante el entrenamiento sin duplicar muestras en memoria.
+La pérdida ponderada actúa sobre el gradiente, pero también se puede intervenir antes, en la composición misma de cada batch. Un **muestreador ponderado** construye cada mini-batch seleccionando ejemplos con probabilidad proporcional al inverso de la frecuencia de su clase. En combinación con la pérdida ponderada, iguala la frecuencia efectiva durante el entrenamiento sin duplicar muestras en memoria.
 
-Dicho de una forma más intuitiva: si la clase minoritaria representa solo el 2 % del dataset, el sampler la seleccionará con una probabilidad mucho mayor, asegurando que aparezca en cada batch y que el modelo reciba suficiente señal para aprenderla.
+Dicho de una forma más intuitiva: si una clase minoritaria representa solo el 2 % del conjunto, el muestreador la seleccionará con una probabilidad mucho mayor, asegurando que aparezca en cada batch y que el modelo reciba suficiente señal para aprenderla.
+
+### Pérdida Focal
+
+Cuando la ponderación por frecuencia no basta para las clases más difíciles, la **pérdida focal** (*focal loss*) <sup>[[12]](#ref-12)</sup> ofrece una alternativa: reescala la entropía cruzada con un factor que reduce el peso de los ejemplos ya bien clasificados, concentrando el aprendizaje en los ejemplos difíciles o mal clasificados, que suelen concentrarse en las clases minoritarias.
 
 ---
 
@@ -142,7 +144,7 @@ $$F1_{\text{macro}} = \frac{1}{C} \sum_{c=1}^{C} F1_c$$
 
 El **F1-weighted** pondera por la frecuencia de cada clase, sesgándose hacia las clases mayoritarias. En presencia de desbalance severo, F1-macro es la métrica más informativa porque penaliza igualmente el fallo en cualquier clase, incluidas las minoritarias de difícil diagnóstico agronómico.
 
-**Umbral del proyecto:** F1-macro $\geq 0.85$ sobre el conjunto de prueba. Este umbral aplica tanto a los baselines como a los modelos finales sobre el split completo.
+Por esa razón, en tareas con desbalance severo se suele fijar un umbral mínimo sobre el **F1-macro** del conjunto de prueba como criterio de viabilidad, en lugar de sobre la *accuracy*: así se exige un rendimiento aceptable en todas las clases y no solo un promedio inflado por las mayoritarias.
 
 ---
 
@@ -150,7 +152,7 @@ El **F1-weighted** pondera por la frecuencia de cada clase, sesgándose hacia la
 
 El diagnóstico de enfermedades en maíz con CNNs ha sido abordado en múltiples estudios recientes. Albahli y Masood (2022) reportaron 99.89 % de precisión en clasificación de enfermedades de maíz usando EfficientNetV2 sobre PlantVillage, lo que subraya el potencial de las arquitecturas de escala compuesta para este dominio <sup>[[8]](#ref-8)</sup>. Estudios con datos de campo real, no obstante, reportan resultados más conservadores (69–97 %) y destacan que la diversidad del entorno de captura es el principal factor de variabilidad.
 
-El uso de modelos ligeros como MobileNetV3 y EfficientNet-B0 en lugar de arquitecturas más grandes (ResNet-101, EfficientNet-B7) responde a la restricción de despliegue del proyecto: un modelo TFLite de ≤ 20 MB con latencia ≤ 300 ms en dispositivos Android de gama media-baja.
+La preferencia por modelos ligeros como MobileNetV3 y EfficientNet-B0 frente a arquitecturas más grandes (ResNet-101, EfficientNet-B7) es un patrón recurrente cuando el objetivo es el despliegue en dispositivos móviles: las redes de última generación que rozan el 99 % de validación resultan demasiado pesadas y lentas para inferencia local en gama media-baja, lo que obliga a un compromiso entre precisión y coste de despliegue.
 
 ---
 
