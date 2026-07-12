@@ -64,8 +64,6 @@ resolución de entrada. Cada modelo resuelve su propio tamaño de imagen y el ta
 acotar el uso de memoria. El resize de la augmentation se adapta a ese tamaño; el resto del
 pipeline de transformaciones (flips, rotación, color, normalización ImageNet) es idéntico.
 
----
-
 Todo lo demás se hereda sin cambios: el normalizado en caliente (corrección EXIF, RGB estricto,
 estadísticas de ImageNet), la estratificación por `label + environment`, la seed fija 42, y los
 pipelines de augmentation (estándar, extendido para minoritarias, y determinista para val/test).

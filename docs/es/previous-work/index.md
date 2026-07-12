@@ -2,8 +2,6 @@
 
 El diagnóstico automatizado de enfermedades foliares en maíz (*Zea mays L.*) ha dado grandes pasos desde la inspección visual en los campos, hacia sistemas de visión por computadora basados en aprendizaje profundo. Haremos un resumen de los trabajos previos de este campo, para después justificar por qué el alcance de este proyecto se concentra en la clasificación y cómo lo hemos propuesto como un paso intermedio hacia un sistema completo de segmentación y clasificación.
 
----
-
 Los primeros proyectos se apoyaban en el aprendizaje automático clásico: SVM, K-Nearest Neighbors o Random Forest sobre características diseñadas a mano, como descriptores de color, textura y forma de la lesión. Ese enfoque alcanzaba precisiones del orden del 79 % al 90 % <sup>[[1]](#ref-1)</sup>. La transición hacia las Redes Neuronales Convolucionales cambió la lógica del problema, porque la red aprende por sí misma la jerarquía de rasgos relevantes, junto con ese salto se consolidó también el uso del F1-score como métrica principal en lugar del accuracy, dado que por la naturaleza de estos conjuntos de datos, comúnmente no se dispone de un número equilibrado de imágenes por clase.
 
 ## El entorno de las fotos
@@ -48,8 +46,6 @@ Es en esta etapa de clasificación donde reside el "juicio" agronómico del sist
 El clasificador que se trabaja en este proyecto está diseñado para operar sobre la hoja como región de interés, de modo que el día en que se anteponga un módulo de segmentación, ya sea una red en cascada o un recorte por profundidad, este componente o pipeline pueda recibir la hoja aislada sin la necesidad de rediseñarse en gran medida.
 
 En ese sentido la propuesta de este trabajo es ser un producto útil por sí mismo, capaz de dar un diagnóstico offline a un pequeño productor, y a la misma vez la segunda mitad ya construida de un sistema futuro que segmente, clasifique y de mejores diagnósticos.
-
----
 
 ## Referencias
 

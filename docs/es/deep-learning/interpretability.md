@@ -8,8 +8,6 @@ Existen tres técnicas de explicabilidad más usadas en este campo: LIME, SHAP y
 
 Una clasificación equivocada se puede traducir en una decisión de manejo equivocada, como aplicar el fertilizante que no era o fumigar sin necesidad, y por eso, tal como vimos con la brecha de dominio en los trabajos previos, no es suficiente con que el modelo acierte, necesitamos poder revisar que realmente está mirando dónde está el problema.
 
----
-
 Estas herramientas en general se pueden diferenciar en su aplicación y en que tipo de explicación producen.
 
 En su aplicación:
@@ -68,13 +66,9 @@ Las diferencias principales entre las tres técnicas son las siguientes:
 | Estabilidad | Baja, por la perturbación aleatoria | Alta, determinista | Alta, determinista |
 | Fundamento teórico | Heurístico | Fuerte, axiomas de Shapley | Basado en gradientes |
 
----
-
 Bajo esta investigación decidimos adoptar la pareja LIME más Grad-CAM como base de explicabilidad, en las primeras etapas y experimentos con baselines, y dejar SHAP para el pipeline principal y los análisis globales una vez que tengamos un modelo final estable.
 
 El detalle de los primeros análisis está en [Interpretabilidad del pipeline de baselines](../pipeline-baselines/interpretabilidad.md).
-
----
 
 ## Referencias
 
