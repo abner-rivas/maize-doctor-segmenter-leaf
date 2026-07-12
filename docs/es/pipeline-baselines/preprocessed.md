@@ -1,7 +1,6 @@
 # Preprocesado
 
-El baseline no reinventa el preprocesado: hereda tal cual el pipeline compartido del proyecto
-(normalizado, división estratificada, balanceo y data augmentation). Toda esa lógica está
+El baseline hereda tal cual el pipeline compartido del proyecto (normalizado, división estratificada, balanceo y data augmentation). Toda esa lógica está
 documentada en [Preprocesado](../preprocessed/index.md) y aquí no se repite.
 
 Lo que cambia en el baseline es **qué datos llega a ver** y **cómo se balancean en la práctica**,
@@ -13,9 +12,7 @@ El baseline consume un split generado por un comando específico del pipeline. I
 
 La clave está en _cuándo_ se aplica ese límite: se recorta sobre el conjunto completo de imágenes
 válidas **antes de dividir** en train/val/test. Por eso el tope de 1 500 es un total por clase
-(sumando los tres cortes), no un tope por corte. El recorte solo afecta a las clases mayoritarias;
-las minoritarias, que ya están por debajo del límite, quedan **íntegras** (potasio ≈ 266,
-nitrógeno ≈ 523, fósforo ≈ 612).
+(sumando los tres cortes), no un tope por corte. El recorte solo afecta a las clases mayoritarias, las minoritarias, que ya están por debajo del límite, quedan **íntegras** (potasio ≈ 266, nitrógeno ≈ 523, fósforo ≈ 612).
 
 Cuando una clase se recorta, el muestreo es **proporcional por entorno**: conserva la mezcla
 `lab`/`real` original de esa clase en vez de sesgarla hacia el dominio más abundante.
