@@ -20,6 +20,7 @@ node_modules/
 **.toc
 **.fdb**
 **.fls
+**.synctex.gz
 
 npm-debug.log*
 yarn-debug.log*
