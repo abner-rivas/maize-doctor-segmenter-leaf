@@ -134,15 +134,17 @@ Para filtros de $3\times 3$ esto significa ser unas 8--9 veces m\'as barato. Sob
 
 \subsection{Aprendizaje por Transferencia}
 
-Cuando no se dispone de millones de im\'agenes, conviene no partir de cero. El \textbf{transfer learning} carga pesos preentrenados en ImageNet (Deng et al., 2009) y los adapta al nuevo dominio: la capa clasificadora original se reemplaza por una ajustada a las clases del problema y los pesos se refinan con descenso de gradiente. La idea no es copiar la tarea original, sino reaprovechar filtros generales de bordes, colores y texturas.
+Cuando no se dispone de millones de im\'agenes, conviene no partir de cero. El \textbf{transfer learning} carga pesos preentrenados en ImageNet (Deng et al., 2009) y los adapta al nuevo dominio: la capa clasificadora original se reemplaza por una ajustada a las clases del problema y los pesos se refinan con descenso de gradiente. La idea no es copiar la tarea original, sino reaprovechar filtros generales de bordes, colores y texturas. Es exactamente lo que hace el pipeline: los tres modelos parten de pesos de ImageNet, se les cambia la capa final por una lineal de 9 salidas y se afina todo el backbone (\textit{fine-tuning} completo).
 
 \subsection{Baselines}
 
-Un \textit{baseline} es un modelo de referencia sencillo que fija un piso de comparaci\'on. Su papel no es ganar, sino marcar el nivel m\'inimo que las soluciones m\'as complejas deber\'an superar, y permitir observar a bajo costo el comportamiento de cada arquitectura candidata antes de comprometer un entrenamiento completo.
+Un \textit{baseline} es un modelo de referencia sencillo que fija un piso de comparaci\'on. Su papel no es ganar, sino marcar el nivel m\'inimo que las soluciones m\'as complejas deber\'an superar, y permitir observar a bajo costo el comportamiento de cada arquitectura candidata antes de comprometer un entrenamiento completo. En este proyecto los baselines cumplen ese doble papel: fijan el piso de macro-F1 y sirven de sonda para detectar colapso de clases o sobreajuste temprano sobre un subconjunto reducido, antes de lanzar el pipeline principal.
 
 \subsection{Desbalance de clases}
 
 Cuando unas clases tienen muchas m\'as im\'agenes que otras, la red puede tomar el atajo de predecir casi siempre las mayoritarias. Hay tres herramientas habituales, combinables entre s\'i. La \textbf{entrop\'ia cruzada ponderada} asigna a cada clase un peso inverso a su frecuencia, de modo que fallar en una clase rara pese m\'as en el gradiente. El \textbf{muestreo ponderado} interviene antes, al armar cada lote, eligiendo con m\'as probabilidad los ejemplos de clases poco frecuentes sin duplicar im\'agenes en memoria. Y la \textbf{p\'erdida focal} reescala la entrop\'ia cruzada para concentrar el aprendizaje en los ejemplos dif\'iciles.
+
+De estas, el proyecto usa el muestreo ponderado en las dos etapas. La diferencia est\'a en la p\'erdida: los baselines la dejan \textbf{sin ponderar} para mantener las corridas simples y comparables entre arquitecturas, mientras que el pipeline principal s\'i planea combinar el sampler con una \textbf{entrop\'ia cruzada ponderada} sobre el modelo ya elegido. La mec\'anica concreta se detalla en la Secci\'on~\ref{sec:balanceo}.
 
 \subsection{M\'etricas de evaluaci\'on}
 
@@ -189,6 +191,8 @@ Fundamento & Heur\'istico & Axiom\'atico (Shapley) & Basado en gradientes \\
 \end{tabular}
 \end{singlespace}
 \end{table}
+
+Sobre esta base, el proyecto adopta la pareja \textbf{LIME + Grad-CAM} en los baselines: LIME aporta la lectura por superp\'ixeles con signo y Grad-CAM un mapa de calor r\'apido y determinista, suficientes para auditar caso por caso a bajo costo. \textbf{SHAP} se reserva para el pipeline principal, donde su fundamento m\'as fuerte y su capacidad de agregarse a una vista global valen la pena una vez que hay un modelo final estable. En ambas etapas el an\'alisis es post-hoc: se ejecuta bajo demanda sobre un modelo ya entrenado, no se acopla al ciclo de entrenamiento.
 
 \section{Descripci\'on del Dataset}
 
@@ -283,9 +287,9 @@ El EDA completo, reproducible en \href{https://github.com/daiv05/corn-leaf-disea
 
 De aqu\'i salen dos decisiones firmes: usar muestreo ponderado con augmentation dirigido a las minoritarias, y medir la generalizaci\'on sobre im\'agenes de campo real, no de laboratorio.
 
-\section{Preprocesamiento y Decisiones}
+\section{Preprocesamiento, Feature Engineering y Estrategia}
 
-Al ser clasificaci\'on de im\'agenes con transfer learning, no hay ingenier\'ia de \textit{features} manual: las representaciones las aprende el backbone preentrenado en ImageNet. El esfuerzo se concentr\'o en normalizaci\'on, divisi\'on de datos y balanceo.
+Al ser clasificaci\'on de im\'agenes con transfer learning, no hay ingenier\'ia de \textit{features} manual: las representaciones las aprende el backbone preentrenado en ImageNet. El esfuerzo se concentr\'o en normalizaci\'on, divisi\'on de datos, balanceo y en definir la estrategia de entrenamiento de cada etapa.
 
 \subsection{Normalizaci\'on y divisi\'on}
 
@@ -326,11 +330,34 @@ ShuffleNetV2-x1.0 & 2.3 M & $\sim$69.4\% & $\sim$5 MB & M\'axima eficiencia \\
 \end{singlespace}
 \end{table}
 
-\subsection{M\'etricas e interpretabilidad a usar}
+\subsection{Estrategia de entrenamiento: baselines vs.\ principal}
+\label{sec:estrategia}
 
-La m\'etrica primaria es el \textbf{macro-F1}, por las razones del marco te\'orico: pondera por igual todas las clases, incluidas las minoritarias, y el accuracy queda como secundaria. El umbral de viabilidad es $0.85$.
+La infraestructura de datos y de modelos es com\'un a las dos etapas; lo que cambia es cu\'anto se afina el loop de entrenamiento. Los baselines usan una configuraci\'on deliberadamente sencilla para que las diferencias de resultado se deban a la arquitectura y no a trucos de entrenamiento: learning rate fijo, un n\'umero de \'epocas cerrado y p\'erdida sin ponderar. El pipeline principal, ya sobre la arquitectura elegida, incorpora los mecanismos de optimizaci\'on y regularizaci\'on que la teor\'ia respalda (Tabla~\ref{tab:estrategia}).
 
-En interpretabilidad se adopta la pareja \textbf{LIME + Grad-CAM} para esta etapa de baselines: LIME aporta la lectura por superp\'ixeles con signo y Grad-CAM un mapa de calor r\'apido y determinista. SHAP se deja para el pipeline principal y los an\'alisis globales, una vez haya un modelo final estable. El an\'alisis es post-hoc: se ejecuta bajo demanda sobre un modelo ya entrenado, no se acopla al ciclo de entrenamiento.
+\begin{table}[H]
+\caption{Configuraci\'on de entrenamiento por etapa}
+\label{tab:estrategia}
+\centering
+\small
+\begin{singlespace}
+\begin{tabular}{p{3.0cm}p{4.0cm}p{4.5cm}}
+\toprule
+\textbf{Elemento} & \textbf{Baselines (esta etapa)} & \textbf{Pipeline principal (previsto)} \\
+\midrule
+Datos & 9 clases, cap 1~500/clase & 9 clases, 100\% de im\'agenes \\
+Learning rate & Fijo ($10^{-4}$) & Scheduler (cosine o plateau) con warmup \\
+Parada & 30 \'epocas fijas & Early stopping (\textit{patience} 5--8), \texttt{best.pth} \\
+P\'erdida & CrossEntropy sin ponderar & CrossEntropy ponderada + \textit{label smoothing} \\
+Balanceo & Sampler + augmentation minoritaria & Sampler + p\'erdida ponderada \\
+Optimizador & AdamW & AdamW + \textit{gradient clipping} \\
+Interpretabilidad & LIME + Grad-CAM & + SHAP (vista global) \\
+\bottomrule
+\end{tabular}
+\end{singlespace}
+\end{table}
+
+El \textit{scheduler} con warmup ataca dos cosas vistas antes: un lr fijo mantiene pasos demasiado grandes en las \'epocas finales, cuando el modelo deber\'ia estar afinando, y el warmup da margen a arquitecturas que arrancan lento. El \textit{early stopping} recorta c\'omputo sin sacrificar calidad, porque se conserva el mejor checkpoint. Y el \textit{label smoothing} evita que el modelo se vuelva sobreconfiado, algo directamente relevante para el caso de uso, ya que en los baselines se observa justamente que falla con alta confianza. La m\'etrica primaria sigue siendo el \textbf{macro-F1} con umbral $0.85$ en ambas etapas.
 
 \section{Pipeline de Baselines y Resultados}
 
@@ -358,7 +385,7 @@ Prueba (15\%) & 1~503 \\
 \end{singlespace}
 \end{table}
 
-Los tres modelos comparten hiperpar\'ametros para que las diferencias vengan de la arquitectura y no del entrenamiento: 30 \'epocas, batch 32, AdamW (lr $10^{-4}$, weight decay $10^{-4}$), \texttt{CrossEntropyLoss} sin ponderar, balanceo por sampler + augmentation minoritaria, pesos iniciales de ImageNet. Cada corrida se versiona en \href{https://github.com/daiv05/corn-leaf-disease-project}{\texttt{outputs/baselines/<modelo>/<run\_id>/}}. Con el cap de 1~500, solo \texttt{potassium\_deficiency} cruza el umbral de $4\times$ que activa la augmentation extendida.
+Los tres modelos comparten la configuraci\'on baseline de la Tabla~\ref{tab:estrategia} (30 \'epocas, batch 32, AdamW con lr $10^{-4}$, p\'erdida sin ponderar), de modo que las diferencias vengan de la arquitectura y no del entrenamiento. Cada corrida se versiona en \href{https://github.com/daiv05/corn-leaf-disease-project}{\texttt{outputs/baselines/<modelo>/<run\_id>/}}. Con el cap de 1~500, solo \texttt{potassium\_deficiency} cruza el umbral de $4\times$ que activa la augmentation extendida.
 
 \subsection{Resultados globales}
 
