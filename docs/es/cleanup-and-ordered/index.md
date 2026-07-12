@@ -110,13 +110,9 @@ Tras aplicar las rutinas automatizadas de deduplicación y filtros de exclusión
 
 > Junio 2026 - Las clases con menor representación son las deficiencias nutricionales (nitrógeno 523, fósforo 612, potasio 266). Se evalúa la posibilidad de incluir datasets adicionales para estas clases. Está pendiente definir un techo de imágenes por clase para evitar sesgos o aplicar técnicas avanzadas para balancear el dataset (oversampling, SMOTE, etc.).
 
----
-
 ## corn-leaf-diseases
 
 Se descartó su uso, debido a que el dataset incluye imágenes ya augmentadas, no incluye las imágenes originales (además de que la mayoría de ellas están presentes en otros datasets).
-
----
 
 ## corn-leaf-roboflow
 
@@ -162,8 +158,6 @@ Imágenes integradas:
 - Las imágenes ya vienen redimensionadas a **640 x 640 px**, lo que puede introducir distorsión (stretch) respecto a las proporciones originales.
 - La clase `nitrogen_deficiency` (~55 instancias en etiquetas) y `phosphorus_deficiency` (~46) tienen muy baja representación.
 
----
-
 ## cropdg-unified-multidomain
 
 ### Criterio de selección específico
@@ -183,8 +177,6 @@ Se recopiló un total de **888 imágenes** en un entorno de laboratorio (`lab`)
 ### Healthy | Sana
 
 Muestras complementarias evaluadas bajo el mismo estándar de entorno controlado.
-
----
 
 ## maize-beans-tomatoes-africa
 
@@ -222,8 +214,6 @@ Las carpetas `Maize Fall Army Worm Pest` y `Maize Fall Army Worm Activity` conti
 
 Muestras adicionales evaluadas según consistencia con el entorno real de campo.
 
----
-
 ## maize-diseases
 
 ### Identificador
@@ -250,8 +240,6 @@ Adicionalmente, se detectaron imágenes duplicadas con una suma de 4223 imágene
 ### Healthy | Sana
 
 Muestras originales validadas e integradas en el repositorio consolidado. -5,326 imágenes netas post-deduplicación.
-
----
 
 ## maize-in-field-dataset
 
@@ -320,8 +308,6 @@ Se recopilaron alrededor de 140 imágenes con esta enfermedad. Todas fueron toma
 
 Las 232 imágenes de la carpeta `NoFoliarSymptoms` fueron validadas y enviadas al dataset limpio bajo la clase `healthy`. No se encontraron imágenes duplicadas.
 
----
-
 ## maize-nutrient-deficiency
 
 ### Identificador
@@ -342,8 +328,6 @@ Fueron copiadas en su totalidad todas las imágenes referentes a:
 | Potasio | `Pottasium` | 56 |
 
 Solamente `MagnesiumDeficiency` no se incluyó en el dataset limpio, ya que no es una clase objetivo para este proyecto, debido a los pocos ejemplos disponibles y su relevancia menor en comparación con las otras deficiencias.
-
----
 
 ## multicrop-disease-maiz-disease-pests-and-disease
 
