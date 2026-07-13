@@ -1,7 +1,6 @@
 # Preprocesado
 
-El baseline no reinventa el preprocesado: hereda tal cual el pipeline compartido del proyecto
-(normalizado, división estratificada, balanceo y data augmentation). Toda esa lógica está
+El baseline hereda tal cual el pipeline compartido del proyecto (normalizado, división estratificada, balanceo y data augmentation). Toda esa lógica está
 documentada en [Preprocesado](../preprocessed/index.md) y aquí no se repite.
 
 Lo que cambia en el baseline es **qué datos llega a ver** y **cómo se balancean en la práctica**,
@@ -13,9 +12,7 @@ El baseline consume un split generado por un comando específico del pipeline. I
 
 La clave está en _cuándo_ se aplica ese límite: se recorta sobre el conjunto completo de imágenes
 válidas **antes de dividir** en train/val/test. Por eso el tope de 1 500 es un total por clase
-(sumando los tres cortes), no un tope por corte. El recorte solo afecta a las clases mayoritarias;
-las minoritarias, que ya están por debajo del límite, quedan **íntegras** (potasio ≈ 266,
-nitrógeno ≈ 523, fósforo ≈ 612).
+(sumando los tres cortes), no un tope por corte. El recorte solo afecta a las clases mayoritarias, las minoritarias, que ya están por debajo del límite, quedan **íntegras** (potasio ≈ 266, nitrógeno ≈ 523, fósforo ≈ 612).
 
 Cuando una clase se recorta, el muestreo es **proporcional por entorno**: conserva la mezcla
 `lab`/`real` original de esa clase en vez de sesgarla hacia el dominio más abundante.
@@ -63,8 +60,6 @@ resolución de entrada. Cada modelo resuelve su propio tamaño de imagen y el ta
 **auto-escala** en función de esa resolución (imágenes más grandes ---> batch más pequeño) para
 acotar el uso de memoria. El resize de la augmentation se adapta a ese tamaño; el resto del
 pipeline de transformaciones (flips, rotación, color, normalización ImageNet) es idéntico.
-
----
 
 Todo lo demás se hereda sin cambios: el normalizado en caliente (corrección EXIF, RGB estricto,
 estadísticas de ImageNet), la estratificación por `label + environment`, la seed fija 42, y los

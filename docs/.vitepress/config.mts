@@ -84,16 +84,16 @@ const esDatasetSidebar = [
           { text: "Experimentos", link: "/es/pipeline-baselines/experimentos" },
         ],
       },
-      // {
-      //   text: "Principal",
-      //   items: [
-      //     { text: "Preprocesado", link: "/es/pipeline/preprocessed" },
-      //     { text: "Entrenamiento", link: "/es/pipeline/entrenamiento" },
-      //     { text: "Evaluación", link: "/es/pipeline/evaluacion" },
-      //     { text: "Interpretabilidad", link: "/es/pipeline/interpretabilidad" },
-      //     { text: "Experimentos", link: "/es/pipeline/experimentos" },
-      //   ],
-      // },
+      {
+        text: "Principal",
+        items: [
+          { text: "Preprocesado", link: "/es/pipeline/preprocessed" },
+          { text: "Entrenamiento", link: "/es/pipeline/entrenamiento" },
+          { text: "Evaluación", link: "/es/pipeline/evaluacion" },
+          { text: "Interpretabilidad", link: "/es/pipeline/interpretabilidad" },
+          { text: "Experimentos", link: "/es/pipeline/experimentos" },
+        ],
+      },
     ],
   },
   {
@@ -187,16 +187,16 @@ export default defineConfig({
                   { text: "Experimentos", link: "/es/pipeline-baselines/experimentos" },
                 ],
               },
-              // {
-              //   text: "Pipeline · Principal",
-              //   items: [
-              //     { text: "Preprocesado", link: "/es/pipeline/preprocessed" },
-              //     { text: "Entrenamiento", link: "/es/pipeline/entrenamiento" },
-              //     { text: "Evaluación", link: "/es/pipeline/evaluacion" },
-              //     { text: "Interpretabilidad", link: "/es/pipeline/interpretabilidad" },
-              //     { text: "Experimentos", link: "/es/pipeline/experimentos" },
-              //   ],
-              // },
+              {
+                text: "Pipeline · Principal",
+                items: [
+                  { text: "Preprocesado", link: "/es/pipeline/preprocessed" },
+                  { text: "Entrenamiento", link: "/es/pipeline/entrenamiento" },
+                  { text: "Evaluación", link: "/es/pipeline/evaluacion" },
+                  { text: "Interpretabilidad", link: "/es/pipeline/interpretabilidad" },
+                  { text: "Experimentos", link: "/es/pipeline/experimentos" },
+                ],
+              },
             ],
           },
           {

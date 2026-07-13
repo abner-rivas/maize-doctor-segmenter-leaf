@@ -4,8 +4,6 @@ El EDA busca responder tres preguntas antes de diseñar el pipeline de entrenami
 
 El análisis completo y reproducible, con todo el código, está en la notebook [`notebooks/01_eda.ipynb`](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb). Esta página resume los hallazgos y las decisiones que se derivaron de ellos.
 
----
-
 ## Composición del dataset
 
 El dataset consolidado en `data/clean/` contiene **31 622 imágenes** distribuidas en **9 clases**, procedentes de 6 fuentes públicas. Cada imagen pertenece a un entorno de captura: `lab` (fondo controlado, iluminación artificial) o `real` (campo abierto, iluminación solar).
@@ -39,8 +37,6 @@ El dataset consolidado en `data/clean/` contiene **31 622 imágenes** distribuid
 |---|---:|---:|---:|
 | `healthy` | 0 | 8 744 | **8 744** |
 
----
-
 ## Muestra visual representativa
 
 Antes de las métricas numéricas, un grid de 4 imágenes aleatorias por clase (seed=42) permite evaluar rápidamente la variabilidad intraclase, la calidad de las etiquetas y las diferencias entre entornos lab y campo.
@@ -48,8 +44,6 @@ Antes de las métricas numéricas, un grid de 4 imágenes aleatorias por clase (
 ![Muestra visual representativa por clase](/eda/eda_00_muestra_visual.png)
 
 - [Ver análisis completo: sección 1.1 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
-
----
 
 ## 1. Distribución de clases
 
@@ -60,8 +54,6 @@ El dataset presenta un **desbalance severo**: `healthy` (8 744 imágenes) supera
 Para mitigar este desbalance, inicialmente se planea usar `WeightedRandomSampler` en el DataLoader para igualar la frecuencia efectiva de cada clase durante el entrenamiento. Para las clases más escasas (`potassium_deficiency`, `nitrogen_deficiency`, `phosphorus_deficiency`) aplicar un pipeline de augmentation mas agresivo (`CornMinorityTransforms`).
 
 - [Ver análisis completo: sección 1.2 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
-
----
 
 ## 2. Sesgo de entorno (lab vs real)
 
@@ -82,8 +74,6 @@ Además de la segmentación lab/real, un heatmap fuente×clase revela concentrac
 Las tres clases de deficiencias nutricionales provienen de una **fuente única** (`maize_nutrient`), y `lethal_necrosis` depende exclusivamente de `maize_africa`. Esto limita la diversidad de condiciones de captura y aumenta el riesgo de sobreajuste a patrones específicos de esas fuentes.
 
 - [Ver análisis completo: sección 1.3 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
-
----
 
 ## 3. Resolución y dimensiones
 
@@ -108,8 +98,6 @@ Los violin plots confirman que **la resolución no es independiente de la clase*
 - **`healthy`, `lethal_necrosis` y `northern_corn_leaf_blight`:** colas más largas (hasta 3000-5000+ px), con mayor dispersión de aspect ratio. Estas clases sufren la mayor pérdida de detalle durante el resize, y el resize a cuadrado distorsionará la geometría de las lesiones en imágenes con aspect ratio lejos de 1.0.
 
 - [Ver análisis completo: sección 1.4 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
-
----
 
 ## 4. Calidad de imagen
 
@@ -137,8 +125,6 @@ El análisis del canal Hue por clase y entorno permite verificar si las firmas c
 
 - [Ver análisis completo: sección 1.5 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
 
----
-
 ## 5. Duplicados y limpieza
 
 Durante la etapa de construcción del dataset se detectaron duplicados entre fuentes distintas mediante **hash perceptual (pHash)** con `imagededup` (threshold = 0, solo copias exactas a nivel perceptual).
@@ -150,8 +136,6 @@ Se eliminaron **8 538 imágenes** agrupadas en **8 050 grupos**. Las fuentes con
 El dataset actual (y publicado en <a href="https://huggingface.co/datasets/daiv05/corn-leaf-diseases-pests-and-deficiencies" target="_blank" rel="noopener noreferrer">Hugging Face</a>) es **post-deduplicación**. Los registros de cada ejecución se almacenan en `src/cleanup/results/` del repositorio oficial.
 
 - [Ver análisis completo: sección 1.6 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
-
----
 
 ## 6. Sesgos identificados
 
@@ -169,8 +153,6 @@ A partir de los análisis anteriores se identifican cinco sesgos que afectan dir
 El sesgo de `fall_armyworm` es especialmente relevante, se decidió mezclar las dos fuentes de imágenes: `hoja con daño sin insecto visible` y `hoja con daño y gusano visible`. Esto se hizo porque al final la clase es `fall_armyworm` y la clasificación y recomendación de tratamiento no depende de la presencia del insecto, sino del patrón de daño foliar. Sin embargo, esto introduce un sesgo, por lo que se tendrá especial cuidado en la validación y en la interpretación de métricas,
 
 - [Ver análisis completo: sección 1.7 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
-
----
 
 ## Conclusiones
 
