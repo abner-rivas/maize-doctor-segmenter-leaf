@@ -16,6 +16,7 @@
 \usepackage{tocloft}
 \usepackage{microtype}
 \usepackage{float}
+\usepackage[document]{ragged2e}
 \sloppy
 
 \renewcommand{\figurename}{Figura}
@@ -227,6 +228,112 @@ En la pr\'actica, una combinaci\'on razonable para un proyecto con recursos limi
 
 El dataset consolidado re\'une \textbf{31~622 im\'agenes} en \textbf{9 clases}, integradas y depuradas a partir de 6 fuentes p\'ublicas (Tabla~\ref{tab:sources}, con los enlaces completos en el Anexo~\ref{anexo:datasets}). Cada imagen queda etiquetada por entorno de captura: \texttt{lab} (fondo controlado) o \texttt{real} (campo abierto).
 
+\subsection{Condiciones foliares consideradas}
+
+Las 9 clases cubren una referencia sana, enfermedades f\'ungicas y virales, da\~no por plagas y deficiencias nutricionales. Las Figuras~\ref{fig:cls_healthy},~\ref{fig:cls_enf} y~\ref{fig:cls_def} muestran una imagen representativa de campo por clase, y las Tablas~\ref{tab:cls_enf} y~\ref{tab:cls_def} describen sus caracter\'isticas.
+
+\subsubsection{Referencia sana}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.30\linewidth]{images/dataset-classes/healthy.jpg}
+\caption{Hoja sana de ma\'iz (\texttt{healthy}): color verde uniforme, sin lesiones, manchas ni decoloraciones.}
+\label{fig:cls_healthy}
+\end{figure}
+
+\subsubsection{Enfermedades y plagas foliares}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}[t]{0.30\linewidth}\centering
+\includegraphics[width=\linewidth]{images/dataset-classes/northern_corn_leaf_blight.jpg}\\[2pt]
+{\footnotesize (a) Tiz\'on foliar del norte}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\linewidth}\centering
+\includegraphics[width=\linewidth]{images/dataset-classes/lethal_necrosis.jpg}\\[2pt]
+{\footnotesize (b) Necrosis letal}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\linewidth}\centering
+\includegraphics[width=\linewidth]{images/dataset-classes/fall_armyworm.jpg}\\[2pt]
+{\footnotesize (c) Gusano cogollero}
+\end{minipage}
+
+\vspace{8pt}
+
+\begin{minipage}[t]{0.30\linewidth}\centering
+\includegraphics[width=\linewidth]{images/dataset-classes/common_rust.jpg}\\[2pt]
+{\footnotesize (d) Roya com\'un}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\linewidth}\centering
+\includegraphics[width=\linewidth]{images/dataset-classes/gray_leaf_spot.jpg}\\[2pt]
+{\footnotesize (e) Mancha gris}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\linewidth}
+\end{minipage}
+\caption{Im\'agenes representativas de las 5 clases de enfermedades y plagas foliares.}
+\label{fig:cls_enf}
+\end{figure}
+
+\begin{table}[H]
+\caption{Descripci\'on de las clases de enfermedades y plagas foliares}
+\label{tab:cls_enf}
+\centering
+\small
+\begin{singlespace}
+\begin{tabular}{p{2.8cm}p{2.5cm}p{6.5cm}}
+\toprule
+\textbf{Clase} & \textbf{Agente causal} & \textbf{S\'intoma visual caracter\'istico} \\
+\midrule
+Tiz\'on foliar del norte & \textit{E.\ turcicum} & Lesiones largas, el\'ipticas o en forma de cigarro, gris\'aceas a bronceadas. \\
+Necrosis letal & MCMV + SCMV & Clorosis severa, moteado y necrosis progresiva desde los m\'argenes. \\
+Gusano cogollero & \textit{S.\ frugiperda} & Agujeros irregulares, ``ventanas'' transl\'ucidas y excremento en el cogollo. \\
+Roya com\'un & \textit{P.\ sorghi} & P\'ustulas ovaladas, pulverulentas, marr\'on rojizo en haz y env\'es. \\
+Mancha gris & \textit{C.\ zeae-maydis} & Lesiones rectangulares estrechas, delimitadas por nervaduras, gris\'aceas. \\
+\bottomrule
+\end{tabular}
+\end{singlespace}
+\end{table}
+
+\subsubsection{Deficiencias nutricionales}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}[t]{0.30\linewidth}\centering
+\includegraphics[width=\linewidth]{images/dataset-classes/phosphorus_deficiency.jpg}\\[2pt]
+{\footnotesize (a) F\'osforo}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\linewidth}\centering
+\includegraphics[width=\linewidth]{images/dataset-classes/nitrogen_deficiency.jpg}\\[2pt]
+{\footnotesize (b) Nitr\'ogeno}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\linewidth}\centering
+\includegraphics[width=\linewidth]{images/dataset-classes/potassium_deficiency.jpg}\\[2pt]
+{\footnotesize (c) Potasio}
+\end{minipage}
+\caption{Im\'agenes representativas de las 3 clases de deficiencias nutricionales.}
+\label{fig:cls_def}
+\end{figure}
+
+\begin{table}[H]
+\caption{Descripci\'on de las clases de deficiencias nutricionales}
+\label{tab:cls_def}
+\centering
+\small
+\begin{singlespace}
+\begin{tabular}{p{2.8cm}p{9.0cm}}
+\toprule
+\textbf{Clase} & \textbf{S\'intoma visual caracter\'istico} \\
+\midrule
+Def.\ de f\'osforo & Verde oscuro anormal con m\'argenes y puntas rojo viol\'aceo (p\'urpura) en hojas j\'ovenes. Atrofiamiento radicular. \\
+Def.\ de nitr\'ogeno & Clorosis en ``V'' desde la punta hacia la base de las hojas inferiores, progresando a lo largo de la nervadura central. \\
+Def.\ de potasio & Amarillamiento y necrosis marginal en hojas inferiores, concentrada estrictamente en los bordes exteriores. \\
+\bottomrule
+\end{tabular}
+\end{singlespace}
+\end{table}
+
+\subsection{Fuentes de datos y composici\'on}
+
 \begin{table}[H]
 \caption{Fuentes de datos y su licencia}
 \label{tab:sources}
@@ -339,7 +446,7 @@ Mirando la resoluci\'on por clase (Figura~\ref{fig:resporclase}). Las tres defic
 \label{fig:duplicados}
 \end{figure}
 
-\textbf{Sesgos combinados.} La Figura~\ref{fig:sesgos} resume el cuadro. Un caso especial que se tiene es \texttt{fall\_armyworm}, cuyo sesgo es la mezcla dos "subclases", por un lado la hoja con da\~no sin insecto visible, y por otro lahoja con da\~no y gusano visible (o incluso solo el gusano). Se mantuvieron mezcladas a prop\'osito, porque la clase y su recomendaci\'on dependen del patr\'on de da\~no, no del insecto, pero esta decisión se cuestionará en la etapa posterior basado en los resultados que se obtengan.
+\textbf{Sesgos combinados.} La Figura~\ref{fig:sesgos} resume el cuadro. Un caso especial que se tiene es \texttt{fall\_armyworm}, cuyo sesgo es la mezcla dos "subclases", por un lado la hoja con da\~no sin insecto visible, y por otro la hoja con da\~no y gusano visible (o incluso solo el gusano). Se mantuvieron mezcladas a prop\'osito, porque la clase y su recomendaci\'on dependen del patr\'on de da\~no, no del insecto, pero esta decisión se cuestionará en la etapa posterior basado en los resultados que se obtengan.
 
 \begin{figure}[H]
 \centering
@@ -500,8 +607,6 @@ Aplicando la pareja LIME + Grad-CAM definida antes, en las clases f\'aciles la a
 \end{figure}
 
 La confianza agregada lo confirma, ya que en EfficientNet-B0 los aciertos promedian 0.987 y los fallos 0.914, con los errores de potasio a\'un por encima de 0.89. Dicho de otro modo, \textbf{el modelo se equivoca sin dudar}, as\'i que un aviso del tipo ``confianza baja, consulte a un t\'ecnico'' no capturar\'ia estos casos. Una alternativa m\'as prometedora ser\'ia agrupar N/P/K en una respuesta \'unica de ``deficiencia nutricional'' cuando la predicci\'on caiga dentro de ese bloque.
-
-\textit{Nota.} La figura del acierto \texttt{healthy} proviene de una corrida preliminar de 4 clases y es solo cualitativa. El an\'alisis sistem\'atico sobre las 9 clases, con fidelidad agregada y auditor\'ia de estabilidad de LIME, queda para el trabajo futuro.
 
 \subsection{Reproducibilidad}
 
