@@ -1,189 +1,219 @@
 # Deep Learning
 
-Esta sección presenta los fundamentos teóricos que sustentan una tarea de clasificación de imágenes con aprendizaje profundo. Comenzando con conceptos básicos de redes neuronales convolucionales, se revisan las familias de arquitecturas relevantes y se discuten las estrategias para manejar el desbalance de clases, que es un un problema habitual en este tipo de conjuntos de datos.
+Esta sección presenta los fundamentos teóricos del **aprendizaje profundo** aplicados a la clasificación de imágenes. El énfasis está en cómo una red neuronal aprende representaciones visuales a partir de píxeles, cómo las CNN extraen patrones espaciales y por qué arquitecturas como LeNet, AlexNet, VGG, ResNet, MobileNet y EfficientNet marcaron etapas importantes en la evolución del área.
 
----
+## Aprendizaje Profundo y Redes Neuronales
+
+El **aprendizaje profundo** (*deep learning*) es una rama del aprendizaje automático basada en redes neuronales con múltiples capas. Forma parte del campo más amplio de **Machine Learning**, donde el objetivo es aprender patrones a partir de datos en lugar de programar reglas explícitas. Su diferencia principal frente a enfoques más tradicionales es que puede aprender representaciones jerárquicas directamente desde los datos: las capas tempranas capturan patrones simples y las capas posteriores combinan esos patrones en conceptos más complejos <sup>[[1]](#ref-1)</sup>.
+
+Una **red neuronal artificial** está formada por unidades conectadas entre sí. Cada unidad recibe valores de entrada, los combina mediante **pesos** y un **sesgo**, y aplica una función de activación:
+
+$$z = w^\top x + b, \quad a = \phi(z)$$
+
+En esta ecuación, $x$ representa las entradas de la neurona, $w$ sus pesos, $b$ el sesgo, $z$ la combinación lineal y $a$ la activación resultante. Los pesos determinan qué señales son relevantes, el sesgo desplaza la respuesta de la unidad y la activación $\phi$ introduce no linealidad. Sin activaciones no lineales, muchas capas apiladas se comportarían como una sola transformación lineal y no podrían modelar relaciones visuales complejas.
+
+Las neuronas se organizan en **capas**. La **capa de entrada** recibe los datos originales, como los valores de píxeles de una imagen. Las **capas ocultas** transforman progresivamente esa información y aprenden representaciones internas. La **capa de salida** produce los valores finales usados para clasificar o estimar una respuesta. En una tarea de imágenes, una capa inicial puede responder a cambios bruscos de intensidad, como bordes de una hoja, capas intermedias pueden responder a texturas, nervaduras o manchas, y capas profundas pueden combinar esas señales para separar clases visualmente parecidas.
+
+### Propagación, Pérdida y Optimización
+
+La **propagación hacia adelante** (*forward propagation*) es el proceso mediante el cual la entrada atraviesa la red capa por capa hasta producir una salida. Cada capa aplica sus pesos, sesgos y activaciones sobre la representación recibida de la capa anterior.
+
+Durante el entrenamiento, la red produce una predicción y se compara con la etiqueta real mediante una **función de pérdida**. En clasificación multiclase se usa con frecuencia la entropía cruzada:
+
+$$\mathcal{L} = -\sum_{c=1}^{C} y_c \log(\hat{p}_c)$$
+
+Aquí, $\mathcal{L}$ es la pérdida, $C$ representa el total de categorías consideradas por la tarea, $y_c$ indica si la clase $c$ es la correcta y $\hat{p}_c$ es la probabilidad predicha para esa clase. Si la red asigna baja probabilidad a la clase correcta, la pérdida aumenta.
+
+La **retropropagación** (*backpropagation*) calcula cómo cambia la pérdida respecto a cada peso de la red, aplicando la regla de la cadena desde la salida hacia las capas iniciales. Luego, un optimizador actualiza los pesos mediante variantes del **descenso de gradiente**:
+
+$$w \leftarrow w - \eta \frac{\partial \mathcal{L}}{\partial w}$$
+
+En esta expresión, $\eta$ es la tasa de aprendizaje y $\frac{\partial \mathcal{L}}{\partial w}$ indica la dirección en la que el peso aumenta la pérdida. Restar ese término ajusta el peso en la dirección que tiende a reducir el error. Así, la red modifica gradualmente sus filtros y combinaciones internas para producir predicciones más consistentes <sup>[[2]](#ref-2)</sup>.
+
+## Imágenes como Tensores
+
+Una imagen digital puede verse como una cuadrícula de **píxeles** con **alto** y **ancho**. Si una imagen tiene alto $H$ y ancho $W$, puede representarse como una matriz de $H \times W$ valores cuando tiene un solo canal. En imágenes RGB, cada píxel tiene tres canales: rojo (*red*), verde (*green*) y azul (*blue*). Por eso, una imagen a color se representa como un tensor de forma:
+
+$$H \times W \times 3$$
+
+Esta notación indica que existen tres matrices, una por canal de color, alineadas espacialmente. Cada canal contiene intensidades numéricas. Al combinarse, estas intensidades describen colores, bordes, sombras y texturas. En hojas de maíz, por ejemplo, los píxeles pueden codificar variaciones de verde, amarillamiento, bordes secos, manchas oscuras o lesiones alargadas. Para una red neuronal, todos esos elementos son patrones numéricos distribuidos en el tensor de entrada.
+
+La estructura espacial importa, porque píxeles vecinos suelen estar relacionados. Una mancha foliar no se reconoce por un píxel aislado, sino por una región con color, textura, borde y forma.
 
 ## Redes Neuronales Convolucionales (CNN)
 
-Una **red neuronal convolucional** (*Convolutional Neural Network*, CNN) es una clase de modelo de aprendizaje profundo diseñada para procesar datos con estructura de cuadrícula, como imágenes. A diferencia de las redes completamente conectadas, las CNNs explotan la localidad espacial y la invarianza a la traslación mediante tres operaciones clave <sup>[[14]](#ref-15)</sup>:
+Una **red neuronal convolucional** (*Convolutional Neural Network*, CNN) es una arquitectura de aprendizaje profundo diseñada para procesar datos con estructura de cuadrícula, como imágenes <sup>[[3]](#ref-3)</sup>. A diferencia de una red completamente conectada, una CNN no conecta cada píxel con cada neurona desde el inicio, en su lugar, usa filtros pequeños que recorren la imagen y detectan patrones locales.
 
-- **Capa convolucional:** aplica un conjunto de filtros aprendibles que convoluciona la entrada para producir mapas de activación. Cada filtro detecta un patrón local (bordes, texturas, formas) y comparte sus pesos en toda la imagen, reduciendo drásticamente el número de parámetros respecto a una capa densa.
-- **Capa de *pooling*:** reduce la resolución espacial de los mapas de activación (por ejemplo, *max pooling* 2x2 con stride 2), introduciendo cierta invarianza a pequeñas traslaciones y reduciendo el costo computacional de las capas siguientes.
-- **Capas completamente conectadas (*fully connected*):** al final de la red, transforman el vector de características extraídas por las capas convolucionales en una distribución de probabilidad sobre las clases mediante una función *softmax*.
+Dentro de las CNNs, un **filtro** es una pequeña matriz de pesos aprendibles, por ejemplo de $3 \times 3$ o $5 \times 5$. Al aplicarse sobre distintas regiones de la imagen mediante una **convolución**, produce un **mapa de características** (*feature map*) que indica dónde aparece el patrón aprendido.
 
-### De LeNet a AlexNet
+Una CNN aprende una **jerarquía visual**. Las primeras capas suelen responder a **bordes**, cambios de orientación y colores básicos, luego las capas intermedias combinan esas señales para detectar **texturas**, patrones repetidos, manchas o transiciones de color. Las capas más profundas integran formas, partes de objetos y patrones visuales complejos. En una hoja de maíz, esta progresión puede ir desde bordes de la lámina foliar, variaciones de verde o amarillo y textura de nervaduras, hasta regiones lesionadas con forma y color característicos.
 
-Las primeras CNNs modernas fueron propuestas por LeCun et al. en la década de 1990 para reconocimiento de dígitos escritos a mano. Sin embargo, fue la aparición de **AlexNet** en 2012 la que marcó el punto de inflexión del campo <sup>[[1]](#ref-1)</sup>: con 5 capas convolucionales y 3 capas FC entrenadas sobre ImageNet-1K con dos GPUs en paralelo, AlexNet redujo la tasa de error Top-5 de 26.2 % a 15.3 %, una brecha que convenció a la comunidad de que las CNNs profundas eran el camino.
+La convolución tiene dos ventajas:
 
-AlexNet popularizó tres técnicas que se convirtieron en estándar en los años siguientes. La primera es **ReLU** como función de activación, que acelera la convergencia frente a sigmoid/tanh. La segunda es ***dropout***, una regularización estocástica que reduce la co-adaptación entre neuronas <sup>[[3]](#ref-3)</sup>. La tercera es ***data augmentation*** (recortes aleatorios, reflejos horizontales), que aumenta la variabilidad efectiva del conjunto de entrenamiento.
+- **Conectividad local:** cada filtro observa regiones pequeñas, adecuadas para patrones visuales cercanos.
+- **Compartición de pesos:** el mismo filtro se aplica en toda la imagen, lo que reduce parámetros y permite detectar el mismo patrón en distintas posiciones.
 
-### Batch Normalization
+El **campo receptivo** de una neurona es la región de la imagen original que puede influir en su activación. En las primeras capas, ese campo suele ser pequeño, al apilar convoluciones y operaciones de reducción espacial, las capas profundas integran información de regiones cada vez más amplias. Esto permite pasar de señales locales, como un borde oscuro, a patrones más complejos, como una lesión formada por borde, color y textura.
 
-Entrenar redes cada vez más profundas trajo un problema práctico: las activaciones de cada capa cambian de distribución a medida que cambian los pesos de las capas anteriores, lo que hace el entrenamiento inestable. La normalización por lotes fue la respuesta a ese problema y hoy es un componente casi universal.
+### ReLU y Pooling
 
-Introducida por Ioffe y Szegedy en 2015, la **normalización por lotes** (*batch normalization*, BN) <sup>[[2]](#ref-2)</sup> normaliza las activaciones de cada capa a media cero y varianza unitaria sobre el mini-batch durante el entrenamiento, re-escalándolas luego con parámetros aprendibles $\gamma$ y $\beta$. Sus beneficios principales son tres: permite usar tasas de aprendizaje más altas sin inestabilidad, reduce la sensibilidad a la inicialización de pesos y actúa como regularizador implícito, disminuyendo la necesidad de dropout en algunas arquitecturas.
+Después de una convolución se suele aplicar una activación como **ReLU** (*Rectified Linear Unit*):
 
-BN está presente en prácticamente todas las arquitecturas convolucionales modernas (EfficientNet, MobileNet, ResNet, entre otras).
+$$\text{ReLU}(x) = \max(0, x)$$
 
-### Convoluciones Depthwise-Separable
+ReLU mantiene las activaciones positivas y anula las negativas, lo que ayuda a entrenar redes profundas de forma eficiente y favorece representaciones dispersas <sup>[[15]](#ref-15)</sup>.
 
-El otro gran cuello de botella de las CNNs clásicas es el costo computacional de las convoluciones estándar, que crece rápido con el número de canales. Las convoluciones depthwise-separable resuelven esto factorizando la operación, y son la pieza clave que hace viables las arquitecturas pensadas para dispositivos móviles.
+Las capas de **pooling** reducen la resolución espacial de los mapas de características. El caso más común, *max pooling*, toma el valor máximo dentro de una pequeña ventana, esto disminuye el costo computacional y aporta cierta tolerancia a desplazamientos pequeños: una lesión o textura puede seguir siendo reconocible aunque aparezca ligeramente movida dentro de la imagen.
 
-Las **convoluciones depthwise-separable** <sup>[[5]](#ref-5)</sup> factorizan una convolución estándar $k \times k$ con $C_{in}$ canales de entrada y $C_{out}$ de salida en dos operaciones secuenciales. Primero, la **depthwise convolution** aplica un filtro $k \times k$ independiente *por canal*, produciendo $C_{in}$ mapas de activación. Después, la **pointwise convolution** combina esos $C_{in}$ mapas con una convolución $1 \times 1$ para producir los $C_{out}$ mapas finales.
+## Clasificación: Logits y Softmax
 
-Esta factorización reduce el número de operaciones en un factor de aproximadamente $1/C_{out} + 1/k^2$, que para $k=3$ y $C_{out}$ grande equivale a una reducción de ~8–9x en FLOPs, sin degradación significativa de la capacidad representacional. Es la base de la familia MobileNet y se hereda en los bloques MBConv de EfficientNet.
+Después de las capas convolucionales, muchas arquitecturas usan **capas completamente conectadas** (*fully connected*) o una capa lineal final para combinar las características extraídas. Estas capas ya no observan solo una región local: reciben una representación resumida de la imagen y la transforman en valores asociados a las clases posibles.
 
----
+Esos valores se llaman **logits**. Cada logit corresponde a una clase posible, pero todavía no es una probabilidad. Para convertirlos en una distribución sobre clases se aplica **softmax**:
 
-## Aprendizaje por Transferencia (*Transfer Learning*)
+$$\hat{p}_c = \frac{e^{z_c}}{\sum_{j=1}^{C} e^{z_j}}$$
 
-Entrenar una CNN desde cero requiere muchísimos datos etiquetados, el aprendizaje por transferencia es la vía práctica para sortear esa limitación, y mas aún cuando se tienen pocos datos.
+donde $z_c$ es el logit de la clase $c$ y el denominador suma la evidencia de todas las clases. La clase predicha suele ser la que obtiene la probabilidad más alta. Esta salida permite interpretar la decisión como una competencia entre clases: la red asigna mayor peso a la clase cuyas características visuales resultan más compatibles con la imagen.
 
-El **aprendizaje por transferencia** consiste en reutilizar un modelo pre-entrenado en una tarea fuente y adaptarlo a una tarea objetivo diferente <sup>[[15]](#ref-17)</sup>.
+La interpretación de por qué una red asigna una clase a una imagen se aborda en la página complementaria de [interpretabilidad y explicabilidad](interpretability.md), sin duplicar aquí sus métodos específicos.
 
-### Por qué funciona con ImageNet
+## Sobreajuste, Regularización y Transferencia
 
-Los modelos pre-entrenados en ImageNet aprenden una jerarquía de características: las primeras capas detectan bordes y texturas de bajo nivel (independientes del dominio), las capas intermedias detectan partes y patrones visuales, y las capas más profundas codifican conceptos semánticos específicos de las categorías de ImageNet. Para tareas de visión en dominios visualmente relacionados (como la clasificación de hojas), los mapas de características de las capas bajas e intermedias son altamente reutilizables.
+El **sobreajuste** (*overfitting*) ocurre cuando una red aprende demasiado bien los ejemplos de entrenamiento, pero no generaliza igual de bien a imágenes nuevas. En visión por computadora esto puede pasar si el modelo memoriza fondos, condiciones de iluminación, encuadres o detalles accidentales en lugar de aprender patrones visuales relevantes.
 
-Esto produce algunos beneficios:
+La **regularización** agrupa técnicas que buscan reducir ese riesgo y mejorar la generalización del modelo <sup>[[2]](#ref-2)</sup>. Algunas estrategias habituales son:
 
-- La convergencia es más rápida, porque los pesos ya son una buena inicialización y no un punto aleatorio.
-- La generalización con pocos datos mejora, porque las características pre-aprendidas reducen el riesgo de sobreajuste cuando el dataset objetivo es pequeño.
-- Y el costo computacional puede reducirse, ya que es posible congelar las capas tempranas y entrenar solo las últimas, disminuyendo el número de parámetros a optimizar.
+- **Dropout:** durante el entrenamiento, desactiva aleatoriamente una fracción de unidades para evitar que la red dependa demasiado de combinaciones específicas de neuronas <sup>[[4]](#ref-4)</sup>.
+- **Batch normalization:** normaliza activaciones dentro de mini-lotes y aprende parámetros de escala y desplazamiento. Esto ayuda a estabilizar el entrenamiento de redes profundas y puede tener un efecto regularizador <sup>[[14]](#ref-14)</sup>.
+- **Data augmentation:** genera variaciones de las imágenes de entrenamiento mediante transformaciones como recortes, rotaciones moderadas, cambios de brillo o volteos cuando son coherentes con el dominio. Esto expone al modelo a más variabilidad visual sin cambiar la etiqueta <sup>[[2]](#ref-2)</sup>.
+- **Transfer learning:** reutiliza pesos de un modelo preentrenado en una tarea fuente y los adapta a una tarea objetivo. En imágenes, los modelos preentrenados suelen aprender filtros tempranos útiles para bordes, colores y texturas, que pueden transferirse a dominios visuales relacionados <sup>[[5]](#ref-5)</sup>.
 
-### Fine-Tuning
+El aprendizaje por transferencia es especialmente útil cuando no se dispone de millones de imágenes etiquetadas. La idea no es copiar la tarea original, sino aprovechar representaciones visuales generales y ajustarlas al nuevo problema.
 
-Una estrategia habitual es el **fine-tuning de la capa clasificadora**: se preservan los pesos del *backbone* pre-entrenado en ImageNet y se reemplaza únicamente la última capa lineal (el clasificador) por una nueva capa dimensionada al número de clases de la tarea objetivo. A partir de ahí, el backbone puede congelarse por completo o dejarse entrenable (*unfrozen*) con una tasa de aprendizaje reducida, para adaptar las representaciones sin destruir lo pre-aprendido.
+## Evolución de Arquitecturas CNN
 
+### LeNet
 
+**LeNet-5**, propuesta por LeCun et al. en 1998, fue una de las primeras CNN exitosas para reconocimiento de dígitos y documentos <sup>[[6]](#ref-6)</sup>. Combinaba convoluciones, *pooling* y capas finales de clasificación. Aunque era pequeña comparada con arquitecturas modernas, estableció una plantilla fundamental para procesar imágenes mediante extracción jerárquica de características.
 
----
+### AlexNet
 
-## Arquitecturas Ligeras y Escalables
+**AlexNet** marcó un punto de inflexión en 2012 al ganar ImageNet con una CNN profunda entrenada en GPU <sup>[[7]](#ref-7)</sup>. Popularizó el uso de ReLU, *dropout* y aumento de datos en redes convolucionales grandes. Su éxito mostró que las CNN podían escalar a bases de imágenes naturales mucho más complejas que los dígitos manuscritos.
 
-Con los bloques anteriores ya cubiertos, veámos las familias de arquitecturas convolucionales más relevantes para la clasificación de imágenes, PERO, evaluadas por su eficiencia y capacidad, ordenadas de mayor a menor. Las redes llamadas residuales aportan el principio de las conexiones de salto, mientras que las familias como MobileNet y EfficientNet lo heredan y lo optimizan para eficiencia.
+### VGG
 
-### Redes Residuales (ResNet)
+**VGG** mostró que aumentar la profundidad usando bloques simples de convoluciones pequeñas de $3 \times 3$ podía producir representaciones visuales muy efectivas <sup>[[8]](#ref-8)</sup>. Su diseño era regular y fácil de entender, aunque con un costo alto en parámetros y memoria.
 
-He et al. <sup>[[4]](#ref-4)</sup> demostraron que añadir más capas a una CNN no garantiza mejor rendimiento: más allá de cierta profundidad, el error de entrenamiento *aumenta* (fenómeno de degradación). Su solución fue introducir **conexiones residuales** (*skip connections*): la salida de un bloque de capas se suma directamente a su entrada, obligando a la red a aprender la función residual $\mathcal{F}(x) = H(x) - x$ en lugar de la función completa $H(x)$.
+### ResNet
+
+**ResNet** introdujo conexiones residuales o *skip connections*, que suman la entrada de un bloque con su salida <sup>[[9]](#ref-9)</sup>:
 
 $$x_{l+1} = \mathcal{F}(x_l, \{W_l\}) + x_l$$
 
-Esta reformulación facilita el flujo de gradientes hacia capas tempranas (mitigando el desvanecimiento del gradiente) y permite entrenar redes de 50, 101 o 152 capas con convergencia estable. Las conexiones residuales no son exclusivas de ResNet: se heredan en los bloques MBConv de las familias MobileNet y EfficientNet, que son las arquitecturas ligeras que dominan el despliegue en dispositivos móviles.
+Esta formulación facilita el flujo de gradientes y permite entrenar redes mucho más profundas sin que el aumento de capas degrade el entrenamiento. Las conexiones residuales se volvieron una idea central en muchas arquitecturas posteriores.
 
-### Familia MobileNet
+### MobileNet
 
-Si ResNet resolvió el problema de entrenar redes profundas, MobileNet atacó un problema distinto: cómo llevar esas redes a un teléfono con recursos limitados sin sacrificar demasiada precisión. La familia MobileNet fue diseñada progresivamente para maximizar la precisión bajo restricciones de latencia en dispositivos móviles:
+**MobileNet** fue diseñada para redes eficientes en dispositivos con recursos limitados <sup>[[10]](#ref-10)</sup>. Su pieza clave son las **convoluciones depthwise-separable**, que factorizan una convolución estándar en dos pasos: primero una convolución independiente por canal (*depthwise*) y luego una convolución $1 \times 1$ que combina canales (*pointwise*). Esta separación reduce mucho el costo computacional (alrededor de 8 a 9 veces menos operaciones con filtros de $3 \times 3$) manteniendo la capacidad para aprender patrones visuales útiles. Por eso es un buen punto de partida cuando la meta es correr el modelo en un teléfono.
 
-| Versión | Año | Innovación principal |
+La familia fue evolucionando versión a versión, cada una con una idea central:
+
+| Versión | Año | Idea principal |
 |---|---|---|
-| MobileNet V1 <sup>[[5]](#ref-5)</sup> | 2017 | Convoluciones depthwise-separable |
-| MobileNet V2 <sup>[[6]](#ref-6)</sup> | 2018 | Bloques MBConv con *inverted residuals* y *linear bottleneck* |
-| MobileNet V3 <sup>[[7]](#ref-7)</sup> | 2019 | Búsqueda de arquitectura (NAS) + SE blocks + hard-swish |
+| MobileNetV1 <sup>[[10]](#ref-10)</sup> | 2017 | Convoluciones depthwise-separable |
+| MobileNetV2 <sup>[[11]](#ref-11)</sup> | 2018 | Bloques con residuos invertidos y cuellos de botella lineales |
+| MobileNetV3 <sup>[[12]](#ref-12)</sup> | 2019 | Búsqueda de arquitectura, bloques de atención y activaciones más eficientes |
 
-Los **bloques MBConv** de V2 invierten la lógica del bottleneck clásico: en lugar de comprimir primero y expandir después, *expanden* el número de canales con una convolución $1 \times 1$, aplican la depthwise convolution en el espacio expandido, y luego *proyectan* de vuelta a un espacio de menor dimensión. La capa de proyección no tiene activación no lineal (de ahí *linear bottleneck*) para preservar la información en el espacio comprimido. V3 añade SE blocks y reemplaza ReLU6 con hard-swish en las capas más profundas.
+La idea de los **residuos invertidos** es expandir primero los canales, aplicar la convolución depthwise en ese espacio más amplio y luego proyectar de vuelta a un espacio pequeño, todo sin perder información por el camino. Esto se hereda en otras arquitecturas ligeras.
 
-### EfficientNet y *Compound Scaling*
+### EfficientNet
 
-Antes de EfficientNet, escalar una red para ganar precisión solía significar ajustar a mano y por separado la profundidad, el ancho o la resolución de entrada, un proceso costoso y poco sistemático. Tan y Le <sup>[[8]](#ref-8)</sup> observaron que escalar las tres dimensiones de forma conjunta y equilibrada produce mejores resultados que hacerlo individualmente. Definieron un **coeficiente compuesto** $\phi$ tal que:
+**EfficientNet** propuso una idea simple pero potente: en lugar de agrandar la red por un solo lado (más capas, o más canales, o imágenes más grandes), conviene escalar las tres dimensiones a la vez y de forma equilibrada. A esto lo llamaron *compound scaling* <sup>[[13]](#ref-13)</sup>:
 
 $$\text{depth} \propto \alpha^\phi, \quad \text{width} \propto \beta^\phi, \quad \text{resolution} \propto \gamma^\phi$$
 
-con $\alpha \cdot \beta^2 \cdot \gamma^2 \approx 2$ (restricción de recursos). Los valores $\alpha = 1.2$, $\beta = 1.1$, $\gamma = 1.15$ se determinaron por búsqueda en la red base B0 (encontrada con NAS). Aplicando $\phi = 1, 2, \ldots, 7$ se obtienen B1–B7.
+Aquí $\phi$ es un único coeficiente que controla cuánto crece la red, y los valores $\alpha$, $\beta$ y $\gamma$ reparten ese crecimiento entre profundidad, ancho y resolución. Partiendo de un modelo base pequeño (EfficientNet-B0, con unos 5.3 millones de parámetros y cerca de 77 % de precisión en ImageNet) y subiendo $\phi$, se obtiene toda la familia B1 a B7.
 
-EfficientNet-B0 alcanza ~77.1 % Top-1 en ImageNet con solo 5.3 M de parámetros, comparable a arquitecturas mucho más grandes de generaciones anteriores.
-
----
+Lo interesante es que esta receta consigue una muy buena relación entre precisión y costo, que es justo lo que buscamos para un despliegue ligero.
 
 ## Manejo del Desbalance de Clases
 
-Un conjunto de datos con desbalance severo, donde la clase más representada supera por decenas de veces a la menos representad, plantea el riesgo de que sin intervención, un modelo puede alcanzar alta *accuracy* pero fallar estrepitosamente en las clases minoritarias, prediciendo casi siempre las mayoritarias.
+En muchos conjuntos de datos reales, algunas clases tienen muchas más imágenes que otras. En nuestro caso el desbalance es fuerte: la clase más frecuente supera por decenas de veces a la menos frecuente. El riesgo es que, sin ninguna intervención, la red aprenda el atajo fácil de predecir casi siempre las clases mayoritarias. Así lograría una *accuracy* alta pero fallaría justo donde más importa: en las clases minoritarias, que suelen ser las de diagnóstico más delicado.
 
-A continuación se describen las dos herramientas teóricas más comunes para mitigar el desbalance: la ponderación de la función de pérdida y el muestreo balanceado.
+Hay tres herramientas habituales para lidiar con esto, y se pueden combinar entre sí.
 
-### Función de Pérdida con Pesos de Clase
+### Función de pérdida con pesos de clase
 
-La **entropía cruzada ponderada** (*weighted cross-entropy*) asigna a cada clase $c$ un peso $w_c$ inversamente proporcional a su frecuencia:
+La idea es hacer que los errores en las clases poco frecuentes "cuesten" más. La **entropía cruzada ponderada** asigna a cada clase $c$ un peso $w_c$ inversamente proporcional a su frecuencia:
 
 $$w_c = \frac{N}{C \cdot n_c}$$
 
-donde $N$ es el total de muestras, $C$ el número de clases y $n_c$ la frecuencia de la clase $c$. La pérdida resultante es:
+donde $N$ es el total de imágenes, $C$ el número de clases y $n_c$ cuántas imágenes tiene la clase $c$. Con esos pesos, la pérdida queda:
 
-$$\mathcal{L} = -\sum_{c=1}^{C} w_c \cdot y_c \log \hat{p}_c$$
+$$\mathcal{L} = -\sum_{c=1}^{C} w_c \, y_c \log \hat{p}_c$$
 
-Esto hace que los errores en clases minoritarias contribuyan más al gradiente, empujando al modelo a aprender sus patrones.
+Así, equivocarse en una clase minoritaria pesa más en el gradiente, y la red se ve empujada a aprender también sus patrones.
 
-### Muestreo Ponderado
+### Muestreo ponderado
 
-La pérdida ponderada actúa sobre el gradiente, pero también se puede intervenir antes, en la composición misma de cada batch. Un **muestreador ponderado** construye cada mini-batch seleccionando ejemplos con probabilidad proporcional al inverso de la frecuencia de su clase. En combinación con la pérdida ponderada, iguala la frecuencia efectiva durante el entrenamiento sin duplicar muestras en memoria.
+La pérdida ponderada actúa sobre el gradiente, pero también se puede intervenir antes, al armar cada lote de imágenes. Un **muestreador ponderado** elige los ejemplos de cada mini-lote con una probabilidad mayor para las clases poco frecuentes. Puesto de forma intuitiva: si una clase representa apenas el 2 % del conjunto, el muestreador la seleccionará mucho más seguido, de modo que aparezca en casi todos los lotes y la red reciba suficiente señal para aprenderla. Lo bueno es que consigue este equilibrio sin duplicar imágenes en memoria.
 
-Dicho de una forma más intuitiva: si una clase minoritaria representa solo el 2 % del conjunto, el muestreador la seleccionará con una probabilidad mucho mayor, asegurando que aparezca en cada batch y que el modelo reciba suficiente señal para aprenderla.
+### Pérdida focal
 
-### Pérdida Focal
-
-Cuando la ponderación por frecuencia no basta para las clases más difíciles, la **pérdida focal** (*focal loss*) <sup>[[12]](#ref-12)</sup> ofrece una alternativa: reescala la entropía cruzada con un factor que reduce el peso de los ejemplos ya bien clasificados, concentrando el aprendizaje en los ejemplos difíciles o mal clasificados, que suelen concentrarse en las clases minoritarias.
-
----
+Cuando la ponderación por frecuencia no alcanza para las clases más difíciles, la **pérdida focal** (*focal loss*) ofrece otra vía <sup>[[16]](#ref-16)</sup>. Reescala la entropía cruzada para restarle peso a los ejemplos que la red ya clasifica bien, y concentrar el aprendizaje en los ejemplos difíciles o mal clasificados, que suelen ser justamente los de las clases minoritarias.
 
 ## Métricas de Evaluación
 
-Ya teniendo técnicas para lidiar con el desbalance de clases, queda la pregunta de cómo medir si el modelo realmente aprendió a distinguir las clases minoritarias y no solo las mayoritarias.
+Una vez que aplicamos técnicas para el desbalance, queda la pregunta clave: ¿cómo sabemos si el modelo de verdad aprendió a distinguir las clases minoritarias y no solo las mayoritarias? Para eso conviene mirar más allá de la *accuracy*.
 
-### Precisión, Recall y F1 por Clase
+### Precisión, recall y F1 por clase
 
-Para cada clase $c$ se calculan:
+Para cada clase $c$ se calculan tres métricas a partir de sus aciertos y errores:
 
 $$\text{Precision}_c = \frac{TP_c}{TP_c + FP_c}, \quad \text{Recall}_c = \frac{TP_c}{TP_c + FN_c}, \quad F1_c = \frac{2 \cdot \text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c}$$
 
-### F1-Macro vs F1-Weighted
+La **precisión** mide qué tan confiables son las predicciones de esa clase, el **recall** mide cuántos casos reales de la clase logró detectar, y el **F1** combina ambas en un solo número.
 
-El **F1-macro** promedia el F1 de cada clase con igual peso, sin importar cuántas muestras tenga:
+### F1-macro frente a F1-weighted
+
+Cuando queremos un número global, hay dos formas de promediar el F1 de todas las clases. El **F1-macro** las trata a todas por igual, sin importar cuántas imágenes tenga cada una:
 
 $$F1_{\text{macro}} = \frac{1}{C} \sum_{c=1}^{C} F1_c$$
 
-El **F1-weighted** pondera por la frecuencia de cada clase, sesgándose hacia las clases mayoritarias. En presencia de desbalance severo, F1-macro es la métrica más informativa porque penaliza igualmente el fallo en cualquier clase, incluidas las minoritarias de difícil diagnóstico agronómico.
+El **F1-weighted**, en cambio, promedia dando más peso a las clases con más imágenes, por lo que tiende a reflejar sobre todo el rendimiento en las mayoritarias.
 
-Por esa razón, en tareas con desbalance severo se suele fijar un umbral mínimo sobre el **F1-macro** del conjunto de prueba como criterio de viabilidad, en lugar de sobre la *accuracy*: así se exige un rendimiento aceptable en todas las clases y no solo un promedio inflado por las mayoritarias.
-
----
-
-## Trabajos Relevantes en Maíz
-
-El diagnóstico de enfermedades en maíz con CNNs ha sido abordado en múltiples estudios recientes. Albahli y Masood (2022) reportaron 99.89 % de precisión en clasificación de enfermedades de maíz usando EfficientNetV2 sobre PlantVillage, lo que subraya el potencial de las arquitecturas de escala compuesta para este dominio <sup>[[8]](#ref-8)</sup>. Estudios con datos de campo real, no obstante, reportan resultados más conservadores (69–97 %) y destacan que la diversidad del entorno de captura es el principal factor de variabilidad.
-
-La preferencia por modelos ligeros como MobileNetV3 y EfficientNet-B0 frente a arquitecturas más grandes (ResNet-101, EfficientNet-B7) es un patrón recurrente cuando el objetivo es el despliegue en dispositivos móviles: las redes de última generación que rozan el 99 % de validación resultan demasiado pesadas y lentas para inferencia local en gama media-baja, lo que obliga a un compromiso entre precisión y coste de despliegue.
-
----
+Con un desbalance fuerte como el nuestro, el **F1-macro** es la métrica más informativa, porque penaliza por igual el fallo en cualquier clase, incluidas las minoritarias más difíciles de diagnosticar. Por eso el proyecto fija un umbral mínimo sobre el F1-macro del conjunto de prueba como criterio de viabilidad, en lugar de usar la *accuracy*: así exigimos un buen rendimiento en todas las clases y no un promedio inflado por las mayoritarias.
 
 ## Referencias
 
-<a id="ref-1"></a>[1] A. Krizhevsky, I. Sutskever, y G. E. Hinton, "ImageNet Classification with Deep Convolutional Neural Networks," in *Advances in Neural Information Processing Systems (NeurIPS)*, vol. 25, Lake Tahoe, NV, USA, 2012, pp. 1097–1105.
+<a id="ref-1"></a>[1] Y. LeCun, Y. Bengio, y G. Hinton, "Deep Learning," *Nature*, vol. 521, pp. 436-444, 2015.
 
-<a id="ref-2"></a>[2] S. Ioffe y C. Szegedy, "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift," in *Proc. 32nd Int. Conf. Mach. Learn. (ICML)*, Lille, France, 2015, pp. 448–456.
+<a id="ref-2"></a>[2] I. Goodfellow, Y. Bengio, y A. Courville, *Deep Learning*. Cambridge, MA, USA: MIT Press, 2016.
 
-<a id="ref-3"></a>[3] N. Srivastava, G. Hinton, A. Krizhevsky, I. Sutskever, y R. Salakhutdinov, "Dropout: A Simple Way to Prevent Neural Networks from Overfitting," *J. Mach. Learn. Res.*, vol. 15, no. 1, pp. 1929–1958, 2014.
+<a id="ref-3"></a>[3] R. Yamashita, M. Nishio, R. K. G. Do, y K. Togashi, "Convolutional Neural Networks: An Overview and Application in Radiology," *Insights Imaging*, vol. 9, no. 4, pp. 611-629, 2018.
 
-<a id="ref-4"></a>[4] K. He, X. Zhang, S. Ren, y J. Sun, "Deep Residual Learning for Image Recognition," in *Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)*, Las Vegas, NV, USA, 2016, pp. 770–778.
+<a id="ref-4"></a>[4] N. Srivastava, G. Hinton, A. Krizhevsky, I. Sutskever, y R. Salakhutdinov, "Dropout: A Simple Way to Prevent Neural Networks from Overfitting," *Journal of Machine Learning Research*, vol. 15, no. 1, pp. 1929-1958, 2014.
 
-<a id="ref-5"></a>[5] A. Howard, M. Zhu, B. Chen, D. Kalenichenko, W. Wang, T. Weyand, M. Andreetto, y H. Adam, "MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications," *arXiv preprint arXiv:1704.04861*, Apr. 2017.
+<a id="ref-5"></a>[5] S. J. Pan y Q. Yang, "A Survey on Transfer Learning," *IEEE Transactions on Knowledge and Data Engineering*, vol. 22, no. 10, pp. 1345-1359, 2010.
 
-<a id="ref-6"></a>[6] M. Sandler, A. Howard, M. Zhu, A. Zhmoginov, y L.-C. Chen, "MobileNetV2: Inverted Residuals and Linear Bottlenecks," in *Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)*, Salt Lake City, UT, USA, 2018, pp. 4510–4520.
+<a id="ref-6"></a>[6] Y. LeCun, L. Bottou, Y. Bengio, y P. Haffner, "Gradient-Based Learning Applied to Document Recognition," *Proceedings of the IEEE*, vol. 86, no. 11, pp. 2278-2324, 1998.
 
-<a id="ref-7"></a>[7] A. Howard, R. Pang, H. Adam, Q. V. Le, M. Sandler, B. Chen, W. Wang, L.-C. Chen, M. Tan, G. Chu, V. Vasudevan, y Y. Zhu, "Searching for MobileNetV3," in *Proc. IEEE/CVF Int. Conf. Comput. Vis. (ICCV)*, Seoul, Korea, 2019, pp. 1314–1324.
+<a id="ref-7"></a>[7] A. Krizhevsky, I. Sutskever, y G. E. Hinton, "ImageNet Classification with Deep Convolutional Neural Networks," in *Advances in Neural Information Processing Systems (NeurIPS)*, vol. 25, 2012, pp. 1097-1105.
 
-<a id="ref-8"></a>[8] M. Tan y Q. V. Le, "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks," in *Proc. 36th Int. Conf. Mach. Learn. (ICML)*, Long Beach, CA, USA, 2019, pp. 6105–6114.
+<a id="ref-8"></a>[8] K. Simonyan y A. Zisserman, "Very Deep Convolutional Networks for Large-Scale Image Recognition," in *International Conference on Learning Representations (ICLR)*, 2015.
 
-<a id="ref-9"></a>[9] J. Hu, L. Shen, y G. Sun, "Squeeze-and-Excitation Networks," in *Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)*, Salt Lake City, UT, USA, 2018, pp. 7132–7141.
+<a id="ref-9"></a>[9] K. He, X. Zhang, S. Ren, y J. Sun, "Deep Residual Learning for Image Recognition," in *Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition (CVPR)*, 2016, pp. 770-778.
 
-<a id="ref-10"></a>[10] Z. Liu, H. Mao, C.-Y. Wu, C. Feichtenhofer, T. Darrell, y S. Xie, "A ConvNet for the 2020s," in *Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)*, New Orleans, LA, USA, 2022, pp. 11976–11986.
+<a id="ref-10"></a>[10] A. G. Howard, M. Zhu, B. Chen, D. Kalenichenko, W. Wang, T. Weyand, M. Andreetto, y H. Adam, "MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications," *arXiv preprint arXiv:1704.04861*, 2017.
 
-<a id="ref-11"></a>[11] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, y N. Houlsby, "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale," in *Proc. Int. Conf. Learn. Representations (ICLR)*, 2021.
+<a id="ref-11"></a>[11] M. Sandler, A. Howard, M. Zhu, A. Zhmoginov, y L.-C. Chen, "MobileNetV2: Inverted Residuals and Linear Bottlenecks," in *Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition (CVPR)*, 2018, pp. 4510-4520.
 
-<a id="ref-12"></a>[12] T.-Y. Lin, P. Goyal, R. Girshick, K. He, y P. Dollár, "Focal Loss for Dense Object Detection," in *Proc. IEEE Int. Conf. Comput. Vis. (ICCV)*, Venice, Italy, 2017, pp. 2980–2988.
+<a id="ref-12"></a>[12] A. Howard et al., "Searching for MobileNetV3," in *Proc. IEEE/CVF Int. Conf. Computer Vision (ICCV)*, 2019, pp. 1314-1324.
 
-<a id="ref-13"></a>[13] Google Brain / TensorFlow Team, "Higher Accuracy on Vision Models with EfficientNet-Lite," *TensorFlow Blog*, Mar. 2020. [Online]. Available: https://blog.tensorflow.org/2020/03/higher-accuracy-on-vision-models-with-efficientnet-lite.html
+<a id="ref-13"></a>[13] M. Tan y Q. V. Le, "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks," in *Proc. 36th Int. Conf. Machine Learning (ICML)*, 2019, pp. 6105-6114.
 
-<a id="ref-15"></a>[14] R. Yamashita, M. Nishio, R. K. G. Do, y K. Togashi, "Convolutional Neural Networks: An Overview and Application in Radiology," *Insights Imaging*, vol. 9, no. 4, pp. 611–629, Aug. 2018.
+<a id="ref-14"></a>[14] S. Ioffe y C. Szegedy, "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift," in *Proc. 32nd Int. Conf. Machine Learning (ICML)*, 2015, pp. 448-456.
 
-<a id="ref-17"></a>[15] S. J. Pan y Q. Yang, "A Survey on Transfer Learning," *IEEE Trans. Knowl. Data Eng.*, vol. 22, no. 10, pp. 1345–1359, Oct. 2010.
+<a id="ref-15"></a>[15] V. Nair y G. E. Hinton, "Rectified Linear Units Improve Restricted Boltzmann Machines," in *Proc. 27th Int. Conf. Machine Learning (ICML)*, 2010, pp. 807-814.
+
+<a id="ref-16"></a>[16] T.-Y. Lin, P. Goyal, R. Girshick, K. He, y P. Dollár, "Focal Loss for Dense Object Detection," in *Proc. IEEE Int. Conf. Computer Vision (ICCV)*, 2017, pp. 2980-2988.

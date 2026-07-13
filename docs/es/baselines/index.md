@@ -6,8 +6,6 @@ Funcionan como demo de modelos candidatos, ya que antes de comprometer el entren
 
 Los tres modelos elegidos, **EfficientNet-B0**, **ShuffleNetV2-x1.0** y **EfficientNet-Lite0**, son redes convolucionales ligeras pre-entrenadas en ImageNet que cubren el eje precisión - eficiencia y tiene compatibilidad para convertirse a TFLite para el despliegue móvil offline que es nuestra meta final.
 
----
-
 ## Dataset a utilizar
 
 Los baselines se entrenan sobre el **perfil `baseline`** de la configuración del pipeline: las **9 clases** del dataset actual con un tope de **1 500 imágenes por clase**, solo se recortan las clases mayoritarias, las minoritarias quedan intactas. Esto permite entrenar los modelos candidatos con un **dataset reducido (10,020 imágenes)** que conserva el desbalance natural de clases.
@@ -21,8 +19,6 @@ Los baselines se entrenan sobre el **perfil `baseline`** de la configuración de
 
 Se conservan completas las clases minoritarias (potasio 266, nitrógeno 523, fósforo 612) y
 limita solo las mayoritarias (healthy, tizones, gusano cogollero). El cap es configurable para permitir experimentar con diferentes tamaños de dataset, pero el valor por defecto es 1 500 imágenes por clase.
-
----
 
 ## Modelos seleccionados
 
@@ -54,8 +50,6 @@ más pequeños del grupo (~5 MB serializado).
 
 Se construye con `torchvision` reemplazando `model.fc` por una `nn.Linear(in_features, 9)`.
 
----
-
 ### EfficientNet-B0
 
 Si ShuffleNetV2 prioriza la eficiencia por encima de todo, EfficientNet-B0 busca el otro extremo del equilibrio: la mejor precisión posible sin disparar el costo computacional. **EfficientNet-B0** es la red base de la familia EfficientNet, propuesta por Google Brain en 2019. Su contribución central es el *compound scaling*: en lugar de escalar solo la profundidad, el ancho o la resolución de entrada de forma independiente (como hacía la práctica anterior), EfficientNet escala los tres simultáneamente con un coeficiente compuesto $\phi$ determinado por búsqueda de arquitectura (NAS) <sup>[[8]](#ref-8)</sup>.
@@ -74,8 +68,6 @@ En ImageNet-1K alcanza ~77.1 % de Top-1 con 5.3 M de parámetros: más del doble
 | Transfer learning | Pre-entrenado en ImageNet con `EfficientNet_B0_Weights.DEFAULT` (IMAGENET1K_V1); se reemplaza `model.classifier[1]` |
 | Regularización implícita | Los bloques MBConv con dropout estructural hacen a EfficientNet-B0 más robusto al overfitting con datasets pequeños |
 
----
-
 ### EfficientNet-Lite0
 
 El tercer baseline es un intento de quedarse con lo mejor de los dos mundos anteriores: la precisión de EfficientNet, pero adaptada para que funcione bien una vez cuantizada, algo crítico para el despliegue final del proyecto. **EfficientNet-Lite0** es una variante de EfficientNet-B0 optimizada específicamente para dispositivos de borde con aceleradores de inferencia (Coral Edge TPU, microcontroladores ARM con CMSIS-NN) <sup>[[13]](#ref-13)</sup>.
@@ -93,8 +85,6 @@ Se construye con `timm` (`timm.create_model("efficientnet_lite0", pretrained=Tru
 | Cuantización | Diseñada para cuantizarse a INT8 sin degradación significativa; punto fuerte para despliegue en campo |
 | Dependencia adicional | Requiere `timm` (no incluida en `torchvision`); añade una dependencia al entorno |
 | Uso en proyecto | Representa el extremo del trade-off "máxima eficiencia en edge" para comparar contra el extremo "máxima precisión" de EfficientNet-B0 |
-
----
 
 ## Comparación de los tres modelos
 

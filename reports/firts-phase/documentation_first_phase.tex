@@ -15,6 +15,7 @@
 \usepackage{fancyhdr}
 \usepackage{tocloft}
 \usepackage{microtype}
+\usepackage{float}
 \sloppy
 
 \renewcommand{\figurename}{Figura}
@@ -30,7 +31,7 @@
 \begin{document}
 
 % ---------------------------------------------------------------
-% Carátula
+% Car\'atula
 % ---------------------------------------------------------------
 \begin{titlepage}
 \centering
@@ -62,53 +63,172 @@
 
 \section*{Resumen}
 \addcontentsline{toc}{section}{Resumen}
-Este trabajo presenta la Etapa 1 de un sistema de clasificaci\'on de enfermedades foliares, plagas y deficiencias nutricionales en cultivos de ma\'iz mediante \textit{deep learning}, orientado a inferencia completamente offline en dispositivos m\'oviles de gama media/baja. Se documenta la recolecci\'on y limpieza de un conjunto de datos consolidado de 31~623 im\'agenes en 9 clases procedentes de 6 fuentes p\'ublicas, un an\'alisis exploratorio que identifica un desbalance de clases de hasta 32.9$\times$ y sesgos de dominio laboratorio/campo, el pipeline de preprocesamiento y balanceo, y la comparaci\'on de tres arquitecturas convolucionales ligeras preentrenadas en ImageNet (ShuffleNetV2-x1.0, EfficientNet-B0 y EfficientNet-Lite0) sobre un subconjunto de 4 clases. Los resultados reportados corresponden al entrenamiento con el conjunto \textbf{natural/desbalanceado} de esas 4 clases (todas las im\'agenes disponibles, sin el tope de 500/clase planteado originalmente en el dise\~no); una versi\'on balanceada de 500 im\'agenes/clase tambi\'en se entren\'o por separado y obtuvo buenos resultados cualitativos, aunque sus cifras exactas no se citan aqu\'i por no contar con artefactos locales verificables de esa corrida. EfficientNet-B0 obtiene el mejor macro-F1 en prueba (0.9903), seguido muy de cerca por ShuffleNetV2-x1.0 (0.9900) y EfficientNet-Lite0 (0.9894). Un an\'alisis con LIME sobre casos individuales muestra que los tres modelos concentran la atenci\'on en tejido foliar en aciertos, y permite inspeccionar visualmente el eje de confusi\'on dominante entre \textit{fall\_armyworm} y otras clases.
+Este trabajo presenta la Etapa 1 de un sistema de clasificaci\'on de enfermedades foliares, plagas y deficiencias nutricionales en ma\'iz mediante \textit{deep learning}, pensado para inferencia offline en dispositivos m\'oviles de gama media/baja. Se documenta la recolecci\'on y limpieza de un conjunto consolidado de 31~622 im\'agenes en 9 clases procedentes de 6 fuentes p\'ublicas, un an\'alisis exploratorio que revela un desbalance de hasta 32.9$\times$ y sesgos de dominio laboratorio/campo, el pipeline de preprocesamiento y balanceo, y la comparaci\'on de tres arquitecturas convolucionales ligeras preentrenadas en ImageNet (EfficientNet-B0, ShuffleNetV2-x1.0 y EfficientNet-Lite0). EfficientNet-B0 obtiene el mejor macro-F1 en prueba (0.9146), seguido de ShuffleNetV2-x1.0 (0.9030) y EfficientNet-Lite0 (0.8951), y los tres superan la meta de macro-F1 $\geq0.85$. El error se concentra en un solo cuello de botella, \texttt{potassium\_deficiency}, y en la confusi\'on entre lesiones foliares parecidas. El an\'alisis de interpretabilidad con LIME y Grad-CAM muestra que los modelos atienden al tejido foliar, pero se equivocan con alta confianza dentro del bloque de deficiencias nutricionales.
 
-\noindent\textbf{Palabras clave:} clasificaci\'on de enfermedades foliares, ma\'iz, redes neuronales convolucionales, transfer learning, LIME, dispositivos m\'oviles
+\noindent\textbf{Palabras clave:} clasificaci\'on de enfermedades foliares, ma\'iz, redes neuronales convolucionales, transfer learning, interpretabilidad, dispositivos m\'oviles
+
+\bigskip
+\noindent\textbf{Enlaces del proyecto.} El c\'odigo, los datos y la documentaci\'on ampliada de este trabajo est\'an disponibles p\'ublicamente:
+
+\begin{itemize}
+\item Repositorio: \url{https://github.com/daiv05/corn-leaf-disease-project}
+\item Sitio del proyecto: \url{https://doctor-maiz.deras.dev/es}
+\end{itemize}
 
 \newpage
 
-\section{Introducci\'on}
+\section{Problema y Soluci\'on}
 
-La agricultura representa el 5.6\% del PIB de El Salvador y es sustento de m\'as de 2 millones de personas en zonas rurales; el 82.1\% de los productores son peque\~nos agricultores, muchos a nivel de subsistencia. El ma\'iz, cultivo principal, es vulnerable a enfermedades foliares, plagas y deficiencias nutricionales que, sin detecci\'on temprana, pueden destruir hasta el 70\% de la cosecha; la cosecha nacional cay\'o un tercio entre 2021 y 2023.
+La agricultura representa el 5.6\% del PIB de El Salvador y sostiene a m\'as de 2 millones de personas en zonas rurales, y el 82.1\% de los productores son peque\~nos agricultores, muchos de subsistencia. El ma\'iz, cultivo principal, es vulnerable a distintas enfermedades foliares, plagas y deficiencias nutricionales que, sin detecci\'on temprana, pueden destruir hasta el 70\% de la cosecha. Entre 2021 y 2023 la cosecha nacional cay\'o un tercio.
 
-En zonas rurales el acceso a asistencia t\'ecnica agr\'icola es limitado --- una condici\'on de infraestructura del sector, no un juicio sobre el conocimiento del agricultor. Como consecuencia, el diagn\'ostico depende con frecuencia de la experiencia emp\'irica de quien cultiva, lo que puede favorecer detecciones tard\'ias y p\'erdidas econ\'omicas. Este proyecto no busca reemplazar la asistencia t\'ecnica ni al extensionista agr\'icola, sino ofrecer una \textbf{herramienta de apoyo} que permita detectar tempranamente una condici\'on foliar y orientar sobre pr\'oximos pasos, de forma complementaria al conocimiento existente del agricultor.
+En zonas rurales la asistencia t\'ecnica agr\'icola escasea, as\'i que el diagn\'ostico depende de la experiencia de quien cultiva, lo que puede favorecer detecciones tard\'ias. Lo que este proyecto busca no es reemplazar el criterio del agricultor o de especialistas, sino ofrecer una \textbf{herramienta de apoyo} que detecte una condici\'on foliar, explique las posibles causas y oriente sobre que puede hacer para manejarla.
 
-La soluci\'on propuesta es un modelo de clasificaci\'on de im\'agenes liviano, capaz de ejecutarse completamente offline en un dispositivo Android de gama media/baja. El agricultor captura o sube una foto de una hoja de ma\'iz y la aplicaci\'on responde con la clase m\'as probable, su porcentaje de confianza y consejos de manejo asociados. De forma complementaria se contempla una arquitectura de sincronizaci\'on opcional para, cuando haya conexi\'on, recolectar las fotos etiquetadas por los propios usuarios y formar un dataset natural adicional; esa recolecci\'on es infraestructura a futuro, no mejora el modelo dentro del alcance de este proyecto, sino que queda como insumo para un ciclo de entrenamiento posterior.
+La soluci\'on que se busca es un clasificador de im\'agenes liviano, capaz de correr completamente offline en dispositivos Android de gama media/baja (${\geq}$4~GB RAM, Snapdragon serie 6xx o equivalente). El flujo que se propone es que el agricultor toma o sube una foto de la hoja y la aplicaci\'on responde con la clase m\'as probable, su confianza y consejos de manejo. El modelo objetivo no debe superar los 20MB de tamaño y mantener una latencia ${\leq}300$~ms por imagen, con cuantizaci\'on INT8 y un runtime m\'ovil como TensorFlow Lite.
 
-Esta primera etapa cubre la recolecci\'on y documentaci\'on del dataset, el an\'alisis exploratorio de datos, el pipeline de preprocesamiento y balanceo, y la comparaci\'on de tres arquitecturas candidatas como \textit{baseline} sobre un subconjunto reducido, antes de comprometer el entrenamiento completo sobre las 9 clases del proyecto.
+Esta primera etapa cubre la recolecci\'on y documentaci\'on del dataset, el an\'alisis exploratorio, el pipeline de preprocesamiento y balanceo, y la comparaci\'on de tres arquitecturas candidatas como \textit{baseline} sobre las 9 clases consideradas.
 
-\section{Descripci\'on de la Soluci\'on}
+\section{Trabajos Previos}
 
-La soluci\'on se organiza en cuatro componentes principales, m\'as un componente complementario de recolecci\'on de datos:
+Los primeros sistemas de diagn\'ostico foliar se apoyaban en aprendizaje cl\'asico, cómo SVM, K-Nearest Neighbors, Random Forest, sobre caracter\'isticas dise\~nadas a mano (color, textura, forma de la lesi\'on), con precisiones del 79\% al 90\% (Autores varios, 2026). Con la llegada de las CNN cambió totalmente el enfoque, ahora con estas redes se aprende sola la jerarqu\'ia de rasgos a partir de los p\'ixeles.
 
-\begin{itemize}
-\item \textbf{Captura.} El agricultor toma o sube una foto de una hoja de ma\'iz desde la aplicaci\'on m\'ovil, sin necesitar conexi\'on.
-\item \textbf{Preprocesamiento embebido.} Normaliza la imagen en el dispositivo (orientaci\'on, RGB, redimensionado, normalizaci\'on) con el mismo punto de entrada usado en entrenamiento (\texttt{load\_and\_normalize\_image()}), evitando discrepancias entrenamiento/inferencia.
-\item \textbf{Modelo cuantizado.} Red convolucional ligera preentrenada en ImageNet y afinada sobre el dataset del proyecto, cuantizada a INT8 y exportada a un runtime m\'ovil (p.~ej.\ TensorFlow Lite u ONNX Runtime Mobile), con objetivo de ${\leq}20$~MB y ${\leq}300$~ms por imagen en un Android de gama media/baja (${\geq}$4~GB RAM, Snapdragon serie 6xx o equivalente).
-\item \textbf{Presentaci\'on y recomendaci\'on.} Muestra la clase m\'as probable con su porcentaje de confianza y consejos de manejo en lenguaje accesible.
-\item \textbf{Sincronizaci\'on opcional (complementario).} Con conexi\'on, sube las fotos etiquetadas por los usuarios para formar un dataset natural adicional. Es solo recolecci\'on: dentro de este proyecto no se usa para reentrenar el modelo, queda como insumo para un ciclo de entrenamiento futuro.
-\end{itemize}
+En la mayoría de investigaciones la \textbf{brecha de dominio laboratorio/campo} es el mayor desafío, los modelos pioneros se entrenaron con \textit{PlantVillage}, hojas aisladas sobre fondos homog\'eneos, donde las CNN alcanzan exactitudes de 95.81\% a 99.53\% (Ahmad et al., 2023a). Pero al evaluarlos contra conjuntos de campo real (\textit{PlantDoc}, \textit{FieldPlant}, \textit{CD\&S}) la precisi\'on se desploma al rango de 33.27\% a 39.87\%. La causa es bastante fácil de ver, y es que en el campo, la hoja enferma puede tener contacto con hojas sanas, malezas, suelo, sombras y reflejos. Esto se combatió con el aumento de datos agresivo, la recolección y mezcla de fotos de laboratorio y campo, y la eliminaci\'on de fondo mediante un paso previo, arquitecturas como DenseNet169 estabilizan la generalizaci\'on en 77.50\% a 81.60\% (Ahmad et al., 2023b).
 
-El flujo de datos entre estos componentes es el siguiente:
+Las investigaciones más recientes atacan estos problemas con esquemas h\'ibridos y en cascada, por un lado las CNN-ViT combinan la extracci\'on de texturas de las CNN con la capacidad de los Transformers para relacionar lesiones distantes, Shandilya et al.\ (2025) reportan F1 cercano al 99.13\% sobre conjuntos mixtos, aunque sistemas de campo como ZeaWatch ven caer su confianza al 70.8\% en condiciones reales (Baya et al., 2024).
 
-\begin{verbatim}
-Captura (foto, offline)
-   -> Preprocesamiento embebido (load_and_normalize_image)
-   -> Modelo cuantizado INT8 (TFLite / ONNX Runtime Mobile)
-   -> Clase mas probable + % de confianza + consejo de manejo
-   -> [opcional, con conexion] Sincronizacion -> dataset
-      natural (insumo de un entrenamiento futuro)
-\end{verbatim}
+Otros separan el problema en dos etapas, una primera con un detector (Faster R-CNN, LS-RCNN) que a\'isla la hoja, seguido de un clasificador (Liu et al., 2022), o usan c\'amaras RGB-D para recortar el fondo antes de clasificar con modelos ligeros como MobileNetV2 (Nan et al., 2023).
 
-Esta arquitectura completa es el dise\~no objetivo del sistema. El alcance de esta primera etapa se limita a la recolecci\'on y documentaci\'on del dataset, el an\'alisis exploratorio, el pipeline de preprocesamiento y balanceo, y la comparaci\'on de arquitecturas candidatas como \textit{baseline}, descritos en las secciones siguientes.
+Esta última estrategia de dos etapas ha reportado muy buenos resultados, y es considerada uno de los mejores caminos para sobrellevar el problema del cambio de dominio. El alcance de este proyecto aborda únicamente la clasificaci\'on, pero será dise\~nado como componente modular que en futuras etapas o investigaciones pueda recibir hojas ya segmentadas, y ser parte de un sistema más completo de detecci\'on y diagn\'ostico foliar.
+
+\section{Marco Te\'orico}
+
+\subsection{Redes Neuronales Convolucionales}
+
+En visión por computadora, una CNN procesa datos con estructura de cuadr\'icula aplicando filtros aprendibles $W$ sobre la imagen $I$. La convoluci\'on discreta en $(i,j)$ es:
+
+\begin{equation}
+S(i,j) = (I * W)(i,j) = \sum_{m}\sum_{n} I(i-m, j-n)\, W(m,n)
+\end{equation}
+
+La red aprende una jerarqu\'ia visual en la que las primeras capas responden a bordes y colores, las intermedias a texturas y manchas, las profundas a lesiones con forma y color.
+
+La \textbf{conectividad local} hace que cada filtro observe una regi\'on peque\~na, y la \textbf{compartici\'on de pesos} reutiliza el mismo filtro por toda la imagen, lo que reduce par\'ametros y detecta un patr\'on sin importar d\'onde aparezca. Las activaciones pasan por no linealidades como ReLU ($f(x)=\max(0,x)$) y por \textit{pooling}, que reduce la resoluci\'on espacial e introduce cierta tolerancia a peque\~nos desplazamientos, lo que hace más robusto al modelo.
+
+Una imagen a color entra a la red como un tensor de forma $H \times W \times 3$, una matriz por cada canal de color (rojo, verde y azul) alineada espacialmente. Para la red, s\'intomas como el amarillamiento de una hoja o una mancha oscura son patrones num\'ericos distribuidos en ese tensor, y por eso la estructura espacial importa tanto, ya que p\'ixeles vecinos suelen estar relacionados y una lesi\'on se reconoce por una regi\'on completa, no por un sólo p\'ixel.
+
+Un concepto que ayuda a entender c\'omo se construye esa jerarqu\'ia visual es el \textbf{campo receptivo}, la regi\'on de la imagen original que puede influir en la activaci\'on de una neurona dada. En las primeras capas ese campo es peque\~no, casi del tama\~no del filtro, pero al apilar convoluciones y reducir la resoluci\'on con \textit{pooling}, las capas profundas terminan integrando informaci\'on de \'areas cada vez m\'as amplias. As\'i es como la red pasa de detectar un borde oscuro aislado a reconocer una lesi\'on completa, formada por borde, color y textura combinados.
+
+Al final, los mapas de caracter\'isticas se proyectan hacia las clases mediante capas lineales. La funci\'on \textit{Softmax} convierte los logits $z_i$ en probabilidades:
+
+\begin{equation}
+\hat{p}_i = \frac{e^{z_i}}{\sum_{j=1}^{C} e^{z_j}}
+\end{equation}
+
+El entrenamiento minimiza la \textbf{Entrop\'ia Cruzada}, que castiga la divergencia entre la predicci\'on $\hat{p}$ y la etiqueta real $y$:
+
+\begin{equation}
+\mathcal{L}_{CE} = -\sum_{c=1}^{C} y_c \log(\hat{p}_c)
+\label{eq:ce}
+\end{equation}
+
+\subsection{Evoluci\'on hacia arquitecturas ligeras}
+
+La familia de arquitecturas CNN evolucion\'o desde LeNet y AlexNet hacia dise\~nos m\'as profundos como VGG y ResNet, esta \'ultima con conexiones residuales que facilitan entrenar redes muy profundas. Pero para el despliegue m\'ovil existen  las redes eficientes, dónde su pieza clave son las \textbf{convoluciones depthwise-separable}, que factorizan una convoluci\'on $k\times k$ en un filtro espacial por canal (\textit{depthwise}) y una convoluci\'on $1\times 1$ que combina canales (\textit{pointwise}). El ahorro de FLOPs respecto a la convoluci\'on est\'andar es:
+
+\begin{equation}
+\frac{\text{Costo separable}}{\text{Costo est\'andar}} \approx \frac{1}{C_{out}} + \frac{1}{k^2}
+\end{equation}
+
+Para filtros de $3\times 3$ esto significa ser unas 8--9 veces m\'as barato. Sobre esa idea nacen MobileNet, ShuffleNet y EfficientNet, que son la base de las arquitecturas evaluadas en este trabajo.
+
+\subsection{Aprendizaje por Transferencia}
+
+El \textbf{transfer learning} parte de una red ya entrenada en una tarea fuente y reaprovecha lo aprendido para resolver una tarea objetivo distinta, en lugar de entrenar desde cero. La idea no es copiar la tarea original, sino reutilizar representaciones generales que ya capturan bordes, colores y texturas, y que suelen transferirse bien a dominios visuales relacionados. Esto resulta especialmente \'util cuando no se dispone de millones de im\'agenes etiquetadas para el problema espec\'ifico que se quiere resolver.
+
+La tarea fuente m\'as usada en visi\'on por computadora es la clasificaci\'on sobre ImageNet (Deng et al., 2009), un conjunto masivo y diverso de im\'agenes naturales, pero no es la \'unica opci\'on ni la \'unica que existe. Tambi\'en se puede partir de pesos entrenados en otros dominios cercanos al problema, como conjuntos m\'as grandes de im\'agenes agr\'icolas o de plantas, o incluso de un preentrenamiento propio en una tarea relacionada dentro del mismo proyecto.
+
+En la pr\'actica, adoptar transfer learning implica reemplazar la capa clasificadora original por una ajustada a las clases del nuevo problema, y luego decidir cu\'anto del resto de la red se vuelve a entrenar. Dos estrategias habituales son el \textbf{fine-tuning} completo, donde se permite que todo el backbone ajuste sus pesos con descenso de gradiente sobre los nuevos datos, y el uso del modelo preentrenado como \textbf{extractor de caracter\'isticas} fijo, donde solo se entrena la capa final y el resto de la red permanece congelado. La primera opci\'on suele dar mejores resultados cuando hay suficientes datos objetivo y el dominio nuevo difiere bastante del original, mientras que la segunda es preferible con conjuntos muy peque\~nos, porque reduce el riesgo de sobreajuste.
+
+\subsection{Baselines}
+
+Un \textit{baseline} es un modelo de referencia sencillo que fija un piso de comparaci\'on, el objetivo no es crear el mejor modelo, sino marcar un nivel m\'inimo que las soluciones m\'as complejas deber\'an superar, además de permitir observar a bajo costo el comportamiento de arquitecturas candidatas antes de realizar entrenamientos completos.
+
+\subsection{Desbalance de clases}
+
+Cuando unas clases tienen muchas m\'as im\'agenes que otras, la red puede tomar el atajo de predecir casi siempre las mayoritarias, y as\'i lograr una \textit{accuracy} alta mientras falla en las clases minoritarias. Hay tres herramientas habituales para lidiar con esto, y se pueden combinar entre s\'i.
+
+La \textbf{entrop\'ia cruzada ponderada} hace que los errores en las clases poco frecuentes cuesten m\'as, asignando a cada clase $c$ un peso $w_c$ inversamente proporcional a su frecuencia:
+
+\begin{equation}
+w_c = \frac{N}{C \cdot n_c}
+\end{equation}
+
+donde $N$ es el total de im\'agenes, $C$ el n\'umero de clases y $n_c$ cu\'antas im\'agenes tiene la clase $c$. Con esos pesos, equivocarse en una clase minoritaria pesa m\'as en el gradiente y la red se ve empujada a aprender tambi\'en sus patrones.
+
+El \textbf{muestreo ponderado} interviene antes, al armar cada lote, eligiendo con m\'as probabilidad los ejemplos de clases poco frecuentes, de modo que aparezcan en casi todos los lotes sin necesidad de duplicar im\'agenes en memoria. Y la \textbf{p\'erdida focal} ofrece una tercera v\'ia cuando ponderar por frecuencia no alcanza para las clases m\'as dif\'iciles, reescalando la entrop\'ia cruzada para restarle peso a los ejemplos que la red ya clasifica bien y concentrar el aprendizaje en los dif\'iciles o mal clasificados.
+
+\subsection{M\'etricas de evaluaci\'on}
+
+En datasets que no están balanceados, el \textit{accuracy} deja de ser confiable para evaluar un modelo, porque puede parecer bueno acertando pero al mirar más detenidamente solo lo hace con las clases más representadas, por eso se recomienda mirar precisi\'on, recall y F1 por clase:
+
+\begin{equation}
+\text{Precision}_c = \frac{TP_c}{TP_c + FP_c}, \quad \text{Recall}_c = \frac{TP_c}{TP_c + FN_c}, \quad F1_c = \frac{2 \cdot \text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c}
+\end{equation}
+
+El \textbf{F1-macro} promedia el F1 de todas las clases sin ponderar por soporte:
+
+\begin{equation}
+F1_{\text{macro}} = \frac{1}{C}\sum_{c=1}^{C} F1_c
+\end{equation}
+
+A diferencia del F1-weighted, el macro exige reconocer la clase con 40 ejemplos con la misma destreza que la de 1~500. El umbral de \'exito del proyecto es $F1_{\text{macro}} \geq 0.85$.
+
+\subsection{Interpretabilidad}
+
+Una CNN es por defecto una caja negra, nos entrega una etiqueta o clase, pero no nos da una explicación. En el contexto de un sistema fiable, eso importa mucho, porque una clasificaci\'on equivocada se traduce en una decisi\'on de manejo equivocada, como fumigar sin necesidad. Es necesario poder revisar que el modelo mira donde est\'a el problema.
+
+Las tres t\'ecnicas m\'as usadas son LIME, SHAP y Grad-CAM.
+
+\textbf{LIME} (Ribeiro et al., 2016) explica una predicci\'on individual aproximando localmente el modelo con un modelo lineal simple. Para im\'agenes trabaja con superp\'ixeles, y el proceso segmenta la imagen, apaga algunos superp\'ixeles para generar variantes perturbadas, consulta al modelo por cada una, y ajusta un modelo lineal cuyos coeficientes son la importancia de cada regi\'on. Es agnóstico al modelo y muy intuitivo, pero tambi\'en el m\'as costoso y el menos estable, porque las perturbaciones son aleatorias.
+
+\textbf{SHAP} (Lundberg \& Lee, 2017) es similar a LIME pero este lo hace con superp\'ixeles usando los valores de Shapley de la teor\'ia de juegos. Es bastante consistente, y puede ser usado para evaluar el modelo de manera global. El único detalle que tiene es que variantes precisas son más costosas.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{images/xai/shap_vs_lime.png}
+\caption{Comparaci\'on visual entre las atribuciones de LIME y SHAP sobre una misma imagen.}
+\label{fig:shap_vs_lime}
+\end{figure}
+
+\textbf{Grad-CAM} (Selvaraju et al., 2017) por otro lado, es espec\'ifico de CNN. Toma la \'ultima capa convolucional, retropropaga el gradiente del logit objetivo hasta sus mapas de activaci\'on y produce un mapa de calor de baja resoluci\'on que se\~nala qu\'e regiones activaron la clase. Es mucho m\'as r\'apido, determinista y muy legible, aunque localiza regiones amplias en vez de bordes muy finos.
+
+\begin{table}[H]
+\caption{Comparaci\'on de las tres t\'ecnicas de interpretabilidad}
+\label{tab:xai}
+\centering
+\small
+\begin{singlespace}
+\begin{tabular}{p{2.6cm}p{3.0cm}p{3.0cm}p{3.0cm}}
+\toprule
+\textbf{Criterio} & \textbf{LIME} & \textbf{SHAP} & \textbf{Grad-CAM} \\
+\midrule
+Tipo & Agn\'ostico & Agn\'ostico o espec\'ifico & Espec\'ifico de CNN \\
+Alcance & Local & Local, agregable a global & Local \\
+Costo por imagen & Alto & Medio & Muy bajo \\
+Estabilidad & Baja & Alta & Alta \\
+Fundamento & Heur\'istico & Axiom\'atico (Shapley) & Basado en gradientes \\
+\bottomrule
+\end{tabular}
+\end{singlespace}
+\end{table}
+
+En la pr\'actica, una combinaci\'on razonable para un proyecto con recursos limitados es apoyarse primero en LIME y Grad-CAM, que juntas aportan una lectura por superp\'ixeles con signo y un mapa de calor r\'apido y determinista, suficientes para auditar caso por caso a bajo costo, y reservar SHAP para etapas posteriores donde su fundamento m\'as fuerte y su capacidad de agregarse a una vista global valen la pena una vez que se cuenta con un modelo final m\'as estable.
 
 \section{Descripci\'on del Dataset}
 
-El dataset consolidado en \texttt{clean/} re\'une \textbf{31~623 im\'agenes} en \textbf{9 clases}, integradas y depuradas a partir de 6 fuentes p\'ublicas (Tabla~\ref{tab:sources}). Cada imagen queda etiquetada por entorno de captura: \texttt{lab} (fondo controlado) o \texttt{real} (campo abierto).
+El dataset consolidado re\'une \textbf{31~622 im\'agenes} en \textbf{9 clases}, integradas y depuradas a partir de 6 fuentes p\'ublicas (Tabla~\ref{tab:sources}, con los enlaces completos en el Anexo~\ref{anexo:datasets}). Cada imagen queda etiquetada por entorno de captura: \texttt{lab} (fondo controlado) o \texttt{real} (campo abierto).
 
-\begin{table}[htbp]
-\caption{Fuentes de datos evaluadas y su licencia}
+\begin{table}[H]
+\caption{Fuentes de datos y su licencia}
 \label{tab:sources}
 \centering
 \small
@@ -128,13 +248,11 @@ Corn Leaf -- Roboflow & Campo real & CC BY 4.0 \\
 \end{singlespace}
 \end{table}
 
-Dos fuentes adicionales evaluadas fueron descartadas: \textit{Corn Leaf Diseases} (MIT), porque solo distribuye im\'agenes ya aumentadas sint\'eticamente sin conservar los originales; y \textit{Multicrop Disease} (licencia no especificada), por mezclar sin metadatos im\'agenes preprocesadas, de laboratorio y de campo, lo que impide separarlas de forma confiable.
+Dos fuentes m\'as fueron descartadas, tambi\'en detalladas en el Anexo~\ref{anexo:datasets}: \textit{Corn Leaf Diseases} (MIT), que solo distribuye im\'agenes aumentadas sint\'eticamente sin conservar los originales, y \textit{Multicrop Disease}, por mezclar sin metadatos im\'agenes preprocesadas, de laboratorio y de campo, imposibles de separar con confianza.
 
-Durante la limpieza se detectaron duplicados \emph{entre} fuentes distintas mediante hash perceptual (pHash, \texttt{imagededup}), eliminando \textbf{8~538 im\'agenes} agrupadas en \textbf{8~050 grupos} -- principalmente entre las fuentes \textit{maize\_desease} ($\sim$6~508) y \textit{multi\_desease} ($\sim$1~980). Sin esta depuraci\'on, im\'agenes id\'enticas habr\'ian aparecido en train y validaci\'on, inflando artificialmente las m\'etricas por fuga de datos.
+Durante la limpieza se detectaron duplicados \emph{entre} fuentes mediante una huella perceptual, eliminando \textbf{8~538 im\'agenes} en \textbf{8~050 grupos}, sobre todo entre \textit{maize\_desease} ($\sim$6~508) y \textit{multi\_desease} ($\sim$1~980). Sin esa depuraci\'on, copias id\'enticas habr\'ian aparecido en train y validaci\'on, inflando las m\'etricas por fuga de datos. La Tabla~\ref{tab:classes} muestra la composici\'on final.
 
-La Tabla~\ref{tab:classes} muestra la composici\'on final por clase y entorno.
-
-\begin{table}[htbp]
+\begin{table}[H]
 \caption{Composici\'on del dataset limpio por clase}
 \label{tab:classes}
 \centering
@@ -147,206 +265,285 @@ La Tabla~\ref{tab:classes} muestra la composici\'on final por clase y entorno.
 healthy & 0 & 8~744 & 8~744 \\
 northern\_corn\_leaf\_blight & 888 & 5~942 & 6~830 \\
 lethal\_necrosis & 0 & 6~415 & 6~415 \\
-fall\_armyworm & 0 & 4~858 & 4~858 \\
+fall\_armyworm & 0 & 4~857 & 4~857 \\
 common\_rust & 2~150 & 106 & 2~256 \\
 gray\_leaf\_spot & 513 & 606 & 1~119 \\
 phosphorus\_deficiency & 0 & 612 & 612 \\
 nitrogen\_deficiency & 0 & 523 & 523 \\
 potassium\_deficiency & 0 & 266 & 266 \\
 \midrule
-\textbf{Total} & \textbf{3~551} & \textbf{28~072} & \textbf{31~623} \\
+\textbf{Total} & \textbf{3~551} & \textbf{28~071} & \textbf{31~622} \\
 \bottomrule
 \end{tabular}
 \end{singlespace}
 \end{table}
 
 \section{An\'alisis Exploratorio de Datos}
+\label{sec:eda}
 
-El EDA completo, reproducible en \texttt{notebooks/01\_eda.ipynb}, identific\'o cinco riesgos principales para el entrenamiento.
+Luego de recolectar los datos, se realiz\'o un an\'alisis exploratorio en el que se busca comprender qu\'e hay en el dataset, qu\'e problemas tiene y si requerir\'a intervenciones de balanceo o limpieza adicional.
 
-\textbf{Desbalance de clases.} La clase \texttt{healthy} (8~744 im\'agenes) supera en \textbf{32.9$\times$} a \texttt{potassium\_deficiency} (266); ver Figura~\ref{fig:dist}. Este cociente motiv\'o el uso de \texttt{WeightedRandomSampler} combinado con augmentation extendido en las clases minoritarias.
+\textbf{Desbalance de clases.} La clase \texttt{healthy} (8~744 im\'agenes) supera en \textbf{32.9$\times$} a \texttt{potassium\_deficiency} (266), como se ve en la Figura~\ref{fig:dist}. Esto nos da un primer problema a tratar, buscar la manera de que el modelo no aprenda a predecir mejor clases mayoritarias y descuide las minoritarias.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.95\linewidth]{images/eda/eda_01_distribucion_clases.png}
-\caption{Distribuci\'on de im\'agenes por clase en \texttt{clean/}.}
+\caption{Distribuci\'on de im\'agenes por clase en el dataset limpio.}
 \label{fig:dist}
 \end{figure}
 
-\textbf{Sesgo de dominio laboratorio/campo.} La proporci\'on lab/real var\'ia drásticamente entre clases (Figura~\ref{fig:labreal}); el caso m\'as cr\'itico es \texttt{common\_rust}, con \textbf{95.4\%} de sus im\'agenes en entorno controlado. Un modelo entrenado sin cuidado podr\'ia aprender el fondo de laboratorio en lugar del s\'intoma foliar.
+\textbf{Sesgo de dominio laboratorio/campo.} La proporci\'on lab/real var\'ia mucho entre clases (Figura~\ref{fig:labreal}), y el caso más cr\'itico es \texttt{common\_rust}, con \textbf{95.4\%} de im\'agenes en entorno controlado. Este será uno de los problemas que más experimentación requerirá, ya que debemos evitar que el modelo busque aprender el fondo de laboratorio en lugar del s\'intoma. Esta se\~nal aparece tambi\'en en el brillo, con la mediana de \texttt{common\_rust} ($\sim$95) muy por debajo del resto ($\sim$120 a 140), reflejo directo de sus fondos oscuros de laboratorio.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.95\linewidth]{images/eda/eda_02_lab_vs_real.png}
 \caption{Proporci\'on de im\'agenes lab vs.\ real por clase.}
 \label{fig:labreal}
 \end{figure}
 
-\textbf{Resoluci\'on heterog\'enea.} Las resoluciones var\'ian ampliamente entre fuentes (p.~ej.\ Roboflow ya redimensionado a 640$\times$640~px). El pipeline resuelve esto con \texttt{Resize} a la entrada del modelo (224$\times$224~px) como primera transformaci\'on.
+\textbf{Fuente \'unica en clases peque\~nas.} Las tres deficiencias nutricionales provienen de una sola fuente (\texttt{maize\_nutrient}) y \texttt{lethal\_necrosis} depende por completo de \texttt{maize\_africa}. Esa dependencia limita la diversidad de condiciones de captura y suma riesgo de sobreajuste. Un mapa de calor cruzando fuente y clase (Figura~\ref{fig:heatmap}) deja ver esta concentraci\'on con m\'as detalle, y confirma que ninguna de las tres deficiencias ni la necrosis letal tienen una segunda fuente independiente que sirva de respaldo o de contraste.
 
-\textbf{Calidad de imagen.} Sobre una muestra estratificada de hasta 400 im\'agenes por clase se evaluaron desenfoque (varianza del Laplaciano), sub- y sobre-exposici\'on; los problemas detectados son bajos y distribuidos uniformemente entre clases, por lo que no se aplic\'o ning\'un filtro autom\'atico de calidad.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{images/eda/eda_02b_heatmap_fuente_clase.png}
+\caption{Distribuci\'on cruzada de im\'agenes por fuente de origen y clase.}
+\label{fig:heatmap}
+\end{figure}
 
-\textbf{Sesgos combinados.} La Figura~\ref{fig:sesgos} resume cinco sesgos identificados: desbalance de clases, dominio de laboratorio, heterogeneidad visual intraclase, fuente \'unica en clases peque\~nas y concentraci\'on geogr\'afica. El sesgo de \texttt{fall\_armyworm} es cualitativo, no solo cuantitativo: mezcla dos se\~nales diagn\'osticas distintas seg\'un el dataset de origen -- hoja con da\~no sin insecto visible (\textit{corn\_leaf\_roboflow}, \textit{maize\_africa/Activity}) y hoja con da\~no y gusano visible (\textit{maize\_africa/Pest}, \textit{multicrop}) -- lo que puede llevar al modelo a aprender el insecto como atajo en lugar del patr\'on de da\~no foliar.
+\textbf{Resoluci\'on y calidad.} Las resoluciones son marcadamente multimodales: un pico en $\sim$256~px (laboratorio de PlantVillage), otro en $\sim$640~px (Roboflow y deficiencias) y una cola larga hacia 3000--5000+~px (campo). Todo se lleva a 224$\times$224~px como primera transformaci\'on, con lo que las im\'agenes grandes pierden detalle fino de las lesiones. En calidad, el \'unico problema relevante es el desenfoque, y afecta sobre todo a clases minoritarias cómo \texttt{gray\_leaf\_spot} ($\sim$38\%), \texttt{nitrogen\_deficiency} ($\sim$28\%) y \texttt{potassium\_deficiency} ($\sim$21\%).
 
-\begin{figure}[htbp]
+Mirando la resoluci\'on por clase (Figura~\ref{fig:resporclase}). Las tres deficiencias nutricionales y \texttt{fall\_armyworm} se concentran alrededor de los 640~px con una relaci\'on de aspecto cercana a 1.0, as\'i que el redimensionado a 224$\times$224 es moderado y sin distorsi\'on notable. \texttt{common\_rust} y \texttt{gray\_leaf\_spot} en cambio muestran una distribuci\'on bimodal, con un grupo de laboratorio cerca de 256~px y otro de campo cerca de 640~px. Las clases con colas m\'as largas, como \texttt{healthy}, \texttt{lethal\_necrosis} y \texttt{northern\_corn\_leaf\_blight}, alcanzan im\'agenes de hasta 3000 o 5000+~px con relaciones de aspecto m\'as dispersas, lo que significa que son justo estas clases las que m\'as detalle fino pierden al redimensionar, y en las que el recorte a un formato cuadrado puede distorsionar m\'as la geometr\'ia real de la lesi\'on.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{images/eda/eda_03b_resolucion_por_clase.png}
+\caption{Resoluci\'on y relaci\'on de aspecto por clase.}
+\label{fig:resporclase}
+\end{figure}
+
+\textbf{Color.} El color en este problema es parte de la se\~nal que separa una clase de otra: la roya com\'un produce p\'ustulas anaranjadas, la deficiencia de nitr\'ogeno causa un amarillamiento generalizado y la mancha gris de la hoja deja manchas de tono grisáceo. La Figura~\ref{fig:hsv} descompone la imagen en sus canales de matiz, saturaci\'on y brillo por clase, lo que permite comprobar si estas firmas cromáticas realmente se distinguen entre s\'i de forma estad\'istica, y a la vez detectar si existen diferencias de color entre entorno de laboratorio y de campo que el modelo podr\'ia terminar usando como atajo en lugar de mirar el s\'intoma real.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{images/eda/eda_04c_color_hsv.png}
+\caption{Distribuci\'on de los canales de color (matiz, saturaci\'on, brillo) por clase.}
+\label{fig:hsv}
+\end{figure}
+
+\textbf{Duplicados entre fuentes.} Antes de llegar a las cifras finales del dataset se hizo un cruce de todas las fuentes para detectar y eliminar copias id\'enticas entre ellas, comparando cada imagen mediante una huella perceptual. La Figura~\ref{fig:duplicados} desglosa cu\'antas imágenes se eliminaron por clase y por fuente, y confirma que la contaminaci\'on cruzada más fuerte ocurr\'ia entre dos fuentes puntuales, lo que de no corregirse habr\'ia dejado copias exactas repartidas entre entrenamiento y validaci\'on.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{images/eda/eda_05_duplicados.png}
+\caption{Im\'agenes duplicadas eliminadas por clase y fuente de origen.}
+\label{fig:duplicados}
+\end{figure}
+
+\textbf{Sesgos combinados.} La Figura~\ref{fig:sesgos} resume el cuadro. Un caso especial que se tiene es \texttt{fall\_armyworm}, cuyo sesgo es la mezcla dos "subclases", por un lado la hoja con da\~no sin insecto visible, y por otro lahoja con da\~no y gusano visible (o incluso solo el gusano). Se mantuvieron mezcladas a prop\'osito, porque la clase y su recomendaci\'on dependen del patr\'on de da\~no, no del insecto, pero esta decisión se cuestionará en la etapa posterior basado en los resultados que se obtengan.
+
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.95\linewidth]{images/eda/eda_06_sesgos.png}
 \caption{Composici\'on lab/real y desbalance relativo por clase.}
 \label{fig:sesgos}
 \end{figure}
 
-\section{Preprocesamiento y Feature Engineering}
+Esto implica que será obligatorio aplicar un muestreo ponderado con augmentation dirigido a las clases minoritarias, y también evaluar la generalización con imágenes de campo, para asegurarse de que el modelo no aprenda a reconocer fondos de laboratorio en lugar de lesiones.
 
-Al tratarse de clasificaci\'on de im\'agenes con transfer learning, no existe ingenier\'ia de \textit{features} manual: las representaciones las aprende el backbone convolucional preentrenado en ImageNet. El esfuerzo de esta etapa se concentr\'o en normalizaci\'on, divisi\'on de datos y balanceo.
+\section{Preprocesamiento, Feature Engineering y Estrategia}
 
-\textbf{Normalizado.} Todo tensor de imagen pasa por un \'unico punto de entrada (\texttt{load\_and\_normalize\_image()}): correcci\'on EXIF de orientaci\'on, conversi\'on a RGB estricta (descarta canal alfa, expande escalas de grises) y normalizaci\'on con media/desviaci\'on est\'andar de ImageNet ($\mu=[0.485,0.456,0.406]$, $\sigma=[0.229,0.224,0.225]$), requerida por los backbones preentrenados.
+Al ser clasificaci\'on de im\'agenes con transfer learning, no hay ingenier\'ia de \textit{features} manual, ya que las representaciones las aprende el backbone preentrenado en ImageNet. El esfuerzo se concentr\'o en normalizaci\'on, divisi\'on de datos, balanceo y en definir la estrategia de entrenamiento de cada etapa.
 
-\textbf{Divisi\'on.} Estratificaci\'on jer\'arquica 70/15/15 (train/val/test) por \texttt{label + environment}, con semilla fija (42), para que la proporci\'on lab/real sea consistente en los tres conjuntos.
+\subsection{Normalizaci\'on y divisi\'on}
 
-\textbf{Balanceo en tres capas.} (1) sin exclusi\'on de clases; (2) \texttt{WeightedRandomSampler}, que asigna a cada muestra un peso $1/n_c$ ($n_c$ = frecuencia de su clase), igualando la frecuencia efectiva por \'epoca sin duplicar archivos; (3) augmentation extendido (\texttt{CornMinorityTransforms}) \'unicamente para clases con ratio de desbalance $>4\times$: \texttt{RandomResizedCrop}, rotaci\'on aleatoria de hasta $\pm30^\circ$ (vs.\ $\pm15^\circ$ del pipeline est\'andar), \texttt{ColorJitter} m\'as agresivo y \texttt{GaussianBlur} suave, manteniendo el canal de matiz (\textit{hue}) casi intacto porque el diagn\'ostico de deficiencias nutricionales depende del color de la hoja. La funci\'on de p\'erdida (\texttt{CrossEntropyLoss}) se deja deliberadamente \textbf{sin ponderar}: ponderar sampler, augmentation y p\'erdida a la vez sobre-compensar\'ia el mismo desbalance por tres mecanismos distintos. Validaci\'on y prueba usan \'unicamente \texttt{Resize} + normalizaci\'on, sin aleatoriedad, para una evaluaci\'on determinista.
+Toda imagen pasa por un mismo proceso de entrada, con correcci\'on EXIF de orientaci\'on, conversi\'on a RGB estricta y normalizaci\'on con media y desviaci\'on de ImageNet ($\mu=[0.485,0.456,0.406]$, $\sigma=[0.229,0.224,0.225]$), requerida por los backbones preentrenados. La divisi\'on es estratificada 70/15/15 (entrenamiento, validaci\'on, prueba) combinando la etiqueta de clase con el entorno de captura, con semilla fija (42), para que la mezcla de laboratorio y campo sea consistente en los tres conjuntos.
 
-\section{Modelos Baseline}
+\subsection{Balanceo}
+\label{sec:balanceo}
 
-Los \textit{baselines} de esta etapa cumplen dos prop\'ositos: (1) fijar un piso m\'inimo de comparaci\'on que arquitecturas m\'as complejas deber\'an superar consistentemente, y (2) permitir observar a bajo costo computacional el comportamiento inicial de cada arquitectura candidata (colapso de clases, sobreajuste temprano, incompatibilidades) antes de comprometer un entrenamiento completo.
+El balanceo opera en tres capas. Primero, un tope configurable por clase (1~500 en el perfil baseline) que recorta solo las mayoritarias y deja intactas las minoritarias. Segundo, un muestreo ponderado que asigna a cada imagen un peso $1/n_c$ e iguala la frecuencia efectiva por \'epoca sin duplicar archivos. Tercero, un pipeline de augmentation extendido reservado a clases con ratio de desbalance mayor a $4\times$, que aplica recortes, rotaci\'on de hasta $\pm30^\circ$, ajustes de color m\'as agresivos y un desenfoque suave, manteniendo el matiz casi intacto porque el diagn\'ostico de deficiencias depende del color. La p\'erdida se deja deliberadamente \textbf{sin ponderar} en esta etapa, ya que ponderar el muestreo, el augmentation y la p\'erdida a la vez sobre-compensar\'ia el mismo desbalance por tres v\'ias a la vez. Validaci\'on y prueba usan \'unicamente el redimensionado y la normalizaci\'on, sin ning\'un tipo de aleatoriedad.
 
-\textbf{Dataset usado (perfil \texttt{baseline}, 4 clases).} 4 clases (\texttt{healthy}, \texttt{common\_rust}, \texttt{fall\_armyworm}, \texttt{nitrogen\_deficiency}). El perfil \texttt{baseline} de \texttt{config/dataset.yaml} define en teor\'ia un tope de 500 im\'agenes/clase (dataset balanceado); sin embargo, el entrenamiento que produjo los resultados de la Secci\'on~7 se ejecut\'o \textbf{sin aplicar ese tope}, con todas las im\'agenes disponibles de las 4 clases -- el dataset natural y \textbf{desbalanceado}, no el balanceado de 500/clase planteado originalmente (Tabla~\ref{tab:baselinesplit}). Por separado, se entren\'o tambi\'en la versi\'on balanceada de 500 im\'agenes/clase (2~000 en total) planteada en el dise\~no original, con buenos resultados cualitativos; sus cifras exactas no se citan aqu\'i por no contar con artefactos locales confiables de esa corrida.
+\subsection{Baselines elegidos y por qu\'e}
 
-\begin{table}[htbp]
-\caption{Splits reales usados para los resultados de la Secci\'on 7 (perfil \texttt{baseline}, dataset natural sin tope de 500/clase)}
-\label{tab:baselinesplit}
-\centering
-\small
-\begin{singlespace}
-\begin{tabular}{lrrrr}
-\toprule
-\textbf{Split} & \texttt{healthy} & \texttt{c.\_rust} & \texttt{f.\_armyworm} & \texttt{n.\_defic.} \\
-\midrule
-Train & 6~118 & 1~579 & 3~400 & 366 \\
-Val & 1~311 & 338 & 728 & 79 \\
-Test & 1~311 & 339 & 729 & 78 \\
-\bottomrule
-\end{tabular}
-\end{singlespace}
-\end{table}
+Se seleccionaron tres redes ligeras preentrenadas en ImageNet, cada una en un punto distinto del eje que va de la precisi\'on a la eficiencia, y las tres convertibles a TFLite para el despliegue m\'ovil.
 
-Con esta composici\'on, \texttt{healthy} es 9.3$\times$ m\'as frecuente que \texttt{nitrogen\_deficiency} en el subset de entrenamiento -- desbalance real, no la comparaci\'on equilibrada planteada en el dise\~no. Se usa la misma semilla (42) y estratificaci\'on \texttt{label+environment} que el split completo de 9 clases, para reproducibilidad.
+\textbf{EfficientNet-B0} (Tan \& Le, 2019) introduce el \textit{compound scaling}, que escala profundidad, ancho y resoluci\'on a la vez con un coeficiente $\phi$. Usa bloques MBConv con m\'odulos Squeeze-and-Excitation y alcanza $\sim$77.1\% Top-1 con 5.3~M de par\'ametros. Representa el extremo de mayor precisi\'on.
 
-\textbf{Arquitecturas seleccionadas.} Se priorizaron tres redes convolucionales ligeras preentrenadas en ImageNet con n\'umero de par\'ametros comparable, de modo que las diferencias de desempe\~no sean atribuibles a la arquitectura y no al tama\~no (Tabla~\ref{tab:models}). En los tres casos se reemplaza \'unicamente la capa clasificadora final por una capa lineal con el n\'umero de clases del proyecto, dejando el resto del backbone entrenable (\textit{fine-tuning} completo).
+\textbf{EfficientNet-Lite0} (Google Brain, 2020) es una variante de B0 para hardware perimetral. Elimina los bloques SE, reemplaza Swish por ReLU6 (que estabiliza la cuantizaci\'on INT8, evitando la ca\'ida de $\sim$75\% a $\sim$46\% que produce Swish sin sustituir) y evita operaciones incompatibles con ciertos compiladores. Alcanza $\sim$74.9\% Top-1 con 4.7~M de par\'ametros. Representa el extremo de m\'axima facilidad de cuantizaci\'on.
 
-\begin{table}[htbp]
+\textbf{ShuffleNetV2-x1.0} (Ma et al., 2018) parte de que los FLOPs no equivalen a velocidad por el costo de acceso a memoria. Su \textit{channel split} + \textit{channel shuffle} reduce ese costo al m\'inimo, y la hace la m\'as veloz y liviana del grupo ($\sim$69.4\% Top-1, 2.3~M par\'ametros, $\sim$5~MB serializado).
+
+En los tres casos se reemplaza solo la capa clasificadora final por una lineal de 9 salidas y se deja el resto del backbone entrenable (\textit{fine-tuning} completo). La Tabla~\ref{tab:models} resume el \textit{trade-off}.
+
+\begin{table}[H]
 \caption{Arquitecturas baseline comparadas}
 \label{tab:models}
 \centering
 \small
 \begin{singlespace}
-\begin{tabular}{lrrl}
+\begin{tabular}{lrrrl}
 \toprule
-\textbf{Modelo} & \textbf{Par\'am.} & \textbf{Top-1 IN} & \textbf{Latencia rel.} \\
+\textbf{Modelo} & \textbf{Par\'am.} & \textbf{Top-1 IN} & \textbf{Tama\~no} & \textbf{Perfil} \\
 \midrule
-EfficientNet-B0 & 5.3 M & $\sim$77.1\% & $\bigstar\bigstar$ \\
-EfficientNet-Lite0 & 4.7 M & $\sim$74.9\% & $\bigstar\bigstar\bigstar$ \\
-ShuffleNetV2-x1.0 & 2.3 M & $\sim$69.4\% & $\bigstar\bigstar\bigstar\bigstar$ (m\'as r\'apida) \\
+EfficientNet-B0 & 5.3 M & $\sim$77.1\% & $\sim$16 MB & M\'axima precisi\'on \\
+EfficientNet-Lite0 & 4.7 M & $\sim$74.9\% & $\sim$14 MB & Cuantizaci\'on INT8 \\
+ShuffleNetV2-x1.0 & 2.3 M & $\sim$69.4\% & $\sim$5 MB & M\'axima eficiencia \\
 \bottomrule
 \end{tabular}
 \end{singlespace}
 \end{table}
 
-\textbf{ShuffleNetV2-x1.0} (Ma et al., 2018) fue dise\~nada expl\'icitamente para inferencia eficiente en m\'oviles, usando operaciones de \textit{channel split} y \textit{channel shuffle} para esquivar el cuello de botella de memoria de convoluciones densas, resultando ser el modelo m\'as peque\~no de los evaluados ($\sim$5 MB serializado). \textbf{EfficientNet-B0} (Tan \& Le, 2019) usa bloques MBConv con SE integrado y es el punto de partida de la familia con \textit{compound scaling}. \textbf{EfficientNet-Lite0} es una variante de B0 sin bloques SE y con ReLU6 en lugar de Swish, dise\~nada expl\'icitamente para cuantizarse a INT8 sin p\'erdida significativa de precisi\'on (Google Brain/TensorFlow Team, 2020).
+\subsection{Estrategia de entrenamiento: baselines vs.\ principal}
+\label{sec:estrategia}
 
-Entrenamiento: 20 \'epocas, batch 32, tasa de aprendizaje $10^{-4}$, \textit{weight decay} $10^{-4}$, pesos preentrenados.
+La infraestructura de datos y de modelos es com\'un a las dos etapas, y lo que cambia es cu\'anto se afina el loop de entrenamiento. Los baselines usan una configuraci\'on deliberadamente sencilla para que las diferencias de resultado se deban a la arquitectura y no a trucos de entrenamiento, con learning rate fijo, un n\'umero de \'epocas cerrado y p\'erdida sin ponderar. El pipeline principal, ya sobre la arquitectura elegida, incorpora los mecanismos de optimizaci\'on y regularizaci\'on que la teor\'ia respalda (Tabla~\ref{tab:estrategia}).
 
-\section{Resultados y M\'etricas}
+\begin{table}[H]
+\caption{Configuraci\'on de entrenamiento por etapa}
+\label{tab:estrategia}
+\centering
+\small
+\begin{singlespace}
+\begin{tabular}{p{3.0cm}p{4.0cm}p{4.5cm}}
+\toprule
+\textbf{Elemento} & \textbf{Baselines (esta etapa)} & \textbf{Pipeline principal (previsto)} \\
+\midrule
+Datos & 9 clases, cap 1~500/clase & 9 clases, 100\% de im\'agenes \\
+Learning rate & Fijo ($10^{-4}$) & Scheduler (cosine o plateau) con warmup \\
+Parada & 30 \'epocas fijas & Early stopping (\textit{patience} 5 a 8), guardando el mejor checkpoint \\
+P\'erdida & CrossEntropy sin ponderar & CrossEntropy ponderada + \textit{label smoothing} \\
+Balanceo & Sampler + augmentation minoritaria & Sampler + p\'erdida ponderada \\
+Optimizador & AdamW & AdamW + \textit{gradient clipping} \\
+Interpretabilidad & LIME + Grad-CAM & + SHAP (vista global) \\
+\bottomrule
+\end{tabular}
+\end{singlespace}
+\end{table}
 
-La Tabla~\ref{tab:results} resume el desempe\~no en prueba de los tres modelos sobre el dataset \textbf{natural/desbalanceado} de 4 clases descrito en la Tabla~\ref{tab:baselinesplit} (2~457 im\'agenes de prueba), no sobre el subset balanceado de 500/clase planteado en el dise\~no original.
+El \textit{scheduler} con warmup ataca dos cosas vistas antes: un lr fijo mantiene pasos demasiado grandes en las \'epocas finales, cuando el modelo deber\'ia estar afinando, y el warmup da margen a arquitecturas que arrancan lento. El \textit{early stopping} recorta c\'omputo sin sacrificar calidad, porque se conserva el mejor checkpoint. Y el \textit{label smoothing} evita que el modelo se vuelva sobreconfiado, algo directamente relevante para el caso de uso, ya que en los baselines se observa justamente que falla con alta confianza. La m\'etrica primaria sigue siendo el \textbf{macro-F1} con umbral $0.85$ en ambas etapas.
 
-\begin{table}[htbp]
-\caption{Comparaci\'on de modelos baseline en el conjunto de prueba (2~457 im\'agenes, dataset natural/desbalanceado)}
+En interpretabilidad se sigue la misma l\'ogica de ir de menos a m\'as, ya que LIME junto con Grad-CAM alcanza para auditar caso por caso a bajo costo mientras se comparan arquitecturas baseline, y SHAP se reserva para el pipeline principal, una vez que hay un modelo final estable y vale la pena invertir en su fundamento m\'as fuerte y en una vista agregada del comportamiento global del modelo.
+
+\section{Pipeline de Baselines y Resultados}
+
+En este proyecto los baselines cumplen un doble papel, fijan el piso de macro-F1 que el pipeline principal deber\'a superar, y sirven de sonda para detectar colapso de clases o sobreajuste temprano sobre un subconjunto reducido, antes de comprometer c\'omputo en un entrenamiento completo.
+
+\subsection{Dataset y configuraci\'on}
+
+Los baselines se entrenan sobre el perfil \texttt{baseline}, que toma las 9 clases con un tope de 1~500 im\'agenes por clase, aplicado \emph{antes} de dividir. Solo se recortan las mayoritarias, mientras que las minoritarias quedan intactas (potasio 266, nitr\'ogeno 523, f\'osforo 612). El resultado es un subconjunto de 10~020 im\'agenes (Tabla~\ref{tab:baselinesplit}) que conserva el desbalance natural. El test es mayoritariamente de campo real (1~182 im\'agenes reales vs.\ 321 de laboratorio), lo que mide el desempe\~no en condiciones agr\'icolas.
+
+\begin{table}[H]
+\caption{Composici\'on del dataset baseline (9 clases, cap 1~500/clase)}
+\label{tab:baselinesplit}
+\centering
+\small
+\begin{singlespace}
+\begin{tabular}{lr}
+\toprule
+\textbf{Split} & \textbf{Im\'agenes} \\
+\midrule
+Entrenamiento (70\%) & 7~014 \\
+Validaci\'on (15\%) & 1~503 \\
+Prueba (15\%) & 1~503 \\
+\midrule
+\textbf{Total} & \textbf{10~020} \\
+\bottomrule
+\end{tabular}
+\end{singlespace}
+\end{table}
+
+Los tres modelos comparten la configuraci\'on baseline de la Tabla~\ref{tab:estrategia} (30 \'epocas, batch 32, AdamW con lr $10^{-4}$, p\'erdida sin ponderar), de modo que las diferencias vengan de la arquitectura y no del entrenamiento. Cada corrida se versiona por separado, con sus propios pesos, historial y m\'etricas. Con el cap de 1~500, solo \texttt{potassium\_deficiency} cruza el umbral de $4\times$ que activa la augmentation extendida.
+
+\subsection{Resultados globales}
+
+La Tabla~\ref{tab:results} resume el desempe\~no en prueba (1~503 im\'agenes, 9 clases). Los tres superan la meta con holgura y quedan a apenas 2 puntos entre s\'i, as\'i que en calidad son esencialmente equivalentes. EfficientNet-B0 lidera el macro-F1, mientras que ShuffleNetV2-x1.0 obtiene la menor loss y el checkpoint m\'as liviano, $\sim$3$\times$ menor que B0.
+
+\begin{table}[H]
+\caption{Comparaci\'on de modelos baseline en el conjunto de prueba}
 \label{tab:results}
 \centering
 \begin{singlespace}
-\begin{tabular}{lrrr}
+\begin{tabular}{lrrrr}
 \toprule
-\textbf{Modelo} & \textbf{Macro F1} & \textbf{Accuracy} & \textbf{Errores aprox.} \\
+\textbf{Modelo} & \textbf{Accuracy} & \textbf{macro-F1} & \textbf{Loss (test)} & \textbf{Checkpoint} \\
 \midrule
-EfficientNet-B0 & \textbf{0.9903} & \textbf{99.19\%} & $\sim$20 \\
-ShuffleNetV2-x1.0 & 0.9900 & 99.23\% & $\sim$19 \\
-EfficientNet-Lite0 & 0.9894 & 99.10\% & $\sim$22 \\
+EfficientNet-B0 & 0.9521 & \textbf{0.9146} & 0.229 & 15.6 MB \\
+ShuffleNetV2-x1.0 & 0.9508 & 0.9030 & \textbf{0.169} & \textbf{5.0 MB} \\
+EfficientNet-Lite0 & 0.9474 & 0.8951 & 0.218 & 13.1 MB \\
 \bottomrule
 \end{tabular}
 \end{singlespace}
 \end{table}
 
-\textit{Nota:} el conteo de errores se estima como $(1 - \text{accuracy}) \times 2{,}457$ im\'agenes de test.
+\subsection{D\'onde falla el modelo}
 
-Los tres modelos obtienen resultados pr\'acticamente id\'enticos en macro-F1 ($\sim$0.99), con diferencias de menos de 1 punto porcentual. \textbf{EfficientNet-B0} lidera por un margen m\'inimo en macro-F1 (0.9903), pese al desbalance del test (soporte \texttt{nitrogen\_deficiency}=78 vs.\ \texttt{healthy}=1~311). \textbf{ShuffleNetV2-x1.0} obtiene la mejor accuracy (99.23\%) y el resultado m\'as cercano a B0 en macro-F1 (0.9900), con la ventaja adicional de ser el modelo m\'as peque\~no ($\sim$5~MB vs.\ $\sim$16~MB de B0). \textbf{EfficientNet-Lite0} queda ligeramente por debajo (0.9894), consistente con su dise\~no: sacrifica capacidad representacional (sin SE, ReLU6 en vez de Swish) a cambio de compatibilidad nativa con cuantizaci\'on INT8.
+La cifra agregada esconde que el rendimiento no es parejo. Casi todo el error se concentra en una sola clase, \texttt{potassium\_deficiency} (F1 0.49 a 0.62 con solo 40 im\'agenes en test), que por s\'i sola arrastra el macro-F1 entre 3.7 y 5.0 puntos, y si se excluye, los tres modelos operan cerca de 0.95. El resto del error es \textit{dirigido}, ya que las tres deficiencias N/P/K se confunden entre s\'i pero el 97\% de sus predicciones se queda dentro de ese propio bloque, porque comparten el s\'intoma base de clorosis. Hay adem\'as una confusi\'on menor pero consistente entre \texttt{gray\_leaf\_spot} y \texttt{northern\_corn\_leaf\_blight}, de lesiones alargadas parecidas. Fuera de eso, \texttt{common\_rust}, \texttt{lethal\_necrosis} y \texttt{healthy} van con recall $\geq0.99$.
 
-\textbf{Hallazgo transversal -- \texttt{fall\_armyworm} como clase con mayor concentraci\'on de errores.} En los tres modelos, de forma consistente, \texttt{fall\_armyworm} concentra la mayor\'ia de los falsos positivos: recall ligeramente inferior y precisi\'on alta (Tabla~\ref{tab:fallarmyworm}, misma corrida con dataset natural/desbalanceado de la Tabla~\ref{tab:results}). Esto coincide con lo detectado en el EDA: \texttt{fall\_armyworm} mezcla dos se\~nales visuales seg\'un la fuente de origen -- hoja con da\~no sin insecto vs.\ hoja con da\~no y gusano visible -- lo que la hace m\'as heterog\'enea que las otras tres clases del baseline.
+La lectura pr\'actica es clara, el baseline no necesita m\'as capacidad de modelo, sino resolver un cuello de botella de datos muy localizado en potasio.
 
-\begin{table}[htbp]
-\caption{Recall y precisi\'on de \texttt{fall\_armyworm} por modelo}
-\label{tab:fallarmyworm}
-\centering
-\begin{singlespace}
-\begin{tabular}{lrr}
-\toprule
-\textbf{Modelo} & \textbf{Recall} & \textbf{Precisi\'on} \\
-\midrule
-EfficientNet-B0 & 98.1\% & 99.3\% \\
-ShuffleNetV2-x1.0 & 99.0\% & 98.6\% \\
-EfficientNet-Lite0 & 97.7\% & 99.4\% \\
-\bottomrule
-\end{tabular}
-\end{singlespace}
-\end{table}
+\subsection{Interpretabilidad aplicada}
 
-\textbf{Alcance y limitaciones.} Estos resultados corresponden al subset reducido a 4 clases, pero con el dataset \textbf{natural/desbalanceado} de esas 4 clases (16~376 im\'agenes, \texttt{healthy} 9.3$\times$ m\'as frecuente que \texttt{nitrogen\_deficiency}), no al subset balanceado de 500 im\'agenes/clase planteado originalmente en el dise\~no, y tampoco a las 9 clases del dataset completo, que incluye desbalance a\'un m\'as severo (hasta 32.9$\times$) y clases con una sola fuente. Todos los modelos superan holgadamente el umbral objetivo del proyecto (macro-F1 $\geq0.85$), pero ese umbral fue definido pensando en el split completo de 9 clases, no en este subset de 4. Con 2~457 im\'agenes de prueba, diferencias de 1--2 puntos porcentuales representan aproximadamente 25--50 im\'agenes -- una diferencia m\'as sustancial que en un test peque\~no, pero aun as\'i conviene confirmar con m\'as corridas antes de declarar diferencias arquitect\'onicas robustas. La versi\'on balanceada (500 im\'agenes/clase) planteada en el dise\~no original tambi\'en se entren\'o y obtuvo buenos resultados cualitativos, pero sus cifras exactas no est\'an verificadas ni se citan aqu\'i.
+Aplicando la pareja LIME + Grad-CAM definida antes, en las clases f\'aciles la atribuci\'on se concentra sobre el tejido de la hoja (Figura~\ref{fig:lime_correct}), indicio de que el modelo no se apoya en atajos del fondo. El panel m\'as revelador es justamente un error, potasio clasificado como nitr\'ogeno con 99.7\% de confianza (Figura~\ref{fig:gradcam_error}), donde Grad-CAM se enciende sobre una punta necr\'otica real, pero ambigua entre las tres deficiencias. El modelo mira el lugar correcto y aun as\'i se equivoca.
 
-\section{Interpretabilidad}
-
-Se emple\'o LIME (\textit{Local Interpretable Model-agnostic Explanations}) (Ribeiro et al., 2016), que aproxima localmente el modelo de caja negra con un modelo lineal simple entrenado sobre perturbaciones de superp\'ixeles de la imagen de entrada, para revelar qu\'e regiones de la imagen influyen m\'as en la predicci\'on. El an\'alisis es post-hoc: no se acopla al ciclo de entrenamiento y se ejecuta bajo demanda sobre un modelo ya entrenado.
-
-En los casos correctamente clasificados por los tres modelos priorizados (p.~ej.\ Figura~\ref{fig:lime_correct}, \texttt{healthy} en campo real), LIME resalta consistentemente segmentos sobre el tejido foliar y no sobre el fondo, indicio de que el modelo no depende de atajos de fondo en estos ejemplos.
-
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{images/lime/shufflenet_v2_x1_0_healthy_correct.png}
 \caption{Explicaci\'on LIME de un acierto de ShuffleNetV2-x1.0 (\texttt{healthy}, campo real).}
 \label{fig:lime_correct}
 \end{figure}
 
-Adicionalmente, la Figura~\ref{fig:lime_nitrogen} muestra un caso sumamente interesante de EfficientNet-B0 sobre la clase \texttt{nitrogen\_deficiency} (campo real), correctamente diagnosticada con 99.99\% de confianza. LIME evidencia c\'omo el modelo concentra su atenci\'on en el patr\'on de decoloraci\'on caracter\'istico (clorosis) de la hoja, demostrando que la red ha aprendido las se\~nales agron\'omicas cl\'ave de la deficiencia nutricional y no s\'olo atajos del fondo.
-
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.85\linewidth]{images/lime/b0_nitrogen_correct.png}
-\caption{Explicaci\'on LIME de un acierto de EfficientNet-B0 en deficiencia nutricional (\texttt{nitrogen\_deficiency}, campo real, 99.99\% de confianza).}
-\label{fig:lime_nitrogen}
+\includegraphics[width=0.85\linewidth]{images/lime/lime_potasio_error_nitrogeno.png}
+\caption{LIME + Grad-CAM: potasio clasificado como nitr\'ogeno con alta confianza (EfficientNet-B0).}
+\label{fig:gradcam_error}
 \end{figure}
 
-La Figura~\ref{fig:lime_error} muestra un caso de error real de EfficientNet-Lite0: una imagen de \texttt{nitrogen\_deficiency} (campo real) clasificada como \texttt{fall\_armyworm} --- exactamente el eje de confusi\'on identificado en la Secci\'on 6. LIME permite inspeccionar visualmente si el error proviene de una textura foliar ambigua o de una se\~nal espuria del entorno, en lugar de quedarse \'unicamente con el n\'umero agregado de la matriz de confusi\'on.
+La confianza agregada lo confirma, ya que en EfficientNet-B0 los aciertos promedian 0.987 y los fallos 0.914, con los errores de potasio a\'un por encima de 0.89. Dicho de otro modo, \textbf{el modelo se equivoca sin dudar}, as\'i que un aviso del tipo ``confianza baja, consulte a un t\'ecnico'' no capturar\'ia estos casos. Una alternativa m\'as prometedora ser\'ia agrupar N/P/K en una respuesta \'unica de ``deficiencia nutricional'' cuando la predicci\'on caiga dentro de ese bloque.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.85\linewidth]{images/lime/efficientnet_lite0_nitrogen_error.png}
-\caption{Explicaci\'on LIME de un error real de EfficientNet-Lite0 (\texttt{nitrogen\_deficiency} clasificada como \texttt{fall\_armyworm}).}
-\label{fig:lime_error}
-\end{figure}
+\textit{Nota.} La figura del acierto \texttt{healthy} proviene de una corrida preliminar de 4 clases y es solo cualitativa. El an\'alisis sistem\'atico sobre las 9 clases, con fidelidad agregada y auditor\'ia de estabilidad de LIME, queda para el trabajo futuro.
 
-Estas observaciones son cualitativas sobre casos puntuales, no una auditor\'ia sistem\'atica de fidelidad del modelo; esa tarea corresponde a un an\'alisis agregado de fidelidad y a una auditor\'ia de estabilidad de LIME, fuera del alcance de esta primera entrega.
+\subsection{Reproducibilidad}
+
+Todo el pipeline es reproducible desde el \href{https://github.com/daiv05/corn-leaf-disease-project}{repositorio del proyecto}. El c\'odigo se instala como paquete editable y la configuraci\'on de dominio (clases, \texttt{target\_size}, semilla, perfil baseline) vive centralizada en un \'unico archivo, sin constantes dispersas. La semilla est\'a fijada (42) en la generaci\'on de splits, el muestreo y el entrenamiento, as\'i que los cortes train/val/test y las m\'etricas se regeneran igual entre m\'aquinas. Cada corrida se versiona con sus pesos, historial, predicciones por imagen y reportes. Las etapas se disparan con comandos \'unicos --- generar splits, entrenar los baselines, y producir los reportes de interpretabilidad ---, y el entrenamiento corre tanto en local como en GPU en la nube con el mismo c\'odigo. La documentaci\'on ampliada, con el detalle de cada etapa, est\'a en el \href{https://doctor-maiz.deras.dev/es}{sitio del proyecto}.
 
 \section{Conclusiones y Trabajo Futuro}
 
-Sobre el subconjunto de 4 clases con el dataset natural/desbalanceado, EfficientNet-B0 y ShuffleNetV2-x1.0 son los candidatos m\'as s\'olidos, con los mejores macro-F1 ($\sim0.990$) y menores tasas de error. EfficientNet-Lite0 tambi\'en obtiene resultados excepcionales. Todos superan ampliamente el umbral objetivo del proyecto y mantienen una ligera y controlada confusi\'on en la clase heterog\'enea \texttt{fall\_armyworm}. La versi\'on balanceada de 500 im\'agenes/clase planteada originalmente en el dise\~no tambi\'en se entren\'o por separado y obtuvo buenos resultados cualitativos, pero sus cifras exactas quedan pendientes de verificaci\'on antes de poder compararlas formalmente con las de esta secci\'on. El siguiente paso es repetir esta comparaci\'on sobre el split completo de 9 clases, donde el desbalance severo (hasta 32.9$\times$) y la escasez de fuentes en las deficiencias nutricionales representan un reto considerablemente mayor que el de este subset reducido; en esa fase, las m\'etricas de referencia deber\'an ser macro-F1 y recall por clase, no accuracy, y se ampliar\'a la auditor\'ia de interpretabilidad de casos puntuales a un an\'alisis agregado de fidelidad.
+Sobre las 9 clases con tope de 1~500 im\'agenes, los tres baselines superan la meta de macro-F1 $\geq0.85$ y son esencialmente equivalentes en calidad, lo que valida tanto las arquitecturas candidatas como el pipeline de datos que las alimenta.
+
+El hallazgo central es que \texttt{potassium\_deficiency} es el \'unico cuello de botella que impide subir la m\'etrica, y si se excluye esa clase, los tres modelos operan cerca de 0.95. El modelo ya detecta la categor\'ia ``deficiencia nutricional'' con alta fiabilidad, pero no separa N/P/K por la escasez de datos de potasio, y encima falla con alta confianza. Es un problema de datos, no de capacidad. Para la Etapa~2, las prioridades son:
+
+\begin{itemize}
+\item \textbf{M\'as datos de potasio.} Recolectar im\'agenes reales adicionales, augmentation dirigido o p\'erdida ponderada por clase.
+\item \textbf{Interpretabilidad sobre 9 clases.} Extender LIME y Grad-CAM con fidelidad agregada y auditor\'ia de estabilidad, e incorporar SHAP en el pipeline principal.
+\item \textbf{Arquitectura para despliegue.} Siendo los tres equivalentes en calidad, la decisi\'on debe pesar tama\~no y latencia en hardware objetivo, lo que por ahora favorece a ShuffleNetV2-x1.0 (5~MB, menor loss). Falta probar con el modelo exportado a TFLite en dispositivo real.
+\item \textbf{Entrenamiento completo.} Entrenar sobre las 31~622 im\'agenes sin tope, con el balanceo refinado a partir de estos hallazgos.
+\end{itemize}
 
 \section{Referencias}
-\addcontentsline{toc}{section}{Referencias}
 
 \noindent\hangindent=1.27cm\hangafter=1
-Google Brain / TensorFlow Team. (2020, marzo). \textit{Higher accuracy on vision models with EfficientNet-Lite}. TensorFlow Blog. \url{https://blog.tensorflow.org/2020/03/higher-accuracy-on-vision-models-with-efficientnet-lite.html}
+Ahmad, A., El Gamal, A., \& Saraswat, D. (2023a). Toward generalization of deep learning-based plant disease identification under controlled and field conditions. \textit{IEEE Access}, 11, 9042--9057.
 
 \par\bigskip
 \noindent\hangindent=1.27cm\hangafter=1
-Ma, N., Zhang, X., Zheng, H.-T., \& Sun, J. (2018). ShuffleNet V2: Practical guidelines for efficient CNN architecture design. En \textit{Proceedings of the European Conference on Computer Vision (ECCV)} (pp. 116--131). Munich, Germany.
+Ahmad, A., El Gamal, A., \& Saraswat, D. (2023b). Towards generalization of deep learning-based plant disease identification under controlled and field conditions. Purdue e-Pubs. \url{https://docs.lib.purdue.edu/fund/58/}
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
+Autores varios. (2026). Research advances in maize crop disease detection using machine learning and deep learning approaches. \textit{Computers}, 15(2), art. 99. \url{https://www.mdpi.com/2073-431X/15/2/99}
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
+Baya, J. et al. (2024). A mobile-based system for maize leaf disease detection and classification using machine learning algorithms and deep learning: A case study of ZeaWatch. Preprint.
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
+Deng, J., Dong, W., Socher, R., Li, L.-J., Li, K., \& Fei-Fei, L. (2009). ImageNet: A large-scale hierarchical image database. En \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)} (pp. 248--255). Miami, FL, USA.
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
+Google Brain / TensorFlow Team. (2020, marzo). \textit{Higher accuracy on vision models with EfficientNet-Lite}. TensorFlow Blog. \url{https://blog.tensorflow.org/2020/03/higher-accuracy-on-vision-models-with-efficientnet-lite.html}
 
 \par\bigskip
 \noindent\hangindent=1.27cm\hangafter=1
@@ -354,10 +551,62 @@ Hu, J., Shen, L., \& Sun, G. (2018). Squeeze-and-excitation networks. En \textit
 
 \par\bigskip
 \noindent\hangindent=1.27cm\hangafter=1
+Liu, H., Lv, H., Li, J., Liu, Y., \& Deng, L. (2022). Research on maize disease identification methods in complex environments based on cascade networks and two-stage transfer learning. \textit{Scientific Reports}, 12(1), art. 18914.
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
+Lundberg, S. M., \& Lee, S.-I. (2017). A unified approach to interpreting model predictions. En \textit{Advances in Neural Information Processing Systems (NeurIPS)}, 30, 4765--4774. Long Beach, CA, USA.
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
+Ma, N., Zhang, X., Zheng, H.-T., \& Sun, J. (2018). ShuffleNet V2: Practical guidelines for efficient CNN architecture design. En \textit{Proceedings of the European Conference on Computer Vision (ECCV)} (pp. 116--131). Munich, Germany.
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
+Molnar, C. (2022). \textit{Interpretable Machine Learning: A Guide for Making Black Box Models Explainable} (2nd ed.). \url{https://christophm.github.io/interpretable-ml-book/}
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
+Nan, F. et al. (2023). A novel method for maize leaf disease classification using the RGB-D post-segmentation image data. \textit{Frontiers in Plant Science}, 14, art. 1268015.
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
 Ribeiro, M. T., Singh, S., \& Guestrin, C. (2016). ``Why should I trust you?'': Explaining the predictions of any classifier. En \textit{Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)} (pp. 1135--1144). San Francisco, CA, USA.
 
 \par\bigskip
 \noindent\hangindent=1.27cm\hangafter=1
+Selvaraju, R. R., Cogswell, M., Das, A., Vedantam, R., Parikh, D., \& Batra, D. (2017). Grad-CAM: Visual explanations from deep networks via gradient-based localization. En \textit{Proceedings of the IEEE International Conference on Computer Vision (ICCV)} (pp. 618--626). Venice, Italy.
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
+Shandilya et al. (2025). Enhanced maize leaf disease detection and classification using an integrated CNN-ViT model. \textit{Food Science \& Nutrition}. \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC12208913/}
+
+\par\bigskip
+\noindent\hangindent=1.27cm\hangafter=1
 Tan, M., \& Le, Q. V. (2019). EfficientNet: Rethinking model scaling for convolutional neural networks. En \textit{Proceedings of the 36th International Conference on Machine Learning (ICML)} (pp. 6105--6114). Long Beach, CA, USA.
+
+\newpage
+
+\section*{Anexo. Fuentes de datos}
+\addcontentsline{toc}{section}{Anexo. Fuentes de datos}
+\label{anexo:datasets}
+
+Este anexo re\'une el enlace de origen, la licencia y la cita sugerida de cada fuente usada para construir el dataset, junto con observaciones adicionales recogidas durante su documentaci\'on que no se detallan en el cuerpo principal.
+
+\textbf{Maize in Field Dataset.} Im\'agenes de campo real de Sud\'africa con roya com\'un, tiz\'on foliar del norte y mancha gris de la hoja, entre otras. Origen: \url{https://www.kaggle.com/datasets/hamishcrazeai/maize-in-field-dataset}. Licencia CC BY-NC-SA 4.0. Cita: Craze, H., \& Berger, D. (2022). Maize\_in\_Field\_Dataset [Dataset]. Kaggle. \url{https://doi.org/10.34740/KAGGLE/DSV/3603983}. La mayor\'ia de sus fotos incluyen una tarjeta verde de referencia visible en el encuadre, cuya funci\'on original se desconoce.
+
+\textbf{Maize Diseases.} Roya com\'un, mancha gris de la hoja, tiz\'on foliar del norte y hojas sanas, en dos versiones publicadas. Origen: \url{https://www.kaggle.com/datasets/kaustavbiswal/maize-diseases/data}. Licencia CC BY-NC-SA 4.0. El dataset no provee una cita formal, y en su propia descripci\'on menciona ser una recopilaci\'on de fuentes p\'ublicas ya conocidas.
+
+\textbf{CropDG Unified Multi-Domain Dataset.} Dataset multi-dominio que combina PlantVillage, CCMT y PlantDoc bajo un mismo esquema de etiquetas. Origen: \url{https://www.kaggle.com/datasets/saniyaverma914/cropdg-unified-multidomain}. Licencia CC BY-NC-SA 4.0. Citas: Mohanty, S. P., Hughes, D. P., \& Salath\'e, M. (2016). Using deep learning for image-based plant disease detection. \textit{Frontiers in Plant Science}, 7, 1419. \url{https://doi.org/10.3389/fpls.2016.01419}; Verma, S. (2024). CropDG Unified Multi-Domain Dataset [Dataset]. Kaggle. \url{https://doi.org/10.34740/KAGGLE/DSV/12009964}; Jain, N., \& Kayal, P. (2024). PlantDoc Classification dataset [Dataset]. Kaggle. \url{https://doi.org/10.34740/KAGGLE/DSV/9411594}.
+
+\textbf{Maize, Beans and Tomatoes image dataset for Africa.} Recopilaci\'on de diez datasets de distintos pa\'ises del \'Africa subsahariana. Origen: \url{https://www.kaggle.com/datasets/osutokaggle/maize-beans-and-tomatoes-image-dataset-for-africa}. Licencia Apache 2.0 combinada con licencias Creative Commons de cada dataset integrante. La subclase de roya en este dataset aporta apenas un centenar de im\'agenes, la m\'as peque\~na de todas las que ofrece esta fuente para el cultivo de ma\'iz.
+
+\textbf{Maize Nutrient Deficiency.} \'Unica fuente del proyecto con deficiencias nutricionales de ma\'iz etiquetadas, capturada en campo por expertos del dominio en la frontera entre Maharashtra y Karnataka, India. Origen: \url{https://data.mendeley.com/datasets/34gb2gr7p2/1}. Licencia CC BY 4.0. Cita: Khade, V. (2025). Maize Nutrient Deficiency Dataset [Dataset]. Mendeley Data, V1. \url{https://doi.org/10.17632/34gb2gr7p2.1}. El volumen total es reducido y con un desbalance interno notable entre las macronutrientes cubiertos.
+
+\textbf{Corn Leaf, Roboflow.} Dataset anotado en formato YOLO con enfermedades y deficiencias nutricionales de ma\'iz en condiciones de campo. Origen: \url{https://universe.roboflow.com/labonis-workspace/corn-leaf-hd9iy/dataset/4}. Licencia CC BY 4.0. Publicado por el workspace \textit{labonis-workspace} en Roboflow Universe. Aporta la mayor parte del volumen de deficiencias nutricionales usado en el proyecto, aunque con un desbalance interno muy marcado entre sus propias clases.
+
+\textbf{Corn Leaf Diseases (PlantVillage Augmented Data).} Subcolecci\'on aumentada sint\'eticamente de PlantVillage, limitada a ma\'iz. Origen: \url{https://www.kaggle.com/datasets/shuvokumarbasak2030/corn-leaf-diseases-plant-village-augmented-data}. Licencia MIT. Cita: Basak, S. K. (2025). Plant Village Augmented Dataset New and Update Tec [Dataset]. Kaggle. \url{https://doi.org/10.34740/KAGGLE/DSV/11077233}. Descartada del dataset final porque solo distribuye las im\'agenes ya aumentadas, sin conservar los originales sin procesar.
+
+\textbf{Maize Crop Disease (Leaf) / Multicrop Disease.} Compilaci\'on multi-fuente con \'enfasis en variedades africanas de ma\'iz. Origen: \url{https://data.mendeley.com/datasets/6w6gsvghfw/1}. Licencia CC BY 4.0. Cita: Adege, A. (2026). Maize Crop Disease (Leaf). Mendeley Data, V1. \url{https://doi.org/10.17632/6w6gsvghfw.1}. Descartada del dataset final porque mezcla, sin metadatos que permitan diferenciarlas con confianza, im\'agenes preprocesadas, de laboratorio y de campo.
 
 \end{document}
