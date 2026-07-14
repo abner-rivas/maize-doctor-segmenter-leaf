@@ -82,7 +82,7 @@ Este trabajo presenta la primera etapa de un sistema de clasificaci\'on de enfer
 
 La agricultura representa el 5.6\% del PIB de El Salvador y sostiene a m\'as de 2 millones de personas en zonas rurales, y el 82.1\% de los productores son peque\~nos agricultores, muchos de subsistencia. El ma\'iz, cultivo principal, es vulnerable a distintas enfermedades foliares, plagas y deficiencias nutricionales que, sin detecci\'on temprana, pueden destruir hasta el 70\% de la cosecha. Entre 2021 y 2023 la cosecha nacional cay\'o un tercio.
 
-En zonas rurales la asistencia t\'ecnica agr\'icola escasea, as\'i que el diagn\'ostico depende de la experiencia de quien cultiva, lo que puede favorecer detecciones tard\'ias. Lo que este proyecto busca no es reemplazar el criterio del agricultor o de especialistas, sino ofrecer una \textbf{herramienta de apoyo} que detecte una condici\'on foliar, explique las posibles causas y oriente sobre que puede hacer para manejarla.
+En zonas rurales la asistencia t\'ecnica agr\'icola escasea, as\'i que el diagn\'ostico depende de la experiencia de quien cultiva, lo que puede favorecer detecciones tard\'ias. Lo que este proyecto busca no es reemplazar el criterio del agricultor o de especialistas, sino ofrecer una herramienta de apoyo que detecte una condici\'on foliar, explique las posibles causas y oriente sobre que puede hacer para manejarla.
 
 La soluci\'on que se busca es un clasificador de im\'agenes liviano, capaz de correr completamente offline en dispositivos Android de gama media/baja (${\geq}$4~GB RAM, Snapdragon serie 6xx o equivalente). El flujo que se propone es que el agricultor toma o sube una foto de la hoja y la aplicaci\'on responde con la clase m\'as probable, su confianza y consejos de manejo. El modelo objetivo no debe superar los 20MB de tamaño y mantener una latencia ${\leq}300$~ms por imagen, con cuantizaci\'on INT8 y un runtime m\'ovil como TensorFlow Lite.
 
@@ -92,7 +92,7 @@ Esta primera etapa cubre la recolecci\'on y documentaci\'on del dataset, el an\'
 
 Los primeros sistemas de diagn\'ostico foliar se apoyaban en aprendizaje cl\'asico, cómo SVM, K-Nearest Neighbors, Random Forest, sobre caracter\'isticas dise\~nadas a mano (color, textura, forma de la lesi\'on), con precisiones del 79\% al 90\% (Autores varios, 2026). Con la llegada de las CNN cambió totalmente el enfoque, ahora con estas redes se aprende sola la jerarqu\'ia de rasgos a partir de los p\'ixeles.
 
-En la mayoría de investigaciones la \textbf{brecha de dominio laboratorio/campo} es el mayor desafío, los modelos pioneros se entrenaron con \textit{PlantVillage}, hojas aisladas sobre fondos homog\'eneos, donde las CNN alcanzan exactitudes de 95.81\% a 99.53\% (Ahmad et al., 2023a). Pero al evaluarlos contra conjuntos de campo real (\textit{PlantDoc}, \textit{FieldPlant}, \textit{CD\&S}) la precisi\'on se desploma al rango de 33.27\% a 39.87\%. La causa es bastante fácil de ver, y es que en el campo, la hoja enferma puede tener contacto con hojas sanas, malezas, suelo, sombras y reflejos. Esto se combatió con el aumento de datos agresivo, la recolección y mezcla de fotos de laboratorio y campo, y la eliminaci\'on de fondo mediante un paso previo, arquitecturas como DenseNet169 estabilizan la generalizaci\'on en 77.50\% a 81.60\% (Ahmad et al., 2023b).
+En la mayoría de investigaciones la brecha de dominio laboratorio/campo es el mayor desafío, los modelos pioneros se entrenaron con \textit{PlantVillage}, hojas aisladas sobre fondos homog\'eneos, donde las CNN alcanzan exactitudes de 95.81\% a 99.53\% (Ahmad et al., 2023a). Pero al evaluarlos contra conjuntos de campo real (\textit{PlantDoc}, \textit{FieldPlant}, \textit{CD\&S}) la precisi\'on se desploma al rango de 33.27\% a 39.87\%. La causa es bastante fácil de ver, y es que en el campo, la hoja enferma puede tener contacto con hojas sanas, malezas, suelo, sombras y reflejos. Esto se combatió con el aumento de datos agresivo, la recolección y mezcla de fotos de laboratorio y campo, y la eliminaci\'on de fondo mediante un paso previo, arquitecturas como DenseNet169 estabilizan la generalizaci\'on en 77.50\% a 81.60\% (Ahmad et al., 2023b).
 
 Las investigaciones más recientes atacan estos problemas con esquemas h\'ibridos y en cascada, por un lado las CNN-ViT combinan la extracci\'on de texturas de las CNN con la capacidad de los Transformers para relacionar lesiones distantes, Shandilya et al.\ (2025) reportan F1 cercano al 99.13\% sobre conjuntos mixtos, aunque sistemas de campo como ZeaWatch ven caer su confianza al 70.8\% en condiciones reales (Baya et al., 2024).
 
@@ -112,11 +112,11 @@ S(i,j) = (I * W)(i,j) = \sum_{m}\sum_{n} I(i-m, j-n)\, W(m,n)
 
 La red aprende una jerarqu\'ia visual en la que las primeras capas responden a bordes y colores, las intermedias a texturas y manchas, las profundas a lesiones con forma y color.
 
-La \textbf{conectividad local} hace que cada filtro observe una regi\'on peque\~na, y la \textbf{compartici\'on de pesos} reutiliza el mismo filtro por toda la imagen, lo que reduce par\'ametros y detecta un patr\'on sin importar d\'onde aparezca. Las activaciones pasan por no linealidades como ReLU ($f(x)=\max(0,x)$) y por \textit{pooling}, que reduce la resoluci\'on espacial e introduce cierta tolerancia a peque\~nos desplazamientos, lo que hace más robusto al modelo.
+La conectividad local hace que cada filtro observe una regi\'on peque\~na, y la compartici\'on de pesos reutiliza el mismo filtro por toda la imagen, lo que reduce par\'ametros y detecta un patr\'on sin importar d\'onde aparezca. Las activaciones pasan por no linealidades como ReLU ($f(x)=\max(0,x)$) y por \textit{pooling}, que reduce la resoluci\'on espacial e introduce cierta tolerancia a peque\~nos desplazamientos, lo que hace más robusto al modelo.
 
 Una imagen a color entra a la red como un tensor de forma $H \times W \times 3$, una matriz por cada canal de color (rojo, verde y azul) alineada espacialmente. Para la red, s\'intomas como el amarillamiento de una hoja o una mancha oscura son patrones num\'ericos distribuidos en ese tensor, y por eso la estructura espacial importa tanto, ya que p\'ixeles vecinos suelen estar relacionados y una lesi\'on se reconoce por una regi\'on completa, no por un sólo p\'ixel.
 
-Un concepto que ayuda a entender c\'omo se construye esa jerarqu\'ia visual es el \textbf{campo receptivo}, la regi\'on de la imagen original que puede influir en la activaci\'on de una neurona dada. En las primeras capas ese campo es peque\~no, casi del tama\~no del filtro, pero al apilar convoluciones y reducir la resoluci\'on con \textit{pooling}, las capas profundas terminan integrando informaci\'on de \'areas cada vez m\'as amplias. As\'i es como la red pasa de detectar un borde oscuro aislado a reconocer una lesi\'on completa, formada por borde, color y textura combinados.
+Un concepto que ayuda a entender c\'omo se construye esa jerarqu\'ia visual es el campo receptivo, la regi\'on de la imagen original que puede influir en la activaci\'on de una neurona dada. En las primeras capas ese campo es peque\~no, casi del tama\~no del filtro, pero al apilar convoluciones y reducir la resoluci\'on con \textit{pooling}, las capas profundas terminan integrando informaci\'on de \'areas cada vez m\'as amplias. As\'i es como la red pasa de detectar un borde oscuro aislado a reconocer una lesi\'on completa, formada por borde, color y textura combinados.
 
 Al final, los mapas de caracter\'isticas se proyectan hacia las clases mediante capas lineales. La funci\'on \textit{Softmax} convierte los logits $z_i$ en probabilidades:
 
@@ -124,7 +124,7 @@ Al final, los mapas de caracter\'isticas se proyectan hacia las clases mediante 
 \hat{p}_i = \frac{e^{z_i}}{\sum_{j=1}^{C} e^{z_j}}
 \end{equation}
 
-El entrenamiento minimiza la \textbf{Entrop\'ia Cruzada}, que castiga la divergencia entre la predicci\'on $\hat{p}$ y la etiqueta real $y$:
+El entrenamiento minimiza la Entrop\'ia Cruzada, que castiga la divergencia entre la predicci\'on $\hat{p}$ y la etiqueta real $y$:
 
 \begin{equation}
 \mathcal{L}_{CE} = -\sum_{c=1}^{C} y_c \log(\hat{p}_c)
@@ -133,7 +133,7 @@ El entrenamiento minimiza la \textbf{Entrop\'ia Cruzada}, que castiga la diverge
 
 \subsection{Evoluci\'on hacia arquitecturas ligeras}
 
-La familia de arquitecturas CNN evolucion\'o desde LeNet y AlexNet hacia dise\~nos m\'as profundos como VGG y ResNet, esta \'ultima con conexiones residuales que facilitan entrenar redes muy profundas. Pero para el despliegue m\'ovil existen  las redes eficientes, dónde su pieza clave son las \textbf{convoluciones depthwise-separable}, que factorizan una convoluci\'on $k\times k$ en un filtro espacial por canal (\textit{depthwise}) y una convoluci\'on $1\times 1$ que combina canales (\textit{pointwise}). El ahorro de FLOPs respecto a la convoluci\'on est\'andar es:
+La familia de arquitecturas CNN evolucion\'o desde LeNet y AlexNet hacia dise\~nos m\'as profundos como VGG y ResNet, esta \'ultima con conexiones residuales que facilitan entrenar redes muy profundas. Pero para el despliegue m\'ovil existen  las redes eficientes, dónde su pieza clave son las convoluciones depthwise-separable, que factorizan una convoluci\'on $k\times k$ en un filtro espacial por canal (\textit{depthwise}) y una convoluci\'on $1\times 1$ que combina canales (\textit{pointwise}). El ahorro de FLOPs respecto a la convoluci\'on est\'andar es:
 
 \begin{equation}
 \frac{\text{Costo separable}}{\text{Costo est\'andar}} \approx \frac{1}{C_{out}} + \frac{1}{k^2}
@@ -191,7 +191,7 @@ Las tres t\'ecnicas m\'as usadas son LIME, SHAP y Grad-CAM.
 
 \textbf{LIME} (Ribeiro et al., 2016) explica una predicci\'on individual aproximando localmente el modelo con un modelo lineal simple. Para im\'agenes trabaja con superp\'ixeles, y el proceso segmenta la imagen, apaga algunos superp\'ixeles para generar variantes perturbadas, consulta al modelo por cada una, y ajusta un modelo lineal cuyos coeficientes son la importancia de cada regi\'on. Es agnóstico al modelo y muy intuitivo, pero tambi\'en el m\'as costoso y el menos estable, porque las perturbaciones son aleatorias.
 
-\textbf{SHAP} (Lundberg \& Lee, 2017) es similar a LIME pero este lo hace con superp\'ixeles usando los valores de Shapley de la teor\'ia de juegos. Es bastante consistente, y puede ser usado para evaluar el modelo de manera global. El único detalle que tiene es que variantes precisas son más costosas.
+\textbf{SHAP} (Lundberg \& Lee, 2017), similar a LIME pero con superp\'ixeles usando los valores de Shapley de la teor\'ia de juegos. Es bastante consistente, y puede ser usado para evaluar el modelo de manera global. El único detalle que tiene es que variantes precisas son más costosas.
 
 \begin{figure}[H]
 \centering

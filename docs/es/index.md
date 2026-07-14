@@ -48,9 +48,9 @@ features:
 
 ### Contexto y Problema
 
-Para entender por qué existe este proyecto conviene partir del peso que tiene la agricultura en El Salvador: representa el 5.6% del PIB y es el sustento de más de 2 millones de personas rurales. El 82.1% de los productores son pequeños agricultores, muchos operando a nivel de subsistencia. El maíz, su principal cultivo, es vulnerable a enfermedades foliares, plagas y deficiencias nutricionales que, sin detección temprana, pueden destruir hasta el 70% de la cosecha.
+Para entender por qué existe este proyecto conviene partir del peso que tiene la agricultura en El Salvador: representa el 5.6% del PIB y es el sustento de más de 2 millones de personas rurales. El 82.1% de los productores son pequeños agricultores, muchos operando a nivel de subsistencia. El maíz, su principal cultivo, es vulnerable a enfermedades foliares, plagas y deficiencias nutricionales que, sin detección correcta y en etapas tempranas, pueden destruir hasta el 70% de la cosecha.
 
-El problema es que en zonas rurales el acceso a asistencia técnica es limitado, así que los diagnósticos terminan dependiendo de la experiencia empírica del agricultor. Eso puede generar detecciones tardías y pérdidas económicas significativas: en 2023 la cosecha ya había caído un tercio respecto a 2021.
+El problema es que en zonas rurales el acceso a asistencia técnica es limitado, así que los diagnósticos terminan dependiendo de la experiencia empírica del agricultor. Eso puede generar detecciones tardías y pérdidas económicas significativas, en 2023 la cosecha ya había caído un tercio respecto a 2021.
 
 ### Clases Objetivo
 
