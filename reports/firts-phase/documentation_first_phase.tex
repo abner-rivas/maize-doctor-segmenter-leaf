@@ -53,7 +53,7 @@
 {\large Elmer Edenilson Rosales Molina -- RM20001 \par}
 \vfill
 {\large San Salvador, El Salvador \par}
-{\large \today \par}
+{\large 14 de julio de 2026 \par}
 \end{titlepage}
 
 \newpage
@@ -64,7 +64,7 @@
 
 \section*{Resumen}
 \addcontentsline{toc}{section}{Resumen}
-Este trabajo presenta la Etapa 1 de un sistema de clasificaci\'on de enfermedades foliares, plagas y deficiencias nutricionales en ma\'iz mediante \textit{deep learning}, pensado para inferencia offline en dispositivos m\'oviles de gama media/baja. Se documenta la recolecci\'on y limpieza de un conjunto consolidado de 31~622 im\'agenes en 9 clases procedentes de 6 fuentes p\'ublicas, un an\'alisis exploratorio que revela un desbalance de hasta 32.9$\times$ y sesgos de dominio laboratorio/campo, el pipeline de preprocesamiento y balanceo, y la comparaci\'on de tres arquitecturas convolucionales ligeras preentrenadas en ImageNet (EfficientNet-B0, ShuffleNetV2-x1.0 y EfficientNet-Lite0). EfficientNet-B0 obtiene el mejor macro-F1 en prueba (0.9146), seguido de ShuffleNetV2-x1.0 (0.9030) y EfficientNet-Lite0 (0.8951), y los tres superan la meta de macro-F1 $\geq0.85$. El error se concentra en un solo cuello de botella, \texttt{potassium\_deficiency}, y en la confusi\'on entre lesiones foliares parecidas. El an\'alisis de interpretabilidad con LIME y Grad-CAM muestra que los modelos atienden al tejido foliar, pero se equivocan con alta confianza dentro del bloque de deficiencias nutricionales.
+Este trabajo presenta la primera etapa de un sistema de clasificaci\'on de enfermedades foliares, plagas y deficiencias nutricionales en ma\'iz mediante \textit{deep learning}, pensado para inferencia offline en dispositivos m\'oviles de gama media/baja. Se documenta la recolecci\'on y limpieza de un conjunto consolidado de 31~622 im\'agenes en 9 clases procedentes de 6 fuentes p\'ublicas, un an\'alisis exploratorio que revela un desbalance de hasta 32.9$\times$ y sesgos de dominio laboratorio/campo, el pipeline de preprocesamiento y balanceo, y la comparaci\'on de tres arquitecturas convolucionales ligeras preentrenadas en ImageNet (EfficientNet-B0, ShuffleNetV2-x1.0 y EfficientNet-Lite0). EfficientNet-B0 obtiene el mejor macro-F1 en prueba (0.9146), seguido de ShuffleNetV2-x1.0 (0.9030) y EfficientNet-Lite0 (0.8951), y los tres superan la meta de macro-F1 $\geq0.85$. El error se concentra en un solo cuello de botella, \texttt{potassium\_deficiency}, y en la confusi\'on entre lesiones foliares parecidas. El an\'alisis de interpretabilidad con LIME y Grad-CAM muestra que los modelos atienden al tejido foliar, pero se equivocan con alta confianza dentro del bloque de deficiencias nutricionales.
 
 \noindent\textbf{Palabras clave:} clasificaci\'on de enfermedades foliares, ma\'iz, redes neuronales convolucionales, transfer learning, interpretabilidad, dispositivos m\'oviles
 
