@@ -2,7 +2,7 @@
 
 El EDA busca responder tres preguntas antes de diseñar el pipeline de entrenamiento: ¿qué hay en el dataset?, ¿qué problemas tiene?, y ¿qué decisiones impone?
 
-El análisis completo y reproducible, con todo el código, está en la notebook [`notebooks/01_eda.ipynb`](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb). Esta página resume los hallazgos y las decisiones que se derivaron de ellos.
+El análisis completo y reproducible, con todo el código, está en la notebook [`notebooks/01_eda.ipynb`](https://github.com/daiv05/maize-doctor-classifier/blob/master/notebooks/01_eda.ipynb). Esta página resume los hallazgos y las decisiones que se derivaron de ellos.
 
 ## Composición del dataset
 
@@ -43,7 +43,7 @@ Antes de las métricas numéricas, un grid de 4 imágenes aleatorias por clase (
 
 ![Muestra visual representativa por clase](/eda/eda_00_muestra_visual.png)
 
-- [Ver análisis completo: sección 1.1 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
+- [Ver análisis completo: sección 1.1 de la notebook](https://github.com/daiv05/maize-doctor-classifier/blob/master/notebooks/01_eda.ipynb)
 
 ## 1. Distribución de clases
 
@@ -53,7 +53,7 @@ El dataset presenta un **desbalance severo**: `healthy` (8 744 imágenes) supera
 
 Para mitigar este desbalance, inicialmente se planea usar `WeightedRandomSampler` en el DataLoader para igualar la frecuencia efectiva de cada clase durante el entrenamiento. Para las clases más escasas (`potassium_deficiency`, `nitrogen_deficiency`, `phosphorus_deficiency`) aplicar un pipeline de augmentation mas agresivo (`CornMinorityTransforms`).
 
-- [Ver análisis completo: sección 1.2 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
+- [Ver análisis completo: sección 1.2 de la notebook](https://github.com/daiv05/maize-doctor-classifier/blob/master/notebooks/01_eda.ipynb)
 
 ## 2. Sesgo de entorno (lab vs real)
 
@@ -73,7 +73,7 @@ Además de la segmentación lab/real, un heatmap fuente×clase revela concentrac
 
 Las tres clases de deficiencias nutricionales provienen de una **fuente única** (`maize_nutrient`), y `lethal_necrosis` depende exclusivamente de `maize_africa`. Esto limita la diversidad de condiciones de captura y aumenta el riesgo de sobreajuste a patrones específicos de esas fuentes.
 
-- [Ver análisis completo: sección 1.3 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
+- [Ver análisis completo: sección 1.3 de la notebook](https://github.com/daiv05/maize-doctor-classifier/blob/master/notebooks/01_eda.ipynb)
 
 ## 3. Resolución y dimensiones
 
@@ -97,7 +97,7 @@ Los violin plots confirman que **la resolución no es independiente de la clase*
 - **`common_rust` y `gray_leaf_spot`:** distribuciones bimodales (lab ~256 px, campo ~640 px).
 - **`healthy`, `lethal_necrosis` y `northern_corn_leaf_blight`:** colas más largas (hasta 3000-5000+ px), con mayor dispersión de aspect ratio. Estas clases sufren la mayor pérdida de detalle durante el resize, y el resize a cuadrado distorsionará la geometría de las lesiones en imágenes con aspect ratio lejos de 1.0.
 
-- [Ver análisis completo: sección 1.4 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
+- [Ver análisis completo: sección 1.4 de la notebook](https://github.com/daiv05/maize-doctor-classifier/blob/master/notebooks/01_eda.ipynb)
 
 ## 4. Calidad de imagen
 
@@ -123,7 +123,7 @@ En un problema de enfermedades foliares, el color es una señal diagnóstica pri
 
 El análisis del canal Hue por clase y entorno permite verificar si las firmas cromáticas de cada enfermedad son detectables estadísticamente, y si existen diferencias de dominio de color entre imágenes lab y real que podrían actuar como shortcuts para el modelo.
 
-- [Ver análisis completo: sección 1.5 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
+- [Ver análisis completo: sección 1.5 de la notebook](https://github.com/daiv05/maize-doctor-classifier/blob/master/notebooks/01_eda.ipynb)
 
 ## 5. Duplicados y limpieza
 
@@ -135,7 +135,7 @@ Se eliminaron **8 538 imágenes** agrupadas en **8 050 grupos**. Las fuentes con
 
 El dataset actual (y publicado en <a href="https://huggingface.co/datasets/daiv05/corn-leaf-diseases-pests-and-deficiencies" target="_blank" rel="noopener noreferrer">Hugging Face</a>) es **post-deduplicación**. Los registros de cada ejecución se almacenan en `src/cleanup/results/` del repositorio oficial.
 
-- [Ver análisis completo: sección 1.6 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
+- [Ver análisis completo: sección 1.6 de la notebook](https://github.com/daiv05/maize-doctor-classifier/blob/master/notebooks/01_eda.ipynb)
 
 ## 6. Sesgos identificados
 
@@ -152,7 +152,7 @@ A partir de los análisis anteriores se identifican cinco sesgos que afectan dir
 
 El sesgo de `fall_armyworm` es especialmente relevante, se decidió mezclar las dos fuentes de imágenes: `hoja con daño sin insecto visible` y `hoja con daño y gusano visible`. Esto se hizo porque al final la clase es `fall_armyworm` y la clasificación y recomendación de tratamiento no depende de la presencia del insecto, sino del patrón de daño foliar. Sin embargo, esto introduce un sesgo, por lo que se tendrá especial cuidado en la validación y en la interpretación de métricas,
 
-- [Ver análisis completo: sección 1.7 de la notebook](https://github.com/daiv05/corn-leaf-desease-project/blob/master/notebooks/01_eda.ipynb)
+- [Ver análisis completo: sección 1.7 de la notebook](https://github.com/daiv05/maize-doctor-classifier/blob/master/notebooks/01_eda.ipynb)
 
 ## Conclusiones
 

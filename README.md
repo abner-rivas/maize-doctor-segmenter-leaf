@@ -170,7 +170,7 @@ make modal-pull                                             # trae outputs-remot
 ## Estructura del Proyecto
 
 ```
-corn-leaf-desease-project/
+maize-doctor-classifier/
 ├── config/dataset.yaml   # Clases, tamaño de imagen, seed, perfil "baseline"
 ├── docs/es/              # Documentación (VitePress): datasets, EDA, baselines, deployment
 ├── notebooks/            # Análisis exploratorio
