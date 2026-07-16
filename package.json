@@ -1,5 +1,5 @@
 {
-  "name": "corn-leaf-disease-project",
+  "name": "maize-doctor-classifier",
   "private": true,
   "scripts": {
     "docs:dev": "vitepress dev docs",

@@ -10,8 +10,8 @@ Guía paso a paso para dejar el proyecto corriendo en tu máquina: entorno virtu
 ## 1. Clonar el repo
 
 ```bash
-git clone https://github.com/daiv05/corn-leaf-desease-project
-cd corn-leaf-desease-project
+git clone https://github.com/daiv05/maize-doctor-classifier
+cd maize-doctor-classifier
 ```
 
 ## 2. Crear el entorno virtual
@@ -130,8 +130,8 @@ make train                                    # Pipeline principal (loop de entr
 ## Resumen rápido (happy path)
 
 ```bash
-git clone https://github.com/daiv05/corn-leaf-desease-project
-cd corn-leaf-desease-project
+git clone https://github.com/daiv05/maize-doctor-classifier
+cd maize-doctor-classifier
 python -m venv venv
 source venv/bin/activate   # o venv\Scripts\Activate.ps1 en Windows
 cp .env.example .env       # editar DATASET_ROOT / HF_DATASET_REPO / GDRIVE_DATASET_ID
