@@ -1,16 +1,10 @@
-ifeq ($(OS),Windows_NT)
-    PYTHON 	:= venv\Scripts\python
-    PIP    	:= venv\Scripts\pip
-    RUFF   	:= venv\Scripts\ruff
-	PYRIGHT := venv\Scripts\pyright
-	MODAL   := venv\Scripts\modal
-else
-    PYTHON 	:= venv/bin/python
-    PIP    	:= venv/bin/pip
-    RUFF   	:= venv/bin/ruff
-	PYRIGHT := venv/bin/pyright
-	MODAL   := venv/bin/modal
-endif
+# Usa el intérprete del entorno activo en Linux, macOS y Windows.
+# Todas las variables son sobreescribibles desde la CLI.
+PYTHON ?= python
+PIP ?= $(PYTHON) -m pip
+RUFF ?= $(PYTHON) -m ruff
+PYRIGHT ?= $(PYTHON) -m pyright
+MODAL ?= $(PYTHON) -m modal
 
 MODELS ?= efficientnet_b0 shufflenet_v2_x1_0 efficientnet_lite0
 EPOCHS ?= 30
@@ -25,8 +19,13 @@ NUM_WORKERS ?=
 NO_PRETRAINED ?=
 LIME ?=
 NUM_SAMPLES ?=
+CONFIRM_TRAINING ?=
 
-.PHONY: compile-pdf install download-dataset splits splits-baseline train train-baselines explain-lime explain-report explain-errors test-loader summary docs-eda lint lint-fix fmt check clean-outputs modal-seed modal-train-baselines modal-clean-outputs modal-explain-lime modal-explain-report modal-explain-errors modal-pull
+.PHONY: compile-pdf install download-dataset splits splits-baseline train train-baselines explain-lime explain-report explain-errors test-loader smoke-loader audit-dataset validate-splits training-preflight training-package-manifest summary docs-eda lint lint-fix fmt check clean-outputs modal-seed modal-train-baselines modal-clean-outputs modal-explain-lime modal-explain-report modal-explain-errors modal-pull
+
+define REQUIRE_TRAINING_CONFIRMATION
+$(if $(filter 1,$(CONFIRM_TRAINING)),,$(error Entrenamiento no iniciado. Use CONFIRM_TRAINING=1 para confirmar explícitamente.))
+endef
 
 install:
 	$(PIP) install -e ".[dev,analysis,xai,cloud]"
@@ -41,9 +40,11 @@ splits-baseline:
 	$(PYTHON) scripts/pipeline/create_splits.py --baseline $(if $(NO_CAP),--no-cap,) $(if $(MAX_PER_CLASS),--max-per-class $(MAX_PER_CLASS),)
 
 train:
+	$(REQUIRE_TRAINING_CONFIRMATION)
 	$(PYTHON) scripts/pipeline/train.py
 
 train-baselines:
+	$(REQUIRE_TRAINING_CONFIRMATION)
 	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --baseline \
 		$(if $(NO_CAP),--no-cap,) $(if $(MAX_PER_CLASS),--max-per-class $(MAX_PER_CLASS),) \
 		$(if $(REGEN_SPLITS),--regenerate-splits,) \
@@ -63,6 +64,7 @@ modal-seed:
 	$(MODAL) run scripts/modal/train.py::seed_dataset
 
 modal-train-baselines:
+	$(REQUIRE_TRAINING_CONFIRMATION)
 	$(MODAL) run scripts/modal/train.py --models "$(MODELS)" --epochs "$(EPOCHS)" \
 		$(if $(NO_CAP),--no-cap,) $(if $(MAX_PER_CLASS),--max-per-class "$(MAX_PER_CLASS)",) \
 		$(if $(REGEN_SPLITS),--regenerate-splits,) \
@@ -107,6 +109,20 @@ explain-errors:
 
 test-loader:
 	$(PYTHON) scripts/checks/smoke_loader.py
+
+smoke-loader: test-loader
+
+audit-dataset:
+	$(PYTHON) scripts/checks/audit_dataset_classes.py --fail-on-mismatch
+
+validate-splits:
+	$(PYTHON) scripts/checks/validate_splits.py --fail-on-error
+
+training-preflight:
+	$(PYTHON) scripts/checks/training_preflight.py --device cpu --check-dataset --output outputs/preflight
+
+training-package-manifest:
+	$(PYTHON) scripts/checks/build_training_package_manifest.py --output outputs/training_package_manifest.json
 
 summary:
 	$(PYTHON) src/analysis/dataset_summary.py

@@ -77,6 +77,41 @@ Distribución aproximada de instancias por clase (conteo de etiquetas en todos l
 - Anotaciones en **YOLOv8** (bbox + segmentación de polígono)
 - Imágenes en formato JPEG
 
+## Auditoría visual de anotaciones (Fase 1)
+
+Antes de diseñar o entrenar un detector se deben auditar las anotaciones originales. La
+herramienta `scripts/dataset/audit_leaf_annotations.py` relaciona imágenes y archivos `.txt`
+por su ruta relativa y nombre base, valida las líneas YOLO, dibuja únicamente los bounding
+boxes compatibles y señala polígonos o registros inesperados. El dataset fuente se trata como
+solo lectura.
+
+Ejemplo para PowerShell, pasando directamente la carpeta original de Roboflow:
+
+```powershell
+python scripts/dataset/audit_leaf_annotations.py `
+  --dataset-root "C:\ruta\al\corn-leaf-roboflow" `
+  --samples 100 `
+  --seed 42 `
+  --output "outputs\leaf_detection\annotation_audit" `
+  --splits train valid val test
+```
+
+Si se omite `--dataset-root`, el script usa la resolución oficial del proyecto y busca
+`corn-leaf-roboflow` bajo `DATASET_ROOT/raw/`. Si se omite `--output`, escribe bajo
+`OUTPUT_ROOT/leaf_detection/annotation_audit/` (o `outputs/leaf_detection/annotation_audit/`
+cuando `OUTPUT_ROOT` no está definido).
+
+Las copias visuales quedan en `images/<split>/`; `summary.json` contiene los totales globales,
+la distribución por split y clase, ejemplos de problemas, la semilla y las rutas utilizadas.
+Los conteos `valid_annotations`, `invalid_annotations` y `possible_polygons` cubren todos los
+archivos de etiqueta encontrados, mientras `audited_images` indica cuántas imágenes componen
+la muestra visual. `summary.csv` presenta los mismos conteos en formato tabular.
+
+Después de revisar las imágenes se debe decidir si las anotaciones delimitan hojas completas,
+lesiones, zonas sintomáticas u objetos mezclados, y si su consistencia y cobertura justifican
+reutilizarlas. Esta fase no presupone que representen la hoja principal ni autoriza todavía el
+entrenamiento de un detector.
+
 ## Origen
 
 1. [Dataset en Roboflow Universe](https://universe.roboflow.com/labonis-workspace/corn-leaf-hd9iy/dataset/4)

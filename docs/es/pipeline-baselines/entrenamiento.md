@@ -50,12 +50,17 @@ Dos observaciones tienen valor práctico:
 
 ## Ejecución
 
+Antes de preparar una GPU externa, sigue la [guía de preparación y preflight remoto](remote-training-preparation.md).
+
 El proyecto y su pipeline permiten que el entrenamiento se puede lanzar en local o delegarlo a una GPU en <a href="https://modal.com" rel="noopener noreferrer" target="_blank">Modal</a>; ambos caminos usan el mismo `train_baselines.py` por debajo.
 
 ```bash
 # Local
-make train-baselines
+make train-baselines CONFIRM_TRAINING=1
 
 # GPU en Modal (regenera splits si cambió el perfil)
-make modal-train-baselines REGEN_SPLITS=1
+make modal-train-baselines REGEN_SPLITS=1 CONFIRM_TRAINING=1
 ```
+
+La confirmación es un seguro de Make contra inicios accidentales. Los scripts Python siguen siendo
+invocables directamente en automatizaciones remotas controladas.

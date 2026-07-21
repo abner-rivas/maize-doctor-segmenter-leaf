@@ -19,6 +19,19 @@ dataset:
 augmentation:
   minority_ratio_threshold: 4.0
 
+leaf_detection:
+  enabled: false
+  mode: bbox
+  confidence_threshold: 0.50
+  min_area_ratio: 0.15
+  margin_ratio: 0.08
+  selection_strategy: largest_centered
+  fallback: original
+  preserve_aspect_ratio: true
+  padding_value: 0
+  save_debug_images: false
+  cache_detections: true
+
 baseline:
   classes:
     - common_rust

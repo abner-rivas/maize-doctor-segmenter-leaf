@@ -116,3 +116,75 @@ Normalize(ImageNet)
 ```
 
 Sin ninguna augmentation aleatoria.
+
+## Región de interés de hoja (Fase 2, todavía aislada)
+
+Una **región de interés** (ROI) es el rectángulo de la fotografía que contiene la hoja que se
+quiere analizar. Los componentes de `src/preprocessing/` pueden validar un bounding box,
+limitarlo a la imagen, agregar un margen de seguridad y producir una imagen compatible con el
+tamaño de entrada del clasificador. Todavía no existe un detector integrado: el bounding box
+se proporciona manualmente o podrá venir de otra fuente en fases posteriores.
+
+El margen se calcula por separado sobre el ancho y el alto del bbox. Por ejemplo,
+`margin_ratio: 0.08` agrega un 8 % del ancho a cada lado y un 8 % del alto arriba y abajo, sin
+salirse de la fotografía. Los márgenes entre 0 y 1 son válidos; un valor mayor que 1 se rechaza
+como probable error de configuración.
+
+Después del recorte se aplica **letterbox**: la ROI se redimensiona proporcionalmente, se
+centra y se completa con padding RGB hasta el tamaño exacto. Esto evita que un
+`Resize((224, 224))` directo convierta una hoja alargada en una forma artificialmente ancha o
+alta. La convención del proyecto para `target_size` es `(alto, ancho)`, aunque Pillow reporta
+los tamaños de imagen como `(ancho, alto)`.
+
+Cuando el bbox no es válido existen tres fallbacks aislados:
+
+- `original`: usa una copia RGB de la fotografía completa.
+- `center_crop`: conserva una proporción configurable de ambos ejes, centrada en la imagen
+  (80 % por defecto).
+- `reject`: devuelve un rechazo controlado y no produce una región para clasificación.
+
+Validación manual en Linux:
+
+```bash
+python3 scripts/checks/validate_leaf_roi.py \
+  --image /ruta/imagen.jpg \
+  --bbox 100 50 500 350 \
+  --margin-ratio 0.08 \
+  --target-size 224 224 \
+  --padding-value 0 \
+  --fallback original \
+  --output outputs/leaf_detection/roi_validation
+```
+
+Validación manual en PowerShell:
+
+```powershell
+python scripts/checks/validate_leaf_roi.py `
+  --image "C:\ruta\imagen.jpg" `
+  --bbox 100 50 500 350 `
+  --margin-ratio 0.08 `
+  --target-size 224 224 `
+  --padding-value 0 `
+  --fallback original `
+  --output "outputs\leaf_detection\roi_validation"
+```
+
+La salida contiene la imagen original, las dos visualizaciones de bbox, el recorte, el
+letterbox y `metadata.json`. La sección `leaf_detection` de `config/dataset.yaml` queda con
+`enabled: false`: ningún pipeline actual lee esta configuración y esta fase no cambia todavía
+el entrenamiento, la inferencia, LIME ni Grad-CAM. La selección automática de detecciones y su
+caché pertenecen a fases posteriores.
+
+## Piloto manual de ROI (Fase 3, todavía aislada)
+
+La selección reproducible del piloto, la guía de anotación, los importadores YOLO/CSV, el
+manifiesto final, las comprobaciones de fuga y las vistas previas se documentan en
+[Piloto manual de regiones de interés](manual-roi-pilot.md). El flujo continúa aislado del
+entrenamiento y la inferencia del clasificador.
+
+## Auditoría de clases y splits (Fase 3.5)
+
+Antes de restaurar splits o entrenar, la configuración, la documentación y las carpetas de
+`clean/` deben coincidir. El diagnóstico, los reportes reproducibles, el respaldo seguro y la
+validación de fugas se describen en
+[Auditoría de clases y restauración de splits](dataset-class-audit.md).
