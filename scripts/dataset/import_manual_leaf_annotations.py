@@ -1,4 +1,4 @@
-"""Import manual YOLO or CSV leaf boxes into a new pilot annotation manifest."""
+"""Import manual YOLO, CSV, or CVAT XML leaf boxes into a pilot manifest."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pilot-manifest", type=Path, required=True)
     parser.add_argument("--annotations", type=Path, required=True)
-    parser.add_argument("--format", choices=("yolo", "csv"), required=True)
+    parser.add_argument("--format", choices=("yolo", "csv", "cvat_xml"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--min-area-ratio", type=float, default=0.15)
     parser.add_argument("--image-root", type=Path, default=None)

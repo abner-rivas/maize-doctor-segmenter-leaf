@@ -6,6 +6,7 @@ import json
 import math
 import random
 import statistics
+import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,6 +46,9 @@ ANNOTATION_EXTRA_COLUMNS = (
     "roi_width",
     "roi_height",
     "roi_area_ratio",
+    "original_rotation_degrees",
+    "roi_conversion_method",
+    "roi_clipped",
     "notes",
     "annotation_warnings",
     "annotation_format",
@@ -83,6 +87,22 @@ class ManualAnnotation:
     area_ratio: float | None
     notes: str
     warnings: tuple[str, ...] = ()
+    original_rotation_degrees: float = 0.0
+    conversion_method: str = "direct_bbox"
+    clipped: bool = False
+    geometry_converted: bool = False
+
+
+@dataclass(frozen=True)
+class CvatImageAnnotation:
+    """One CVAT ``image`` element normalized to a pilot annotation."""
+
+    xml_id: str
+    name: str
+    pilot_id: str
+    width: int | None
+    height: int | None
+    annotation: ManualAnnotation
 
 
 def resolve_pilot_image(
@@ -107,8 +127,26 @@ def resolve_pilot_image(
     return manifest_path.parent.parent / path
 
 
-def _empty_annotation(status: str, notes: str, *warnings: str) -> ManualAnnotation:
-    return ManualAnnotation(status, None, None, notes, tuple(warnings))
+def _empty_annotation(
+    status: str,
+    notes: str,
+    *warnings: str,
+    rotation_degrees: float = 0.0,
+    conversion_method: str = "direct_bbox",
+    clipped: bool = False,
+    geometry_converted: bool = False,
+) -> ManualAnnotation:
+    return ManualAnnotation(
+        status,
+        None,
+        None,
+        notes,
+        tuple(warnings),
+        rotation_degrees,
+        conversion_method,
+        clipped,
+        geometry_converted,
+    )
 
 
 def _annotation_from_pixel_bbox(
@@ -118,6 +156,8 @@ def _annotation_from_pixel_bbox(
     min_area_ratio: float,
     *,
     notes: str = "",
+    rotation_degrees: float = 0.0,
+    conversion_method: str = "direct_bbox",
 ) -> ManualAnnotation:
     detection = validate_bbox(
         image_width,
@@ -131,9 +171,13 @@ def _annotation_from_pixel_bbox(
             "ambiguous",
             notes or detection.reason or "bbox manual inválido",
             detection.reason or "bbox manual inválido",
+            rotation_degrees=rotation_degrees,
+            conversion_method=conversion_method,
+            geometry_converted=detection.bbox is not None,
         )
     warnings: list[str] = []
-    if bbox_requires_clipping(bbox_values, image_width, image_height):
+    clipped = bbox_requires_clipping(bbox_values, image_width, image_height)
+    if clipped:
         warnings.append("bbox manual limitado a los bordes")
     return ManualAnnotation(
         "annotated",
@@ -141,6 +185,10 @@ def _annotation_from_pixel_bbox(
         detection.area_ratio,
         notes,
         tuple(warnings),
+        rotation_degrees,
+        conversion_method,
+        clipped,
+        True,
     )
 
 
@@ -234,6 +282,213 @@ def _load_csv_annotations(path: Path) -> tuple[dict[str, list[dict[str, str]]], 
     return grouped, []
 
 
+def _parse_cvat_dimension(value: str | None, field: str) -> int:
+    """Parse one positive integer image dimension from CVAT XML."""
+    if value is None:
+        raise ValueError(f"{field} ausente")
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise ValueError(f"{field} debe ser entero") from exc
+    if parsed <= 0:
+        raise ValueError(f"{field} debe ser mayor que cero")
+    return parsed
+
+
+def _parse_cvat_float(value: str | None, field: str, *, default: float | None = None) -> float:
+    """Parse one finite CVAT numeric attribute."""
+    if value is None:
+        if default is not None:
+            return default
+        raise ValueError(f"{field} ausente")
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise ValueError(f"{field} debe ser numérico") from exc
+    if not math.isfinite(parsed):
+        raise ValueError(f"{field} debe ser finito")
+    return parsed
+
+
+def rotated_bbox_to_axis_aligned(
+    bbox: Sequence[int | float | str],
+    rotation_degrees: int | float | str,
+) -> tuple[float, float, float, float]:
+    """Return the smallest axis-aligned bbox enclosing a CVAT rotated box.
+
+    CVAT rotates rectangles clockwise around their center in image coordinates
+    (where the y axis points downward). All four corners are transformed before
+    their coordinate-wise extrema are taken.
+    """
+    if len(bbox) != 4:
+        raise ValueError("bbox CVAT debe contener cuatro coordenadas")
+    values = tuple(
+        _parse_cvat_float(str(value), field)
+        for value, field in zip(bbox, ("xtl", "ytl", "xbr", "ybr"), strict=True)
+    )
+    xtl, ytl, xbr, ybr = values
+    if xbr <= xtl:
+        raise ValueError("xbr debe ser mayor que xtl")
+    if ybr <= ytl:
+        raise ValueError("ybr debe ser mayor que ytl")
+    rotation = _parse_cvat_float(str(rotation_degrees), "rotation")
+    radians = math.radians(rotation)
+    cosine = math.cos(radians)
+    sine = math.sin(radians)
+    center_x = (xtl + xbr) / 2.0
+    center_y = (ytl + ybr) / 2.0
+    rotated_corners: list[tuple[float, float]] = []
+    for x, y in ((xtl, ytl), (xbr, ytl), (xbr, ybr), (xtl, ybr)):
+        delta_x = x - center_x
+        delta_y = y - center_y
+        rotated_corners.append(
+            (
+                center_x + delta_x * cosine - delta_y * sine,
+                center_y + delta_x * sine + delta_y * cosine,
+            )
+        )
+    return (
+        min(x for x, _ in rotated_corners),
+        min(y for _, y in rotated_corners),
+        max(x for x, _ in rotated_corners),
+        max(y for _, y in rotated_corners),
+    )
+
+
+def _parse_cvat_image(
+    element: ET.Element,
+    min_area_ratio: float,
+) -> CvatImageAnnotation:
+    """Parse and validate one CVAT native ``image`` element."""
+    xml_id = (element.get("id") or "").strip()
+    name = (element.get("name") or "").strip()
+    pilot_id = Path(name).stem if name else ""
+    structural_errors: list[str] = []
+    if not xml_id:
+        structural_errors.append("id de imagen ausente")
+    if not name:
+        structural_errors.append("name de imagen ausente")
+    try:
+        width = _parse_cvat_dimension(element.get("width"), "width")
+        height = _parse_cvat_dimension(element.get("height"), "height")
+    except ValueError as exc:
+        width = None
+        height = None
+        structural_errors.append(str(exc))
+
+    boxes = element.findall("box")
+    if len(boxes) != 1:
+        detail = "imagen sin caja" if not boxes else f"imagen con {len(boxes)} cajas"
+        annotation = _empty_annotation(
+            "ambiguous",
+            detail,
+            "se requiere exactamente una caja maize_leaf",
+        )
+        return CvatImageAnnotation(xml_id, name, pilot_id, width, height, annotation)
+
+    box = boxes[0]
+    if box.get("label") != "maize_leaf":
+        label = box.get("label", "")
+        annotation = _empty_annotation(
+            "ambiguous",
+            f"etiqueta CVAT distinta de maize_leaf: {label!r}",
+            "etiqueta CVAT incorrecta",
+        )
+        return CvatImageAnnotation(xml_id, name, pilot_id, width, height, annotation)
+
+    try:
+        rotation = _parse_cvat_float(box.get("rotation"), "rotation", default=0.0)
+    except ValueError as exc:
+        annotation = _empty_annotation("ambiguous", str(exc), "rotation CVAT inválida")
+        return CvatImageAnnotation(xml_id, name, pilot_id, width, height, annotation)
+    conversion_method = (
+        "direct_bbox" if math.isclose(rotation % 360.0, 0.0, abs_tol=1e-12)
+        else "rotated_to_axis_aligned"
+    )
+    if structural_errors:
+        annotation = _empty_annotation(
+            "ambiguous",
+            " | ".join(structural_errors),
+            "elemento image CVAT inválido",
+            rotation_degrees=rotation,
+            conversion_method=conversion_method,
+        )
+        return CvatImageAnnotation(xml_id, name, pilot_id, width, height, annotation)
+
+    try:
+        raw_bbox = tuple(
+            _parse_cvat_float(box.get(field), field)
+            for field in ("xtl", "ytl", "xbr", "ybr")
+        )
+        if raw_bbox[2] <= raw_bbox[0]:
+            raise ValueError("xbr debe ser mayor que xtl")
+        if raw_bbox[3] <= raw_bbox[1]:
+            raise ValueError("ybr debe ser mayor que ytl")
+        converted_bbox = (
+            raw_bbox
+            if conversion_method == "direct_bbox"
+            else rotated_bbox_to_axis_aligned(raw_bbox, rotation)
+        )
+    except ValueError as exc:
+        annotation = _empty_annotation(
+            "ambiguous",
+            str(exc),
+            "coordenadas CVAT inválidas",
+            rotation_degrees=rotation,
+            conversion_method=conversion_method,
+        )
+    else:
+        assert width is not None and height is not None
+        annotation = _annotation_from_pixel_bbox(
+            converted_bbox,
+            width,
+            height,
+            min_area_ratio,
+            rotation_degrees=rotation,
+            conversion_method=conversion_method,
+        )
+    return CvatImageAnnotation(xml_id, name, pilot_id, width, height, annotation)
+
+
+def load_cvat_xml_annotations(
+    path: Path,
+    min_area_ratio: float,
+) -> tuple[dict[str, list[CvatImageAnnotation]], dict[str, int], list[str]]:
+    """Load CVAT native XML, retaining every image and every validation issue."""
+    if not path.is_file():
+        raise FileNotFoundError(f"XML CVAT inexistente: {path}")
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError as exc:
+        raise ValueError(f"XML CVAT inválido: {exc}") from exc
+    if root.tag != "annotations":
+        raise ValueError(f"XML CVAT inválido: raíz esperada 'annotations', recibió {root.tag!r}")
+
+    grouped: dict[str, list[CvatImageAnnotation]] = defaultdict(list)
+    warnings: list[str] = []
+    records = [
+        _parse_cvat_image(element, min_area_ratio)
+        for element in root.findall("image")
+    ]
+    for record in records:
+        grouped[record.pilot_id].append(record)
+        if not record.pilot_id:
+            warnings.append(
+                f"imagen XML id={record.xml_id or '?'} sin name asociable a pilot_id"
+            )
+    stats = {
+        "xml_images": len(records),
+        "xml_boxes": sum(len(element.findall("box")) for element in root.findall("image")),
+        "multiple_box_images": sum(
+            len(element.findall("box")) > 1 for element in root.findall("image")
+        ),
+        "images_without_box": sum(
+            not element.findall("box") for element in root.findall("image")
+        ),
+    }
+    return grouped, stats, warnings
+
+
 def _parse_csv_annotation(
     rows: Sequence[dict[str, str]],
     image_width: int,
@@ -280,6 +535,9 @@ def _annotation_fields(annotation: ManualAnnotation, annotation_format: str) -> 
         "roi_width": bbox_width(bbox) if bbox else "",
         "roi_height": bbox_height(bbox) if bbox else "",
         "roi_area_ratio": annotation.area_ratio if annotation.area_ratio is not None else "",
+        "original_rotation_degrees": annotation.original_rotation_degrees,
+        "roi_conversion_method": annotation.conversion_method,
+        "roi_clipped": annotation.clipped,
         "notes": annotation.notes,
         "annotation_warnings": " | ".join(annotation.warnings),
         "annotation_format": annotation_format,
@@ -296,9 +554,9 @@ def import_manual_annotations(
     overwrite: bool = False,
     image_root: Path | None = None,
 ) -> dict[str, object]:
-    """Import YOLO or CSV annotations into a new, traceable intermediate manifest."""
-    if annotation_format not in {"yolo", "csv"}:
-        raise ValueError("format debe ser yolo o csv")
+    """Import YOLO, CSV, or CVAT XML into a traceable intermediate manifest."""
+    if annotation_format not in {"yolo", "csv", "cvat_xml"}:
+        raise ValueError("format debe ser yolo, csv o cvat_xml")
     if output.exists() and not overwrite:
         raise FileExistsError(f"La salida ya existe; use --overwrite para reemplazarla: {output}")
     if output.resolve() == pilot_manifest.resolve() and not overwrite:
@@ -307,6 +565,8 @@ def import_manual_annotations(
     require_columns(columns, PILOT_COLUMNS, "pilot manifest")
 
     grouped_csv: dict[str, list[dict[str, str]]] = {}
+    grouped_cvat: dict[str, list[CvatImageAnnotation]] = {}
+    cvat_stats: dict[str, int] = {}
     global_warnings: list[str] = []
     if annotation_format == "csv":
         grouped_csv, _ = _load_csv_annotations(annotations)
@@ -316,7 +576,7 @@ def import_manual_annotations(
             global_warnings.append(
                 f"pilot_id desconocidos en CSV: {', '.join(unknown_ids[:10])}"
             )
-    else:
+    elif annotation_format == "yolo":
         if not annotations.is_dir():
             raise FileNotFoundError(f"Directorio de etiquetas YOLO inexistente: {annotations}")
         known_ids = {row["pilot_id"] for row in pilot_rows}
@@ -329,9 +589,23 @@ def import_manual_annotations(
             global_warnings.append(
                 f"etiquetas sin imagen/pilot_id: {', '.join(orphan_labels[:10])}"
             )
+    else:
+        grouped_cvat, cvat_stats, cvat_warnings = load_cvat_xml_annotations(
+            annotations,
+            min_area_ratio,
+        )
+        global_warnings.extend(cvat_warnings)
+        known_ids = {row["pilot_id"] for row in pilot_rows}
+        unknown_ids = sorted(set(grouped_cvat) - known_ids - {""})
+        if unknown_ids:
+            global_warnings.append(
+                f"pilot_id desconocidos en XML CVAT: {', '.join(unknown_ids[:10])}"
+            )
 
     output_rows: list[dict[str, object]] = []
     status_counts: Counter[str] = Counter()
+    conversion_counts: Counter[str] = Counter()
+    clipped_count = 0
     for pilot_row in pilot_rows:
         pilot_id = pilot_row["pilot_id"]
         try:
@@ -347,17 +621,51 @@ def import_manual_annotations(
                     image.height,
                     min_area_ratio,
                 )
-            else:
+            elif annotation_format == "csv":
                 annotation = _parse_csv_annotation(
                     grouped_csv.get(pilot_id, []),
                     image.width,
                     image.height,
                     min_area_ratio,
                 )
+            else:
+                cvat_records = grouped_cvat.get(pilot_id, [])
+                if not cvat_records:
+                    annotation = _empty_annotation(
+                        "pending",
+                        "",
+                        "imagen sin anotación XML CVAT",
+                    )
+                elif len(cvat_records) > 1:
+                    annotation = _empty_annotation(
+                        "ambiguous",
+                        f"pilot_id duplicado {len(cvat_records)} veces en XML CVAT",
+                        "múltiples elementos image no se seleccionan automáticamente",
+                    )
+                else:
+                    record = cvat_records[0]
+                    if record.width != image.width or record.height != image.height:
+                        annotation = _empty_annotation(
+                            "ambiguous",
+                            (
+                                f"dimensiones XML {record.width}x{record.height} no coinciden "
+                                f"con imagen {image.width}x{image.height}"
+                            ),
+                            "dimensiones CVAT inconsistentes",
+                            rotation_degrees=record.annotation.original_rotation_degrees,
+                            conversion_method=record.annotation.conversion_method,
+                            clipped=record.annotation.clipped,
+                        )
+                    else:
+                        annotation = record.annotation
         merged: dict[str, object] = dict(pilot_row)
         merged.update(_annotation_fields(annotation, annotation_format))
         output_rows.append(merged)
         status_counts[annotation.status] += 1
+        if annotation.geometry_converted:
+            conversion_counts[annotation.conversion_method] += 1
+        if annotation.status == "annotated":
+            clipped_count += annotation.clipped
 
     write_csv_rows(output, output_rows, IMPORTED_ANNOTATION_COLUMNS)
     summary = {
@@ -369,8 +677,13 @@ def import_manual_annotations(
         "min_area_ratio": min_area_ratio,
         "rows": len(output_rows),
         "status_counts": dict(sorted(status_counts.items())),
+        "conversion_counts": dict(sorted(conversion_counts.items())),
+        "clipped_rows": clipped_count,
+        "valid_rows": status_counts["annotated"],
+        "invalid_rows": len(output_rows) - status_counts["annotated"],
         "warnings": global_warnings,
     }
+    summary.update(cvat_stats)
     summary_path = output.with_name(f"{output.stem}_summary.json")
     summary_path.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
