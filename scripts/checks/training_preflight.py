@@ -6,7 +6,12 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
-from src.config import PROJECT_ROOT, get_dataset_root, get_output_root
+from src.config import (
+    PROJECT_ROOT,
+    get_dataset_root,
+    get_output_root,
+    get_project_data_root,
+)
 from src.training.preflight import run_training_preflight
 
 
@@ -33,7 +38,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     output_root = get_output_root()
     report = run_training_preflight(
         project_root=PROJECT_ROOT,
-        splits_dir=args.splits_dir or output_root / "splits" / "seed_42_baseline",
+        splits_dir=args.splits_dir
+        or get_project_data_root() / "splits" / "seed_42_baseline",
         dataset_root=args.dataset_root or get_dataset_root(),
         config_path=args.config,
         models=args.models,

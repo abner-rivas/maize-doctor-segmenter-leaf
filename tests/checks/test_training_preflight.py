@@ -34,7 +34,7 @@ class TrainingPreflightTests(TestCase):
             path.write_text("VALUE = 1\n", encoding="utf-8")
 
         dataset = root / "dataset"
-        splits = project / "outputs" / "splits" / "seed_42_baseline"
+        splits = project / "data" / "splits" / "seed_42_baseline"
         for index, split in enumerate(("train", "val", "test")):
             relative = Path("clean/healthy/real") / f"{split}.jpg"
             image = dataset / relative

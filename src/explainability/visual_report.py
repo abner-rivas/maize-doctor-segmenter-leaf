@@ -285,7 +285,13 @@ def _save_figure(
 
     ax_original = fig.add_subplot(grid[0, 0])
     ax_original.imshow(original)
-    ax_original.set_title("Imagen Original", fontsize=13, fontweight="bold", color="#2C3E50", pad=12)
+    ax_original.set_title(
+        "Imagen Original",
+        fontsize=13,
+        fontweight="bold",
+        color="#2C3E50",
+        pad=12,
+    )
     ax_original.axis("off")
 
     ax_regions = fig.add_subplot(grid[0, 1])
@@ -301,7 +307,13 @@ def _save_figure(
 
     ax_heatmap = fig.add_subplot(grid[0, 2])
     ax_heatmap.imshow(heatmap_panel)
-    ax_heatmap.set_title("Mapa de Importancia", fontsize=13, fontweight="bold", color="#2C3E50", pad=12)
+    ax_heatmap.set_title(
+        "Mapa de Importancia",
+        fontsize=13,
+        fontweight="bold",
+        color="#2C3E50",
+        pad=12,
+    )
     ax_heatmap.axis("off")
 
     if has_gradcam:

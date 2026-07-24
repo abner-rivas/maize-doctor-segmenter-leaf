@@ -11,7 +11,7 @@ import yaml
 from PIL import Image
 from tqdm import tqdm
 
-from src.config import get_dataset_root, get_output_root
+from src.config import get_dataset_root, get_project_data_root
 from src.data.splitter import HierarchicalStratifiedSplitter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -122,7 +122,7 @@ def run_data_preparation_pipeline(
         )
 
     clean_dir = dataset_root / config["paths"]["raw_dir"]
-    base_output_dir = get_output_root() / config["paths"]["split_output_dir"]
+    base_output_dir = get_project_data_root() / config["paths"]["split_output_dir"]
     output_dir = _split_output_dir(base_output_dir, suffix="baseline" if baseline else None)
     seed = config["dataset"]["seed"]
 

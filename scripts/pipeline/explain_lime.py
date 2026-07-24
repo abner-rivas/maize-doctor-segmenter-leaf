@@ -11,7 +11,13 @@ import src.models.baselines.fastvit  # noqa: F401 - registra modelos
 import src.models.baselines.ghostnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
 import src.models.baselines.shufflenet  # noqa: F401 - registra modelos
-from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_global_seed
+from src.config import (
+    PROJECT_ROOT,
+    get_dataset_root,
+    get_output_root,
+    get_project_data_root,
+    set_global_seed,
+)
 from src.data.loader import load_and_normalize_image
 from src.models.registry import MODEL_REGISTRY
 from src.training.common import load_run_metadata, resolve_run_dir
@@ -92,7 +98,7 @@ def main() -> None:
 
     model_names = _resolve_model_names(args.models)
     use_baseline = args.baseline if args.baseline is not None else lime_cfg["baseline"]
-    fallback_splits_dir = get_output_root() / "splits" / (
+    fallback_splits_dir = get_project_data_root() / "splits" / (
         "seed_42_baseline" if use_baseline else "seed_42"
     )
     fallback_classes = cfg["dataset"]["classes"]

@@ -14,7 +14,7 @@ import torch
 import yaml
 from torch.utils.data import DataLoader
 
-from src.config import PROJECT_ROOT, get_output_root
+from src.config import PROJECT_ROOT, get_project_data_root
 from src.data.dataset import CornDataset, build_weighted_sampler, resolve_class_mapping
 from src.data.transforms import CornTransformFactory
 from src.models import MODEL_REGISTRY, build_model
@@ -67,7 +67,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not isinstance(classes, list) or not classes:
         raise ValueError("dataset.classes debe ser una lista no vacía")
     seed = int(config.get("baseline", {}).get("seed", dataset_config.get("seed", 42)))
-    splits_dir = args.splits_dir or get_output_root() / "splits" / "seed_42_baseline"
+    splits_dir = (
+        args.splits_dir
+        or get_project_data_root() / "splits" / "seed_42_baseline"
+    )
     missing = [
         name for name in ("train", "val", "test") if not (splits_dir / f"{name}.csv").is_file()
     ]

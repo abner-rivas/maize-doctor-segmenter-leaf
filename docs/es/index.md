@@ -73,7 +73,10 @@ El problema es que en zonas rurales el acceso a asistencia técnica es limitado,
 | **Deficiencia de fósforo** | Phosphorus Deficiency | Bordes y puntas moradas/rojizas en hojas jóvenes | 0 | 612 (pocos datos) | 612 |
 | **Deficiencia de potasio** | Potassium Deficiency | Necrosis marginal en hojas más viejas | 0 | 266 (pocos datos) | 266 |
 
-> Conteos post-limpieza y deduplicación en `data/clean/` (junio 2026). Total consolidado: **31 622 imágenes** (3 551 lab + 28 071 campo real). Las marcas "(pocos datos)" señalan las clases con menor cantidad de imágenes disponibles. La clase `aphids_pest` (áfidos del maíz) fue evaluada pero descartada por escasez de datos (~77 imágenes); en su lugar se incorporó `lethal_necrosis`.
+> Conteos post-limpieza y deduplicación en `$DATASET_ROOT/clean/` (junio 2026). Total
+> consolidado: **31 622 imágenes** (3 551 lab + 28 071 campo real). Las marcas
+> "(pocos datos)" señalan las clases con menor cantidad de imágenes disponibles. La clase
+> `aphids_pest` fue descartada por escasez; en su lugar se incorporó `lethal_necrosis`.
 
 
 ### Metodología
@@ -86,6 +89,21 @@ El proyecto avanza en fases iterativas siguiendo **CRISP-DM**:
 4. **Modelado**: transfer learning en PyTorch con modelos preentrenados en ImageNet
 5. **Evaluación**: Macro F1 ≥ 0.85 sobre conjunto de prueba independiente compuesto por imágenes de campo
 6. **Despliegue**: exportación del modelo PyTorch a TFLite (Int8) y PWA con inferencia offline + módulo opcional de sincronización
+
+### Detección y aislamiento de hoja
+
+El piloto manual de 100 imágenes, su anotación CVAT, la importación de cajas
+rotadas y la comparación diagnóstica entre imagen completa y ROI están
+documentados en [Piloto manual ROI](/es/preprocessed/manual-roi-pilot) y
+[Diagnóstico full frente a ROI manual](/es/preprocessed/manual-roi-diagnostic).
+El [estado consolidado del requerimiento](/es/avance_requerimiento_deteccion_hoja)
+mantiene la tabla de fases, las evidencias y los próximos pasos.
+
+El diagnóstico reutilizó tres checkpoints históricos entrenados con imágenes
+completas; no realizó entrenamiento ni constituye un baseline oficial. La caída
+observada al aplicar ROI sólo en inferencia mantiene `baseline_full` como perfil
+activo mientras se prepara una comparación futura entrenando y evaluando
+`baseline_roi` con el mismo pipeline.
 
 ### Arquitectura del Sistema
 

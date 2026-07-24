@@ -10,7 +10,8 @@ cache/
 .vite/
 dist/
 node_modules/
-/data
+/data/*
+!/data/README.md
 /outputs/
 /outputs-remote**
 /results-remote/

@@ -4,12 +4,14 @@
 
 - **Nunca modificar `raw/`.** Es inmutable, solo fuente original.
 - `clean/` es la única fuente de verdad para entrenamiento. Estructura: `clean/<clase>/{lab,real}/`.
-- Los CSV de `splits/` son derivados reproducibles (`make splits` / `make splits-baseline`). No editarlos a mano. Viven en `outputs/splits/` (ver más abajo), no bajo `DATASET_ROOT`.
+- Los CSV de `splits/` son derivados reproducibles (`make splits` / `make splits-baseline`). No editarlos a mano. Viven en `data/splits/` (ver más abajo), no bajo `DATASET_ROOT`.
 
 ## Arquitectura (`src/`)
 
 - **Único punto de entrada a imagen:** `load_and_normalize_image()` (`src/data/loader.py`).
-- **Rutas:** dataset fuente vía `get_dataset_root()`, artefactos generados vía `get_output_root()` (ambas en `src/config.py`) - nunca hardcodear paths ni usar la constante `DATASET_ROOT` directo.
+- **Rutas:** dataset fuente vía `get_dataset_root()`, datos derivados reproducibles vía
+  `get_project_data_root()` y resultados vía `get_output_root()` (todas en `src/config.py`).
+  Nunca hardcodear paths ni usar la constante `DATASET_ROOT` directo.
 - **Config centralizada:** `config/dataset.yaml` (clases, `target_size`, seed, perfil `baseline`). Nunca hardcodear constantes de dominio.
 - **Sin `sys.path.append`.** Paquete editable (`pip install -e .`); los imports `src.*` resuelven directo.
 - Convenciones detalladas de carga/rutas/`target_size`/clases minoritarias → skill `corn-data-pipeline`. Sampler de balanceo, utilidades de entrenamiento y versionado de runs → skill `corn-training-internals`.
@@ -17,7 +19,9 @@
 
 ## Pipelines
 
-- **Datos:** `clean/<clase>/{lab,real}/` → `create_splits.py` (valida integridad PIL, deduplica por SHA-256 con escaneo `sorted()` - determinista entre máquinas -, estratifica por `label+environment`) → `outputs/splits/seed_42/` (9 clases) o `outputs/splits/seed_42_baseline/` (`--baseline`, subset de `config/dataset.yaml -> baseline:`).
+- **Datos:** `clean/<clase>/{lab,real}/` → `create_splits.py` (valida integridad PIL, deduplica por SHA-256 con escaneo `sorted()` - determinista entre máquinas -, estratifica por `label+environment`) → `data/splits/seed_42/` (9 clases) o `data/splits/seed_42_baseline/` (`--baseline`, subset de `config/dataset.yaml -> baseline:`).
+- **Orden de artefactos:** `data/` contiene splits, pilotos, imágenes copiadas y anotaciones;
+  `outputs/` contiene modelos, métricas, auditorías, previews, validaciones y diagnósticos.
 - **Baselines (funcional, PyTorch):** `CornDataset` → `WeightedRandomSampler` → `DataLoader` → `MODEL_REGISTRY.build(<efficientnet_b0|efficientnet_lite0|mobilenet_v3_large|fastvit_t8|ghostnetv2_100|shufflenet_v2_x1_0>)` vía `train_baselines.py`. Pese al nombre, no es un pipeline sklearn - es DL completo, pensado para comparar arquitecturas rápido y barato. Cada run también escribe `predictions.csv` (predicción + confianza por imagen de test), usado por `explain_report.py` para el análisis de errores.
 - **Principal (`train.py`):** comparte toda la infraestructura de datos/modelos con baselines; el loop de entrenamiento está pendiente de implementar.
 - **Explicabilidad (post-hoc, no acoplada al entrenamiento):** `explain_lime.py` (reporte visual LIME + Grad-CAM por imagen), `explain_report.py` (fidelidad agregada y análisis de errores, cruzando con `predictions.csv`), `scripts/checks/lime_stability.py` (auditoría manual de estabilidad de LIME). Ver sección "Explicabilidad" más abajo.

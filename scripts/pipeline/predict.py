@@ -7,7 +7,7 @@ from typing import Any
 import torch
 import yaml
 
-from src.config import PROJECT_ROOT, get_output_root
+from src.config import PROJECT_ROOT, get_output_root, get_project_data_root
 from src.data.dataset import resolve_class_mapping
 from src.data.loader import load_and_normalize_image
 from src.data.transforms import CornTransformFactory
@@ -29,16 +29,20 @@ def _load_config(config_path: Path) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def _default_splits_dir(output_root: Path, baseline: bool, full: bool) -> Path:
+def _default_splits_dir(project_data_root: Path, baseline: bool, full: bool) -> Path:
     if baseline and full:
         raise SystemExit("Usa solo uno de --baseline o --full.")
     if baseline:
-        return output_root / "splits" / "seed_42_baseline"
+        return project_data_root / "splits" / "seed_42_baseline"
     if full:
-        return output_root / "splits" / "seed_42"
+        return project_data_root / "splits" / "seed_42"
 
-    baseline_dir = output_root / "splits" / "seed_42_baseline"
-    return baseline_dir if baseline_dir.exists() else output_root / "splits" / "seed_42"
+    baseline_dir = project_data_root / "splits" / "seed_42_baseline"
+    return (
+        baseline_dir
+        if baseline_dir.exists()
+        else project_data_root / "splits" / "seed_42"
+    )
 
 
 def _load_summary(checkpoint_path: Path) -> dict[str, Any]:
@@ -149,7 +153,11 @@ def main() -> None:
     splits_dir = (
         Path(args.splits_dir)
         if args.splits_dir
-        else _default_splits_dir(output_root, baseline=args.baseline, full=args.full)
+        else _default_splits_dir(
+            get_project_data_root(),
+            baseline=args.baseline,
+            full=args.full,
+        )
     )
     class_to_idx, idx_to_class = _resolve_class_mapping(summary, splits_dir, cfg)
     target_size = _resolve_target_size(args, summary, cfg)

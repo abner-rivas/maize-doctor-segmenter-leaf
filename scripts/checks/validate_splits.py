@@ -23,14 +23,14 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _default_splits_dir(config_path: Path, output_root: Path) -> Path:
+def _default_splits_dir(config_path: Path, project_data_root: Path) -> Path:
     if not config_path.is_file():
         raise FileNotFoundError(f"Configuración inexistente: {config_path}")
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     relative = Path(config["paths"]["split_output_dir"])
     if relative.is_absolute() or ".." in relative.parts:
-        raise ValueError("paths.split_output_dir debe ser relativo a OUTPUT_ROOT")
-    return output_root / f"{relative}_baseline"
+        raise ValueError("paths.split_output_dir debe ser relativo a PROJECT_DATA_ROOT")
+    return project_data_root / f"{relative}_baseline"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -39,12 +39,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.dataset_root is None or args.splits_dir is None:
-            from src.config import get_dataset_root, get_output_root
+            from src.config import get_dataset_root, get_project_data_root
 
             dataset_root = args.dataset_root or get_dataset_root()
             splits_dir = args.splits_dir or _default_splits_dir(
                 args.config,
-                get_output_root(),
+                get_project_data_root(),
             )
         else:
             dataset_root = args.dataset_root

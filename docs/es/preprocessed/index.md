@@ -1,5 +1,12 @@
 # Preprocesado
 
+## Ubicación de datos
+
+El dataset completo vive fuera del repositorio bajo `DATASET_ROOT`. Los datos derivados
+reproducibles del proyecto viven en `data/`: splits, imágenes del piloto, anotaciones y
+manifiestos. Los modelos, métricas, validaciones, previews y diagnósticos viven en
+`outputs/`. Esta separación evita mezclar entradas con resultados.
+
 ## Normalizado
 
 Antes de que una imagen llegue al modelo tiene que pasar por un único punto de entrada que la deje en un formato consistente, sin importar si viene de una cámara de laboratorio o de un smartphone en el campo. Esto evita que se cuele ruido en nuestro dataset y que el modelo aprenda artefactos irrelevantes.
@@ -117,7 +124,7 @@ Normalize(ImageNet)
 
 Sin ninguna augmentation aleatoria.
 
-## Región de interés de hoja (Fase 2, todavía aislada)
+## Región de interés de hoja
 
 Una **región de interés** (ROI) es el rectángulo de la fotografía que contiene la hoja que se
 quiere analizar. Los componentes de `src/preprocessing/` pueden validar un bounding box,
@@ -171,16 +178,38 @@ python scripts/checks/validate_leaf_roi.py `
 
 La salida contiene la imagen original, las dos visualizaciones de bbox, el recorte, el
 letterbox y `metadata.json`. La sección `leaf_detection` de `config/dataset.yaml` queda con
-`enabled: false`: ningún pipeline actual lee esta configuración y esta fase no cambia todavía
-el entrenamiento, la inferencia, LIME ni Grad-CAM. La selección automática de detecciones y su
-caché pertenecen a fases posteriores.
+`enabled: false`. El perfil global también continúa en `processing_profile: baseline_full`.
+La selección automática de detecciones y su caché pertenecen a fases posteriores.
 
-## Piloto manual de ROI (Fase 3, todavía aislada)
+## Piloto manual y diagnóstico ROI
 
 La selección reproducible del piloto, la guía de anotación, los importadores YOLO/CSV, el
 manifiesto final, las comprobaciones de fuga y las vistas previas se documentan en
-[Piloto manual de regiones de interés](manual-roi-pilot.md). El flujo continúa aislado del
-entrenamiento y la inferencia del clasificador.
+[Piloto manual de regiones de interés](manual-roi-pilot.md).
+
+La ejecución ya completada con los checkpoints históricos, sus métricas y su
+interpretación metodológica se documentan en
+[Diagnóstico de imagen completa frente a ROI manual](manual-roi-diagnostic.md).
+
+El diagnóstico define dos rutas sin alterar el baseline histórico:
+
+```text
+baseline_full: imagen completa → transformación histórica → clasificador
+baseline_roi:  RGB → bbox → validación → clipping → margen → recorte
+               → letterbox → augmentations → normalización → clasificador
+```
+
+Las augmentations sólo son válidas durante entrenamiento. Evaluación, inferencia y
+explicabilidad deben usar la misma preparación ROI sin transformaciones aleatorias. En esta
+fase `baseline_roi` se usa únicamente en
+`scripts/experiments/compare_full_vs_manual_roi.py`; aún no se activa en `CornDataset`,
+`predict.py`, LIME ni Grad-CAM.
+
+El diagnóstico obtuvo una reducción de rendimiento en los tres modelos cuando
+ROI se aplicó sólo durante inferencia. Este resultado evidencia un cambio de
+distribución, no el rendimiento de un clasificador entrenado con ROI. Por eso
+`processing_profile: baseline_full` sigue activo y
+`leaf_detection.enabled: false`.
 
 ## Auditoría de clases y splits (Fase 3.5)
 

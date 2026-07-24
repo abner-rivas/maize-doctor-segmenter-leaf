@@ -11,13 +11,14 @@ En el servidor, separa código, dataset y resultados persistentes:
 ├── config/
 ├── src/
 ├── scripts/
-├── outputs/splits/seed_42_baseline/
+├── data/splits/seed_42_baseline/
 ├── pyproject.toml
 ├── Makefile
 └── .env
 /mnt/datasets/maize_dataset/data/  # DATASET_ROOT
 └── clean/<clase>/{lab,real}/
 /mnt/results/doctor-maiz/          # OUTPUT_ROOT opcional
+/mnt/results/doctor-maiz/data/     # PROJECT_DATA_ROOT para splits derivados
 ```
 
 El dataset no forma parte del manifiesto de código. Debe transferirse o montarse por separado, conservando exactamente `clean/<clase>/{lab,real}`.
@@ -45,9 +46,11 @@ Configura las raíces reales del servidor, sin agregar sufijos automáticamente:
 ```dotenv
 DATASET_ROOT=/mnt/datasets/maize_dataset/data
 OUTPUT_ROOT=/mnt/results/doctor-maiz
+PROJECT_DATA_ROOT=/mnt/results/doctor-maiz/data
 ```
 
-Si omites `OUTPUT_ROOT`, se usa `<repositorio>/outputs`. La raíz debe contener los splits copiados en `outputs/splits/seed_42_baseline/`, o su equivalente debajo de `OUTPUT_ROOT`.
+Si omites `OUTPUT_ROOT`, se usa `<repositorio>/outputs`. Si omites
+`PROJECT_DATA_ROOT`, los splits viven en `<repositorio>/data/splits/seed_42_baseline/`.
 
 ## Archivos que deben copiarse
 
@@ -66,9 +69,9 @@ Valida primero los splits oficiales:
 
 ```bash
 python scripts/checks/validate_splits.py \
-  --splits-dir outputs/splits/seed_42_baseline \
+  --splits-dir data/splits/seed_42_baseline \
   --config config/dataset.yaml \
-  --output outputs/splits/seed_42_baseline \
+  --output data/splits/seed_42_baseline \
   --fail-on-error
 ```
 
@@ -76,7 +79,7 @@ Ejecuta después el preflight remoto:
 
 ```bash
 python scripts/checks/training_preflight.py \
-  --splits-dir outputs/splits/seed_42_baseline \
+  --splits-dir data/splits/seed_42_baseline \
   --config config/dataset.yaml \
   --models efficientnet_b0 shufflenet_v2_x1_0 efficientnet_lite0 \
   --device cuda \
@@ -91,7 +94,7 @@ También puede verificarse el cargador sin pesos externos ni entrenamiento:
 
 ```bash
 python scripts/checks/smoke_loader.py \
-  --splits-dir outputs/splits/seed_42_baseline \
+  --splits-dir data/splits/seed_42_baseline \
   --batch-size 2 \
   --batches 2 \
   --check-sampler \

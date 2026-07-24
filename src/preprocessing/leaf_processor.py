@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, replace
-from typing import Sequence
+from pathlib import Path
+from typing import Callable, Sequence
 
 from PIL import Image
 
+from src.data.leaf_pilot import sha256_file
 from src.preprocessing.leaf_roi import (
     BoundingBox,
     BoundingBoxInput,
@@ -32,6 +34,10 @@ FALLBACK_REJECT = "reject"
 SUPPORTED_FALLBACKS = frozenset(
     {FALLBACK_ORIGINAL, FALLBACK_CENTER_CROP, FALLBACK_REJECT}
 )
+BASELINE_FULL = "baseline_full"
+BASELINE_ROI = "baseline_roi"
+SUPPORTED_PROCESSING_PROFILES = frozenset({BASELINE_FULL, BASELINE_ROI})
+PROCESSOR_VERSION = "1.0.0"
 
 
 @dataclass(frozen=True)
@@ -125,6 +131,182 @@ class LeafProcessingResult:
             "preserve_aspect_ratio": self.preserve_aspect_ratio,
             "warnings": list(self.warnings),
         }
+
+
+@dataclass(frozen=True)
+class ProfileProcessingResult:
+    """Image prepared for transforms plus the standardized processing trace."""
+
+    image: Image.Image
+    metadata: dict[str, object]
+    roi_result: LeafProcessingResult | None
+
+
+@dataclass(frozen=True)
+class AppliedProcessingResult:
+    """Final caller-provided transform output plus its pre-transform trace."""
+
+    output: object
+    prepared: ProfileProcessingResult
+
+
+def validate_processing_profile(profile: str) -> str:
+    """Validate one of the two explicit classifier processing profiles."""
+    if profile not in SUPPORTED_PROCESSING_PROFILES:
+        supported = ", ".join(sorted(SUPPORTED_PROCESSING_PROFILES))
+        raise ValueError(f"processing_profile desconocido {profile!r}; use: {supported}")
+    return profile
+
+
+def _manifest_digest(path: Path | None) -> tuple[str | None, str | None]:
+    if path is None:
+        return None, None
+    resolved = path.resolve()
+    if not resolved.is_file():
+        raise FileNotFoundError(f"No existe el roi_manifest: {resolved}")
+    return str(resolved), sha256_file(resolved)
+
+
+class LeafProcessingProfile:
+    """Single reusable entry point for ``baseline_full`` and ``baseline_roi``.
+
+    This class deliberately stops at a PIL image. Callers apply augmentations and
+    normalization *after* :meth:`prepare`, which keeps the mandatory ROI order explicit.
+    The historical full-image profile returns the normalized RGB image unchanged.
+    """
+
+    def __init__(
+        self,
+        profile: str,
+        *,
+        processor: LeafImageProcessor | None = None,
+        roi_manifest_path: Path | None = None,
+    ) -> None:
+        self.profile = validate_processing_profile(profile)
+        self.processor = processor or LeafImageProcessor()
+        self.roi_manifest_path, self.roi_manifest_sha256 = _manifest_digest(
+            roi_manifest_path
+        )
+
+    def prepare(
+        self,
+        image: Image.Image,
+        bbox: BoundingBoxInput | None = None,
+        *,
+        confidence: float = 1.0,
+        source: str = "manual",
+        fallback_reason: str | None = None,
+        reported_area_ratio: float | None = None,
+    ) -> ProfileProcessingResult:
+        """Prepare one RGB image without applying augmentations or normalization."""
+        if not isinstance(image, Image.Image):
+            raise TypeError("image debe ser una instancia de PIL.Image.Image")
+        target_height, target_width = validate_target_size(self.processor.config.target_size)
+        common: dict[str, object] = {
+            "processing_profile": self.profile,
+            "roi_source": source if self.profile == BASELINE_ROI else "not_applicable",
+            "roi_x1": None,
+            "roi_y1": None,
+            "roi_x2": None,
+            "roi_y2": None,
+            "roi_area_ratio": reported_area_ratio,
+            "roi_confidence": confidence if self.profile == BASELINE_ROI else None,
+            "margin_ratio": (
+                self.processor.config.margin_ratio if self.profile == BASELINE_ROI else 0.0
+            ),
+            "target_width": target_width,
+            "target_height": target_height,
+            "padding_value": self.processor.config.padding_value,
+            "preserve_aspect_ratio": (
+                self.processor.config.preserve_aspect_ratio
+                if self.profile == BASELINE_ROI
+                else False
+            ),
+            "fallback_used": False,
+            "fallback_reason": None,
+            "roi_manifest_path": self.roi_manifest_path,
+            "roi_manifest_sha256": self.roi_manifest_sha256,
+            "processor_version": PROCESSOR_VERSION,
+        }
+        if self.profile == BASELINE_FULL:
+            return ProfileProcessingResult(image=image, metadata=common, roi_result=None)
+
+        candidate_bbox: BoundingBoxInput = bbox if bbox is not None else (0, 0, 0, 0)
+        roi_result = self.processor.process(
+            image,
+            candidate_bbox,
+            confidence=confidence,
+            source=source,
+        )
+        if roi_result.processed_image is None:
+            raise ValueError(
+                "baseline_roi no produjo imagen: "
+                f"{roi_result.detection_result.reason or roi_result.fallback}"
+            )
+        traced_bbox = roi_result.clipped_bbox
+        if traced_bbox is not None:
+            common.update(
+                {
+                    "roi_x1": traced_bbox[0],
+                    "roi_y1": traced_bbox[1],
+                    "roi_x2": traced_bbox[2],
+                    "roi_y2": traced_bbox[3],
+                }
+            )
+        common.update(
+            {
+                "roi_area_ratio": (
+                    reported_area_ratio
+                    if reported_area_ratio is not None
+                    else roi_result.detection_result.area_ratio
+                ),
+                "roi_confidence": roi_result.detection_result.confidence,
+                "fallback_used": roi_result.fallback_used,
+                "fallback_reason": (
+                    fallback_reason
+                    if roi_result.fallback_used and fallback_reason
+                    else roi_result.detection_result.reason
+                ),
+            }
+        )
+        return ProfileProcessingResult(
+            image=roi_result.processed_image,
+            metadata=common,
+            roi_result=roi_result,
+        )
+
+    def apply(
+        self,
+        image: Image.Image,
+        bbox: BoundingBoxInput | None = None,
+        *,
+        stage: str,
+        augmentation: Callable[[Image.Image], Image.Image] | None = None,
+        normalization: Callable[[Image.Image], object] | None = None,
+        confidence: float = 1.0,
+        source: str = "manual",
+        fallback_reason: str | None = None,
+        reported_area_ratio: float | None = None,
+    ) -> AppliedProcessingResult:
+        """Apply ROI first, optional train-only augmentation, then normalization."""
+        normalized_stage = stage.lower()
+        if normalized_stage not in {"train", "val", "test", "inference", "lime", "gradcam"}:
+            raise ValueError(f"etapa de procesamiento desconocida: {stage!r}")
+        if augmentation is not None and normalized_stage != "train":
+            raise ValueError("augmentations aleatorias sólo están permitidas en train")
+        prepared = self.prepare(
+            image,
+            bbox,
+            confidence=confidence,
+            source=source,
+            fallback_reason=fallback_reason,
+            reported_area_ratio=reported_area_ratio,
+        )
+        transformed = (
+            augmentation(prepared.image) if augmentation is not None else prepared.image
+        )
+        output = normalization(transformed) if normalization is not None else transformed
+        return AppliedProcessingResult(output=output, prepared=prepared)
 
 
 def _validate_config_ratio(value: float, name: str, *, allow_zero: bool) -> float:

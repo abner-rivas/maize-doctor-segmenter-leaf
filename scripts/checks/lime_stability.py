@@ -1,6 +1,6 @@
 """Diagnóstico manual/puntual de estabilidad de LIME sobre una única imagen.
 
-Ccorre `render_visual_explanation` N veces con seeds distintas sobre la misma imagen y reporta, 
+Ccorre `render_visual_explanation` N veces con seeds distintas sobre la misma imagen y reporta,
 entre corridas consecutivas:
   - IoU de las máscaras de superpíxeles positivos (reconstruidas desde el .json/.npy
     que ya persiste render_visual_explanation).
@@ -23,7 +23,7 @@ import src.models.baselines.fastvit  # noqa: F401 - registra modelos
 import src.models.baselines.ghostnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
 import src.models.baselines.shufflenet  # noqa: F401 - registra modelos
-from src.config import PROJECT_ROOT, get_output_root
+from src.config import PROJECT_ROOT, get_output_root, get_project_data_root
 from src.data.dataset import resolve_class_mapping
 from src.data.loader import load_and_normalize_image
 from src.explainability.visual_report import render_visual_explanation
@@ -89,7 +89,9 @@ def main() -> None:
     lime_cfg = cfg["lime"]
 
     use_baseline = args.baseline if args.baseline is not None else lime_cfg["baseline"]
-    splits_dir = get_output_root() / "splits" / ("seed_42_baseline" if use_baseline else "seed_42")
+    splits_dir = get_project_data_root() / "splits" / (
+        "seed_42_baseline" if use_baseline else "seed_42"
+    )
     classes = cfg["baseline"]["classes"] if use_baseline else cfg["dataset"]["classes"]
     if not splits_dir.exists():
         raise SystemExit(

@@ -72,7 +72,7 @@ make install
 
 Esto corre `pip install -e ".[dev,analysis,xai,cloud]"` dentro del venv (instala el paquete `src/` en modo editable + todos los extras necesarios para el flujo local, incluida la descarga del dataset). Extras disponibles en `pyproject.toml`:
 
-- `dev`: ipykernel, jupyterlab, matplotlib, seaborn, ruff, pyright
+- `dev`: ipykernel, jupyterlab, matplotlib, seaborn, pytest, ruff, pyright
 - `analysis`: imagededup, fiftyone, imageio, mongoengine, motor (necesario para deduplicación y
   exploración visual)
 - `xai`: lime, scikit-image, matplotlib (necesario para `make explain-lime`/`explain-report`/`explain-errors`)
@@ -103,11 +103,14 @@ Esto ejecuta `scripts/dataset/download_dataset.py`, que descarga `clean/` hacia
 Con `clean/` ya poblado:
 
 ```bash
-make splits              # Splits completos (9 clases) -> outputs/splits/seed_42/
-make splits-baseline      # Splits del perfil baseline (subset + límite por clase) -> outputs/splits/seed_42_baseline/
+make splits              # Splits completos (9 clases) -> data/splits/seed_42/
+make splits-baseline      # Splits del perfil baseline (subset + límite por clase) -> data/splits/seed_42_baseline/
 ```
 
-No edites los CSV de `outputs/splits/` a mano - son derivados reproducibles.
+No edites los CSV de `data/splits/` a mano - son derivados reproducibles.
+
+La raíz local por defecto para estos datos derivados es `data/`. Puede cambiarse con
+`PROJECT_DATA_ROOT`; `OUTPUT_ROOT` queda reservado para modelos, métricas y reportes.
 
 ## 7. Verificar que todo funciona
 

@@ -343,7 +343,6 @@ def build_pilot(
         priority_scores=scores,
     )
 
-    images_dir = output_root / "images"
     labels_dir = output_root / "labels"
     labels_dir.mkdir(parents=True, exist_ok=True)
     pilot_rows: list[dict[str, object]] = []

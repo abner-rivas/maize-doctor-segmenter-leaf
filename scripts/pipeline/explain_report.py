@@ -24,7 +24,13 @@ import src.models.baselines.fastvit  # noqa: F401 - registra modelos
 import src.models.baselines.ghostnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
 import src.models.baselines.shufflenet  # noqa: F401 - registra modelos
-from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_global_seed
+from src.config import (
+    PROJECT_ROOT,
+    get_dataset_root,
+    get_output_root,
+    get_project_data_root,
+    set_global_seed,
+)
 from src.data.loader import load_and_normalize_image
 from src.explainability.visual_report import (
     explanation_dispersion,
@@ -174,7 +180,7 @@ def main() -> None:
     # cada run (ver load_run_metadata). Nunca reconstruir el mapeo desde baseline.classes: su
     # orden puede diferir del canónico dataset.classes con el que se entrenó el head -> rótulos
     # permutados en los reportes.
-    fallback_splits_dir = get_output_root() / "splits" / (
+    fallback_splits_dir = get_project_data_root() / "splits" / (
         "seed_42_baseline" if use_baseline else "seed_42"
     )
     fallback_classes = cfg["baseline"]["classes"] if use_baseline else cfg["dataset"]["classes"]

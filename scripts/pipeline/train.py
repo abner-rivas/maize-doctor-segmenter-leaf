@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 import src.models.baselines.efficientnet  # noqa: F401 - registra modelos
 import src.models.baselines.mobilenet  # noqa: F401 - registra modelos
-from src.config import PROJECT_ROOT, get_output_root, set_global_seed
+from src.config import PROJECT_ROOT, get_output_root, get_project_data_root, set_global_seed
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
 from src.models.registry import MODEL_REGISTRY
@@ -37,7 +37,7 @@ def main() -> None:
         "--splits-dir",
         default=None,
         dest="splits_dir",
-        help="Directorio con train/val/test.csv (default: <repo>/outputs/splits/seed_42)",
+        help="Directorio con train/val/test.csv (default: <repo>/data/splits/seed_42)",
     )
     parser.add_argument(
         "--output-dir",
@@ -62,7 +62,9 @@ def main() -> None:
     model_names = resolve_model_names(args.models, MODEL_REGISTRY)
     output_root = get_output_root()
     splits_dir = (
-        Path(args.splits_dir) if args.splits_dir else output_root / "splits" / "seed_42"
+        Path(args.splits_dir)
+        if args.splits_dir
+        else get_project_data_root() / "splits" / "seed_42"
     )
     output_dir = Path(args.output_dir) if args.output_dir else output_root / "main"
 

@@ -6,10 +6,11 @@
 
 Todo el código que corre en Modal comparte una única imagen definida en `scripts/modal/_common.py`. Esa factorización es deliberada: `train.py` y `explain.py` necesitan exactamente la misma versión de torch y los mismos extras instalados para que los checkpoints generados por uno se puedan leer desde el otro. La imagen instala `torch==2.12.1` y `torchvision==0.27.1` desde el índice de PyTorch, más los extras `cloud` y `xai` del proyecto, y monta `src/` y `scripts/` en caliente para no tener que reconstruir la imagen en cada cambio de código.
 
-El almacenamiento persistente se resuelve con dos Volumes de Modal, que se crean solos la primera vez que se usan:
+El almacenamiento persistente se resuelve con tres Volumes de Modal, que se crean solos la primera vez que se usan:
 
 - `corn-clean`, montado en `/data`, contiene el dataset limpio.
-- `corn-outputs`, montado en `/outputs`, contiene los artefactos generados: splits, pesos de modelos, métricas y reportes LIME.
+- `corn-project-data`, montado en `/project-data`, contiene los splits derivados.
+- `corn-outputs`, montado en `/outputs`, contiene pesos, métricas y reportes.
 
 El dataset no se sube en cada corrida: se sube una única vez al volumen con `make modal-seed`, que es idempotente (si ya existe, no lo vuelve a descargar). Antes de esa primera vez hace falta autenticar la cuenta y darle a Modal acceso al dataset de Hugging Face:
 
@@ -46,7 +47,8 @@ make modal-explain-errors MODELS=efficientnet_b0
 
 Igual que con el entrenamiento, `scripts/modal/explain.py` espeja los flags de `explain_lime.py`/`explain_report.py` (`--run`, `--baseline`, `--sample-size`, `--num-samples`, `--errors-only`). La única diferencia a tener en cuenta es que `--image`/`--output` de `explain-lime` deben ser rutas dentro del contenedor (relativas a `/data` u `/outputs`), no del filesystem local.
 
-Si en algún momento hace falta empezar de cero (splits, runs o reportes viejos que ya no aplican), `make modal-clean-outputs` vacía el volumen de outputs sin tocar el dataset.
+Si en algún momento hace falta limpiar runs o reportes, `make modal-clean-outputs` vacía
+`corn-outputs` sin tocar el dataset ni los splits.
 
 Quien prefiera no pasar por `make` puede invocar los mismos comandos de Modal directamente:
 
@@ -69,7 +71,9 @@ Por debajo esto es `modal volume get --force corn-outputs / ./outputs-remote`; e
 
 ## Otras notas útiles
 
-Los splits del baseline se generan la primera vez que se necesitan y se reutilizan (lazy) en corridas siguientes, igual que hace `train_baselines.py` en local. Si ya existen con otro tope de imágenes por clase, no se regeneran solos: hay que correr `make modal-clean-outputs` primero, o pasar `REGEN_SPLITS=1` para forzar la regeneración del split baseline en la misma corrida.
+Los splits del baseline se generan la primera vez que se necesitan en `corn-project-data` y
+se reutilizan (lazy) en corridas siguientes. Si ya existen con otro tope, no se regeneran
+solos: use `REGEN_SPLITS=1` para reemplazar exclusivamente ese split.
 
 Para cambiar de GPU basta con editar `gpu="A10"` en `scripts/modal/train.py`/`explain.py`; las opciones disponibles incluyen T4, L4, A10, L40S, A100 y H100.
 

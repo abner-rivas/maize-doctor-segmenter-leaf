@@ -2,7 +2,7 @@
 
 Espeja scripts/pipeline/explain_lime.py / explain_report.py: orquesta por subprocess los
 mismos scripts CLI que corre el Makefile (explain-lime, explain-report, explain-errors),
-leyendo checkpoints/splits ya persistidos en el Volume corn-outputs por train.py.
+leyendo checkpoints desde corn-outputs y splits desde corn-project-data.
 
 Uso:
     modal run scripts/modal/explain.py::explain_lime --models "efficientnet_b0"
@@ -17,7 +17,14 @@ import sys
 
 import modal
 
-from scripts.modal._common import DEFAULT_MODELS, REPO_ANCHOR, dataset_vol, image, outputs_vol
+from scripts.modal._common import (
+    DEFAULT_MODELS,
+    REPO_ANCHOR,
+    dataset_vol,
+    image,
+    outputs_vol,
+    project_data_vol,
+)
 
 app = modal.App("corn-leaf-explain", image=image)
 
@@ -25,7 +32,11 @@ app = modal.App("corn-leaf-explain", image=image)
 # con planes de subir a ~1000-2000) - el mayor throughput sobre T4 amortiza esa subida
 # futura sin tener que revisar el tier de cómputo otra vez.
 _GPU = "A10"
-_VOLUMES = {"/data": dataset_vol, "/outputs": outputs_vol}
+_VOLUMES = {
+    "/data": dataset_vol,
+    "/project-data": project_data_vol,
+    "/outputs": outputs_vol,
+}
 
 
 @app.function(gpu=_GPU, volumes=_VOLUMES, secrets=[modal.Secret.from_name("hf")], timeout=3600)

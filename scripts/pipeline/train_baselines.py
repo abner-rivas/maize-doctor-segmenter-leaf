@@ -14,7 +14,13 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.config import PROJECT_ROOT, get_dataset_root, get_output_root, set_global_seed
+from src.config import (
+    PROJECT_ROOT,
+    get_dataset_root,
+    get_output_root,
+    get_project_data_root,
+    set_global_seed,
+)
 from src.data.dataset import CornDataset, build_weighted_sampler
 from src.data.transforms import CornTransformFactory
 from src.explainability.augmentation_preview import save_augmentation_evidence
@@ -512,7 +518,11 @@ def main() -> None:
     model_names = resolve_model_names(args.models, MODEL_REGISTRY)
     output_root = get_output_root()
     split_name = "seed_42_baseline" if args.baseline else "seed_42"
-    splits_dir = Path(args.splits_dir) if args.splits_dir else output_root / "splits" / split_name
+    splits_dir = (
+        Path(args.splits_dir)
+        if args.splits_dir
+        else get_project_data_root() / "splits" / split_name
+    )
     output_dir = Path(args.output_dir) if args.output_dir else output_root / "baselines"
     base_target_size = _base_target_size(cfg)
 

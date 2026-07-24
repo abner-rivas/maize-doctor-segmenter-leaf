@@ -104,7 +104,15 @@ def load_run_metadata(
     summary_path = run_dir / "summary.json"
     if summary_path.exists():
         summary = json.loads(summary_path.read_text())
-        splits_dir = Path(summary.get("splits_dir", fallback_splits_dir))
+        recorded_splits_dir = Path(summary.get("splits_dir", fallback_splits_dir))
+        # Remote runs may record a container-only path such as /outputs/splits.
+        # Keep the historical summary immutable and fall back to the organized
+        # local data root when that path is not available on this machine.
+        splits_dir = (
+            recorded_splits_dir
+            if recorded_splits_dir.exists()
+            else fallback_splits_dir
+        )
         class_to_idx = {
             str(class_name): int(class_idx)
             for class_name, class_idx in summary["class_to_idx"].items()

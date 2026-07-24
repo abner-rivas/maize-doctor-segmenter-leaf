@@ -114,6 +114,20 @@ Sobre el mismo dataset limpio (`clean/`) conviven dos pipelines paralelos:
 
 Guía de instalación local (venv, `.env`, dataset) en [LOCAL.md](LOCAL.md).
 
+### Orden de carpetas
+
+```text
+data/       splits, piloto ROI, anotaciones y manifiestos
+outputs/    modelos, checkpoints, métricas, previews y reportes
+scripts/    herramientas y puntos de entrada
+src/        código reutilizable
+docs/       documentación
+public/     recursos publicados por el sitio
+```
+
+El dataset completo permanece fuera del repositorio bajo `DATASET_ROOT`. La separación
+detallada está documentada en [data/README.md](data/README.md).
+
 ---
 
 ## Comandos
@@ -128,8 +142,8 @@ imágenes por clase del perfil baseline), `RUN` (run_id específico), `SAMPLE_SI
 make install                        # pip install -e ".[dev,analysis,xai,cloud]"
 make download-dataset                # clean/ (HF Hub, fallback Google Drive)
 
-make splits                          # splits completos (9 clases) -> outputs/splits/seed_42/
-make splits-baseline [NO_CAP=1 | MAX_PER_CLASS=<n>]   # perfil baseline -> outputs/splits/seed_42_baseline/
+make splits                          # splits completos (9 clases) -> data/splits/seed_42/
+make splits-baseline [NO_CAP=1 | MAX_PER_CLASS=<n>]   # perfil baseline -> data/splits/seed_42_baseline/
 
 make train-baselines [MODELS=<nombre>] [NO_CAP=1 | MAX_PER_CLASS=<n>]   # genera splits (lazy) y entrena
 make train                           # pipeline principal (loop de entrenamiento pendiente)
@@ -138,7 +152,7 @@ make explain-lime [MODELS=<nombre> RUN=<id> IMAGE=<ruta> OUTPUT=<ruta>]   # repo
 make explain-report [MODELS=<nombre> RUN=<id> SAMPLE_SIZE=<n> NUM_SAMPLES=<n>]  # fidelidad agregada
 make explain-errors [MODELS=<nombre> RUN=<id> NUM_SAMPLES=<n>]   # LIME dirigido a errores
 
-make clean-outputs                   # borra outputs/ (splits, runs, reportes - todo regenerable)
+make clean-outputs                   # borra resultados (modelos/reportes), no data/
 make summary / make test-loader / make lint / make fmt
 ```
 

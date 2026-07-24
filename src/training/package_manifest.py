@@ -11,7 +11,7 @@ REQUIRED_INPUTS: tuple[tuple[Path, str], ...] = (
     (Path("config"), "Configuración reproducible del dataset y pipeline"),
     (Path("src"), "Código fuente del paquete DoctorMaiz"),
     (Path("scripts"), "Entradas de validación, splits y entrenamiento"),
-    (Path("outputs/splits/seed_42_baseline"), "Manifiestos baseline oficiales"),
+    (Path("data/splits/seed_42_baseline"), "Manifiestos baseline oficiales"),
     (Path("pyproject.toml"), "Dependencias y metadatos de instalación"),
     (Path("Makefile"), "Atajos operativos con protección de entrenamiento"),
     (Path(".env.example"), "Plantilla de variables de entorno"),

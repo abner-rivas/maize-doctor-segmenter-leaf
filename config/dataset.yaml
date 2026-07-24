@@ -1,6 +1,6 @@
 paths:
   raw_dir: "clean" # relativo a DATASET_ROOT
-  split_output_dir: "splits/seed_42" # relativo a outputs/
+  split_output_dir: "splits/seed_42" # relativo a PROJECT_DATA_ROOT (data/ por defecto)
 
 dataset:
   target_size: [224, 224]
@@ -18,6 +18,9 @@ dataset:
 
 augmentation:
   minority_ratio_threshold: 4.0
+
+# Perfil histórico activo. baseline_roi se habilitará explícitamente en futuros flujos.
+processing_profile: baseline_full
 
 leaf_detection:
   enabled: false

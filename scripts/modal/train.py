@@ -3,8 +3,8 @@
 No importa funciones internas del pipeline: orquesta por
 subprocess el mismo script CLI que corre `make train-baselines` (train_baselines.py, que a
 su vez genera splits/seed_42_baseline de forma lazy si faltan), heredando el entorno de la
-imagen (DATASET_ROOT=/data, OUTPUT_ROOT=/outputs) para que get_dataset_root()/
-get_output_root() resuelvan a los Volumes montados.
+imagen (DATASET_ROOT=/data, PROJECT_DATA_ROOT=/project-data,
+OUTPUT_ROOT=/outputs) para que las tres raíces resuelvan a Volumes separados.
 
 Uso:
     modal run scripts/modal/train.py::seed_dataset            # 1 vez: dataset -> Volume
@@ -21,7 +21,14 @@ from pathlib import Path
 
 import modal
 
-from scripts.modal._common import DEFAULT_MODELS, REPO_ANCHOR, dataset_vol, image, outputs_vol
+from scripts.modal._common import (
+    DEFAULT_MODELS,
+    REPO_ANCHOR,
+    dataset_vol,
+    image,
+    outputs_vol,
+    project_data_vol,
+)
 
 app = modal.App("corn-leaf-baselines", image=image)
 
@@ -49,7 +56,11 @@ def seed_dataset() -> None:
     # indexado paralelo de splits y el DataLoader, sin depender del burst. Alineado con
     # SPLITS_INDEX_WORKERS=24. Facturación: se cobra max(request, uso real).
     cpu=4.0,
-    volumes={"/data": dataset_vol, "/outputs": outputs_vol},
+    volumes={
+        "/data": dataset_vol,
+        "/project-data": project_data_vol,
+        "/outputs": outputs_vol,
+    },
     secrets=[modal.Secret.from_name("hf")],
     # Techo dimensionado para el peor caso `--models all` (7 baselines) x 30 epochs. Con --no-cap
     # el train baseline es ~11.5k imgs (data/clean: healthy 8744 + common_rust 2256 +
@@ -108,12 +119,13 @@ def train_baselines(
     if lime:
         train_args.append("--lime")
     subprocess.run(train_args, check=True, cwd=REPO_ANCHOR)
+    project_data_vol.commit()
     outputs_vol.commit()
 
 
 @app.function(volumes={"/outputs": outputs_vol}, timeout=600)
 def clean_outputs() -> None:
-    """Vacía el contenido del Volume corn-outputs (splits/runs/reportes). No borra el Volume."""
+    """Vacía modelos y reportes; los splits viven en corn-project-data."""
     outputs_root = Path("/outputs")
     for entry in outputs_root.iterdir():
         shutil.rmtree(entry) if entry.is_dir() else entry.unlink()

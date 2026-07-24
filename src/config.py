@@ -14,6 +14,7 @@ _raw_dataset_root = os.getenv("DATASET_ROOT", "").strip()
 DATASET_ROOT: Path | None = Path(_raw_dataset_root) if _raw_dataset_root else None
 
 _raw_output_root = os.getenv("OUTPUT_ROOT", "").strip()
+_raw_project_data_root = os.getenv("PROJECT_DATA_ROOT", "").strip()
 
 
 def get_dataset_root() -> Path:
@@ -33,6 +34,17 @@ def get_output_root() -> Path:
     volumen persistente en entornos remotos (p.ej. Modal). Sin OUTPUT_ROOT el
     comportamiento local no cambia."""
     return Path(_raw_output_root) if _raw_output_root else PROJECT_ROOT / "outputs"
+
+
+def get_project_data_root() -> Path:
+    """Return the root for reproducible data derived inside this project.
+
+    ``DATASET_ROOT`` remains the large external source dataset. ``OUTPUT_ROOT``
+    remains reserved for models, metrics, reports, previews, and diagnostics.
+    """
+    if _raw_project_data_root:
+        return Path(_raw_project_data_root)
+    return PROJECT_ROOT / "data"
 
 
 def set_global_seed(seed: int) -> None:

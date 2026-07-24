@@ -1,11 +1,16 @@
 """Reusable preprocessing components for leaf regions of interest."""
 
 from src.preprocessing.leaf_processor import (
+    BASELINE_FULL,
+    BASELINE_ROI,
     FALLBACK_CENTER_CROP,
     FALLBACK_ORIGINAL,
     FALLBACK_REJECT,
+    PROCESSOR_VERSION,
+    AppliedProcessingResult,
     FallbackResult,
     LeafImageProcessor,
+    LeafProcessingProfile,
     LeafProcessingResult,
     LeafProcessorConfig,
     apply_fallback,
@@ -28,6 +33,9 @@ from src.preprocessing.leaf_roi import (
 from src.preprocessing.letterbox import LetterboxResult, letterbox_image
 
 __all__ = [
+    "BASELINE_FULL",
+    "BASELINE_ROI",
+    "AppliedProcessingResult",
     "BoundingBox",
     "FALLBACK_CENTER_CROP",
     "FALLBACK_ORIGINAL",
@@ -36,9 +44,11 @@ __all__ = [
     "InvalidBoundingBoxError",
     "LeafDetectionResult",
     "LeafImageProcessor",
+    "LeafProcessingProfile",
     "LeafProcessingResult",
     "LeafProcessorConfig",
     "LetterboxResult",
+    "PROCESSOR_VERSION",
     "apply_fallback",
     "bbox_area",
     "bbox_area_ratio",

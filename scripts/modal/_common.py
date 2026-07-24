@@ -14,6 +14,7 @@ DEFAULT_MODELS = "efficientnet_b0 shufflenet_v2_x1_0 efficientnet_lite0"
 
 dataset_vol = modal.Volume.from_name("corn-clean", create_if_missing=True)
 outputs_vol = modal.Volume.from_name("corn-outputs", create_if_missing=True)
+project_data_vol = modal.Volume.from_name("corn-project-data", create_if_missing=True)
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -27,6 +28,7 @@ image = (
         {
             "DATASET_ROOT": "/data",
             "OUTPUT_ROOT": "/outputs",
+            "PROJECT_DATA_ROOT": "/project-data",
             "HF_DATASET_REPO": HF_DATASET_REPO,
             "SPLITS_INDEX_WORKERS": "24",
         }
