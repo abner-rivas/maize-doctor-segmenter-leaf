@@ -90,6 +90,24 @@ def _build_validation_transform(target_size: tuple[int, int]) -> T.Compose:
     )
 
 
+def _prepare_lime_image(image: Image.Image, target_size: tuple[int, int]) -> np.ndarray:
+    """Lleva la imagen al tamaño de entrada como array HWC uint8 para LimeImageExplainer.
+
+    Usa la misma `T.Resize` que `_build_validation_transform`, no `PIL.Image.resize`: el
+    array resultante vuelve a pasar por esa transform dentro de `predict_fn`, y un
+    remuestreo distinto (PIL usa bicúbico por defecto, `T.Resize` bilineal) hacía que el
+    modelo evaluara píxeles distintos a los del pipeline de entrenamiento. Sobre imágenes
+    de alta resolución la diferencia bastaba para cambiar el argmax en predicciones de
+    margen estrecho. `T.Resize` además toma (alto, ancho), el mismo orden que
+    `target_size`, mientras que `PIL.Image.resize` espera (ancho, alto).
+
+    @param {Image.Image} image Imagen original, sin reescalar.
+    @param {tuple[int, int]} target_size Tamaño de entrada del checkpoint, (alto, ancho).
+    @returns {np.ndarray} Array HWC uint8 con la imagen reescalada.
+    """
+    return np.array(T.Resize(target_size)(image))
+
+
 def build_predict_fn(
     model: nn.Module, device: torch.device, target_size: tuple[int, int]
 ) -> Callable[[np.ndarray], np.ndarray]:
@@ -171,8 +189,7 @@ def render_visual_explanation(
     device = device or torch.device("cpu")
     model.eval()
 
-    image = image.resize(target_size)
-    image_np = np.array(image)
+    image_np = _prepare_lime_image(image, target_size)
     image_rgb01 = image_np.astype(float) / 255.0
 
     predict_fn = build_predict_fn(model, device, target_size)
