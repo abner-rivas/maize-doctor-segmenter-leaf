@@ -37,4 +37,10 @@ __pycache__/
 
 /tmp/**
 
+# Experimentos: se versiona el código, no las imágenes de entrada/salida
+/experiments/**/input/*
+!/experiments/**/input/.gitkeep
+/experiments/**/output/
+/experiments/**/comparisons/
+
 .ruff_cache/
