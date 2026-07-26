@@ -1,7 +1,7 @@
 """Diagnóstico manual/puntual de estabilidad de LIME sobre una única imagen.
 
-Ccorre `render_visual_explanation` N veces con seeds distintas sobre la misma imagen y reporta, 
-entre corridas consecutivas:
+Corre `render_visual_explanation` N veces con seeds distintas sobre la misma imagen y
+reporta, entre corridas consecutivas:
   - IoU de las máscaras de superpíxeles positivos (reconstruidas desde el .json/.npy
     que ya persiste render_visual_explanation).
   - Correlación de Pearson entre los weight_map per-píxel completos.
@@ -11,10 +11,8 @@ Uso: python scripts/checks/lime_stability.py --model efficientnet_b0 --image <ru
 """
 
 import argparse
-import json
 from pathlib import Path
 
-import numpy as np
 import torch
 import yaml
 
@@ -26,37 +24,12 @@ import src.models.baselines.shufflenet  # noqa: F401 - registra modelos
 from src.config import PROJECT_ROOT, get_output_root
 from src.data.dataset import resolve_class_mapping
 from src.data.loader import load_and_normalize_image
+from src.explainability.stability import pairwise_stability, reconstruct_mask_and_weight_map
 from src.explainability.visual_report import render_visual_explanation
 from src.models.registry import MODEL_REGISTRY
 from src.training.common import resolve_run_dir
 
 _OUTPUT_DIR = get_output_root() / "baselines"
-
-
-def _reconstruct_mask_and_weight_map(
-    json_path: Path, npy_path: Path
-) -> tuple[np.ndarray, np.ndarray]:
-    """Reconstruye la máscara de superpíxeles positivos y el weight_map per-píxel
-    completo a partir de los artefactos ya persistidos por render_visual_explanation,
-    sin tener que re-ejecutar LIME."""
-    metadata = json.loads(json_path.read_text())
-    segments = np.load(npy_path)
-
-    weight_map = np.zeros(segments.shape, dtype=float)
-    positive_mask = np.zeros(segments.shape, dtype=bool)
-    for feature in metadata["top_features"]:
-        segment_id, weight = feature["segment_id"], feature["weight"]
-        weight_map[segments == segment_id] = weight
-        if weight > 0:
-            positive_mask[segments == segment_id] = True
-
-    return positive_mask, weight_map
-
-
-def _mask_iou(mask_a: np.ndarray, mask_b: np.ndarray) -> float:
-    intersection = np.logical_and(mask_a, mask_b).sum()
-    union = np.logical_or(mask_a, mask_b).sum()
-    return float(intersection / union) if union > 0 else 1.0
 
 
 def main() -> None:
@@ -128,7 +101,7 @@ def main() -> None:
             seed=seed,
             device=device,
         )
-        mask, weight_map = _reconstruct_mask_and_weight_map(
+        mask, weight_map = reconstruct_mask_and_weight_map(
             output_path.with_suffix(".json"), output_path.with_suffix(".npy")
         )
         masks.append(mask)
@@ -140,10 +113,9 @@ def main() -> None:
 
     print(f"\nEstabilidad entre corridas consecutivas ({args.runs} seeds, imagen: {args.image}):")
     print(f"{'seeds':<12}{'IoU':>10}{'correlación':>14}")
-    for i in range(len(masks) - 1):
-        iou = _mask_iou(masks[i], masks[i + 1])
-        correlation = float(np.corrcoef(weight_maps[i].ravel(), weight_maps[i + 1].ravel())[0, 1])
-        print(f"{i} vs {i + 1:<7}{iou:>10.3f}{correlation:>14.3f}")
+    for pair in pairwise_stability(masks, weight_maps):
+        label = f"{pair['seed_a']} vs {pair['seed_b']}"
+        print(f"{label:<12}{pair['iou']:>10.3f}{pair['correlation']:>14.3f}")
 
 
 if __name__ == "__main__":

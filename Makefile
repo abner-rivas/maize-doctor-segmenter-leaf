@@ -25,8 +25,14 @@ NUM_WORKERS ?=
 NO_PRETRAINED ?=
 LIME ?=
 NUM_SAMPLES ?=
+MODEL ?= efficientnet_b0
+IMAGE ?=
+CHECKPOINT ?=
+RUN ?=
+TOP_K ?=
+STABILITY_RUNS ?=
 
-.PHONY: compile-pdf install download-dataset splits splits-baseline train train-baselines explain-lime explain-report explain-errors test-loader summary docs-eda lint lint-fix fmt check clean-outputs modal-seed modal-train-baselines modal-clean-outputs modal-explain-lime modal-explain-report modal-explain-errors modal-pull
+.PHONY: compile-pdf install download-dataset splits splits-baseline train train-baselines inference explain-lime explain-report explain-errors test-loader summary docs-eda lint lint-fix fmt check clean-outputs modal-seed modal-train-baselines modal-clean-outputs modal-explain-lime modal-explain-report modal-explain-errors modal-pull
 
 install:
 	$(PIP) install -e ".[dev,analysis,xai,cloud]"
@@ -92,6 +98,16 @@ modal-explain-errors:
 
 modal-pull:
 	$(MODAL) volume get --force corn-outputs / ./outputs-remote
+
+# Inferencia + interpretabilidad completa de una imagen puntual.
+# Uso: make inference IMAGE=foto.jpg [MODEL=<nombre> RUN=<run_id> CHECKPOINT=<ruta.pth>
+#      STABILITY_RUNS=<n> TOP_K=<k>]
+inference:
+	$(PYTHON) scripts/pipeline/inference_report.py --model $(MODEL) --image $(IMAGE) \
+		$(if $(CHECKPOINT),--checkpoint $(CHECKPOINT),) \
+		$(if $(RUN),--run $(RUN),) \
+		$(if $(STABILITY_RUNS),--stability-runs $(STABILITY_RUNS),) \
+		$(if $(TOP_K),--top-k $(TOP_K),)
 
 explain-lime:
 	$(PYTHON) scripts/pipeline/explain_lime.py --models $(MODELS) $(if $(IMAGE),--image $(IMAGE),) $(if $(OUTPUT),--output $(OUTPUT),)
