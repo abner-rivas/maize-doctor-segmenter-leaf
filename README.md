@@ -34,7 +34,7 @@ La idea es sencilla: una aplicación móvil que, dada una fotografía de hoja de
 | Mancha gris *(GLS)* | *Cercospora zeae-maydis* | Lesiones rectangulares grises | 513 | 606 | 1 119 |
 | Necrosis letal *(MLN)* | Complejo viral (MCMV + potyvirus) | Rayado clorótico, necrosis progresiva y muerte de la planta | 0 | 6 415 | 6 415 |
 | Hoja sana *(Healthy)* | - | Sin síntomas visibles | 0 | 8 744 | 8 744 |
-| Gusano cogollero *(Fall Armyworm)* | *Spodoptera frugiperda* | Daño por masticación, excrementos en cogollo | 0 | 4 858 | 4 858 |
+| Gusano cogollero *(Fall Armyworm)* | *Spodoptera frugiperda* | Daño por masticación, excrementos en cogollo | 0 | 4 857 | 4 857 |
 
 > `aphids_pest` (áfidos) se evaluó pero se descartó del alcance: solo ~77 imágenes disponibles, insuficientes para augmentation viable.
 
@@ -103,7 +103,7 @@ El proyecto avanza en fases iterativas siguiendo el marco **CRISP-DM**:
 ## Pipeline de Machine Learning
 
 El código vive en `src/` (librería instalable, `pip install -e .`) y `scripts/` (entrypoints).
-Sobre el mismo dataset limpio (`clean/`) conviven dos pipelines paralelos:
+Sobre el mismo dataset limpio (`$DATASET_ROOT/clean/`) conviven dos pipelines paralelos:
 
 - **Baselines** (`scripts/pipeline/train_baselines.py`): funcional de punta a punta, entrenado
   sobre el perfil `baseline` (`config/dataset.yaml -> baseline:`, 9 clases, cap de 1 500
@@ -127,6 +127,25 @@ public/     recursos publicados por el sitio
 
 El dataset completo permanece fuera del repositorio bajo `DATASET_ROOT`. La separación
 detallada está documentada en [data/README.md](data/README.md).
+
+### Aislamiento de hoja
+
+El piloto manual validó anotaciones CVAT, cajas rotadas, clipping, margen,
+letterbox, manifiestos y previews. Al aplicar ROI sólo durante inferencia a tres
+clasificadores entrenados con imágenes completas, el Macro-F1 disminuyó por un
+cambio de distribución; no se interpretó como un fracaso del aislamiento.
+
+La siguiente estrategia experimental es segmentación de hoja. Dos fuentes
+externas de 1,003 y 157 imágenes quedaron `accepted_with_filtering` después del
+EDA, pero todavía no se consolidaron ni se usaron para entrenar. El piloto de
+100 imágenes permanece retenido como test.
+
+La [historia completa](docs/es/leaf-detection/history.md), la
+[auditoría de fuentes](docs/es/leaf-detection/external-segmentation-datasets-eda.md)
+y los [registros de decisión](docs/es/decisions/) explican el estado actual.
+Mientras no exista un clasificador entrenado con la nueva representación,
+continúan activos `processing_profile: baseline_full` y
+`leaf_detection.enabled: false`.
 
 ---
 
@@ -208,12 +227,17 @@ en `http://localhost:5173`).
 ## Estado del Proyecto
 
 - [x] Documentación de datasets consolidados (8 fuentes, 9 clases)
-- [x] Scripts de limpieza y organización de datos en `data/clean/`
+- [x] Scripts históricos de limpieza y organización del corpus en `$DATASET_ROOT/clean/`
 - [x] Análisis exploratorio de datos (EDA)
 - [x] Pipeline de preparación de datos (splits estratificados, perfil baseline configurable)
 - [x] Data augmentation para clases minoritarias (pipeline extendido por clase en `transforms.py`)
 - [x] Baselines sobre 9 clases (EfficientNet-B0, ShuffleNetV2-x1.0, EfficientNet-Lite0; cap 1 500/clase) + entrenamiento en GPU de Modal
 - [x] Explicabilidad post-hoc (LIME + Grad-CAM, análisis de errores y fidelidad agregada)
+- [x] Piloto ROI manual y diagnóstico con tres checkpoints históricos
+- [x] EDA de dos fuentes externas de segmentación, sin entrenamiento
+- [ ] Consolidación y splits propios del dataset segmentado
+- [ ] Entrenamiento y evaluación del segmentador contra el piloto retenido
+- [ ] Comparación baseline_full vs. bbox ROI vs. masked ROI
 - [ ] Loop de entrenamiento del pipeline principal (`scripts/pipeline/train.py`)
 - [ ] Evaluación exhaustiva y selección de modelo final
 - [ ] Aplicación Android con TensorFlow Lite

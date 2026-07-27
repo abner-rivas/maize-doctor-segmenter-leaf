@@ -6,10 +6,23 @@ producir un `class_to_idx` incorrecto o hacer que resultados y documentación re
 versión del dataset. Por eso la auditoría es una compuerta previa a cualquier split o
 experimento ROI.
 
-## Evidencia de la versión local
+## Estado actual
 
-La revisión del repositorio y del árbol físico encontró que la copia local corresponde a una
-versión anterior del corpus:
+La restauración posterior quedó validada en
+`outputs/dataset_audit_final/`: `DATASET_ROOT` apunta a
+`/home/desarrolloab/Documentos/ML/maize_dataset/data`, existen las nueve clases,
+hay 31 622 imágenes admitidas —3 551 de laboratorio y 28 071 reales—, no hay
+discrepancias críticas y `ready_for_splits=true`.
+
+`outputs/dataset_audit_updated/` contiene los mismos tres archivos, idénticos
+por SHA-256, y se conserva como candidato de limpieza pendiente de aprobación.
+`outputs/dataset_audit/` no es el estado actual: preserva el diagnóstico
+histórico descrito a continuación.
+
+## Hallazgo histórico de la copia anterior
+
+La revisión inicial del repositorio y del árbol físico encontró una copia local
+anterior del corpus:
 
 - `clean/` conserva 77 imágenes en `aphids_pest` y no contiene `lethal_necrosis`.
 - Git registra en el commit `7967572` el cambio de alcance que sustituyó `aphids_pest` por
@@ -22,9 +35,10 @@ versión anterior del corpus:
   un TIFF de `fall_armyworm` que el generador oficial no indexa. Los 25 284 admitidos más ese
   TIFF coinciden con los 25 285 archivos de la tabla anterior al cambio de alcance.
 
-Esta evidencia indica que la configuración y la documentación describen una revisión posterior
-que sí existió, mientras que `clean/` local no fue actualizado. La auditoría automática no
-renombra, elimina ni sustituye nada: sólo marca `ready_for_splits=false`.
+En ese momento, la configuración y la documentación describían una revisión
+posterior mientras `clean/` local no había sido actualizado. La auditoría no
+renombró, eliminó ni sustituyó nada y marcó `ready_for_splits=false`. Esa
+evidencia se conserva para explicar la transición; no describe el corpus activo.
 
 ## Ejecutar la auditoría
 
@@ -32,10 +46,10 @@ Linux:
 
 ```bash
 python3 scripts/checks/audit_dataset_classes.py \
-  --dataset-root /home/desarrolloab/Documentos/ML/maize_dataset \
+  --dataset-root /home/desarrolloab/Documentos/ML/maize_dataset/data \
   --config config/dataset.yaml \
   --documentation docs/es/cleanup-and-ordered/index.md \
-  --output outputs/dataset_audit \
+  --output outputs/dataset_audit_current \
   --fail-on-mismatch
 ```
 
@@ -46,12 +60,13 @@ python scripts/checks/audit_dataset_classes.py `
   --dataset-root "C:\ruta\maize_dataset" `
   --config "config\dataset.yaml" `
   --documentation "docs\es\cleanup-and-ordered\index.md" `
-  --output "outputs\dataset_audit" `
+  --output "outputs\dataset_audit_current" `
   --fail-on-mismatch
 ```
 
 Si se omite `--dataset-root`, se usa `get_dataset_root()`. Si se omite `--output`, se usa
-`get_output_root()/dataset_audit`. La ruta recibida siempre representa `DATASET_ROOT`; la
+`get_output_root()/dataset_audit`. Use una salida nueva para no sobrescribir
+evidencia histórica. La ruta recibida siempre representa `DATASET_ROOT`; la
 carpeta fuente se resuelve mediante `paths.raw_dir: clean` de la configuración.
 
 Las salidas son:
@@ -147,27 +162,27 @@ No se implementa un segundo algoritmo.
 Después de aprobar `clean_candidate`, ejecute dos generaciones aisladas:
 
 ```bash
-DATASET_ROOT=/ruta/maize_dataset_candidate OUTPUT_ROOT=/tmp/splits_run_1 \
+DATASET_ROOT=/ruta/maize_dataset_candidate PROJECT_DATA_ROOT=/tmp/project_data_run_1 \
   python3 scripts/pipeline/create_splits.py --baseline
-DATASET_ROOT=/ruta/maize_dataset_candidate OUTPUT_ROOT=/tmp/splits_run_2 \
+DATASET_ROOT=/ruta/maize_dataset_candidate PROJECT_DATA_ROOT=/tmp/project_data_run_2 \
   python3 scripts/pipeline/create_splits.py --baseline
 
 python3 scripts/checks/validate_splits.py \
   --dataset-root /ruta/maize_dataset_candidate \
-  --splits-dir /tmp/splits_run_1/splits/seed_42_baseline \
-  --compare-dir /tmp/splits_run_2/splits/seed_42_baseline \
-  --output /tmp/splits_run_1/splits/seed_42_baseline \
+  --splits-dir /tmp/project_data_run_1/splits/seed_42_baseline \
+  --compare-dir /tmp/project_data_run_2/splits/seed_42_baseline \
+  --output /tmp/project_data_run_1/splits/seed_42_baseline \
   --fail-on-error
 ```
 
-En PowerShell use dos valores temporales de `$env:OUTPUT_ROOT` y luego:
+En PowerShell use dos valores temporales de `$env:PROJECT_DATA_ROOT` y luego:
 
 ```powershell
 python scripts/checks/validate_splits.py `
   --dataset-root "C:\ruta\maize_dataset_candidate" `
-  --splits-dir "C:\temp\splits_run_1\splits\seed_42_baseline" `
-  --compare-dir "C:\temp\splits_run_2\splits\seed_42_baseline" `
-  --output "C:\temp\splits_run_1\splits\seed_42_baseline" `
+  --splits-dir "C:\temp\project_data_run_1\splits\seed_42_baseline" `
+  --compare-dir "C:\temp\project_data_run_2\splits\seed_42_baseline" `
+  --output "C:\temp\project_data_run_1\splits\seed_42_baseline" `
   --fail-on-error
 ```
 
@@ -175,7 +190,8 @@ El validador comprueba columnas, rutas, clases, entornos, rutas duplicadas, hash
 fugas entre splits, cobertura y hashes exactos de los CSV comparados. Produce
 `split_validation.json` y `split_counts.csv`.
 
-Los splits oficiales sólo pueden generarse cuando ambas auditorías terminan sin errores, las
-dos generaciones son idénticas y una persona aprueba el reemplazo del dataset. Mientras
-`ready_for_splits` sea falso no se debe entrenar, crear un nuevo piloto ni iniciar el
-experimento comparativo ROI.
+Los splits oficiales sólo pueden generarse cuando ambas auditorías terminan sin
+errores, las dos generaciones son idénticas y una persona aprueba el reemplazo
+del dataset. Esa compuerta ya fue superada para la revisión activa de 31 622
+imágenes y produjo `data/splits/seed_42_baseline/`; debe volver a aplicarse ante
+cualquier revisión futura del corpus.

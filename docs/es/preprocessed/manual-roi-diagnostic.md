@@ -8,6 +8,9 @@ habitual por una región de interés (ROI) manual de la hoja. Es una prueba diag
 pareada sobre el piloto; **no es entrenamiento, no es un baseline oficial y no evalúa
 un clasificador entrenado con ROI**.
 
+La decisión formal derivada de este resultado está en
+[ADR: ROI manual no activado](../decisions/adr-manual-roi-diagnostic-result.md).
+
 Los artefactos completos están en
 [`outputs/leaf_detection/pilot/diagnostic_experiment/`](../../../outputs/leaf_detection/pilot/diagnostic_experiment/).
 No se copiaron resultados a `docs/`.
@@ -190,7 +193,8 @@ baseline_full: entrenado con imágenes completas → evaluado con imágenes comp
 baseline_roi:  entrenado con ROI → evaluado con ROI
 ```
 
-Ruta propuesta:
+La ruta de bounding boxes preparada originalmente se conserva como alternativa
+histórica:
 
 ```text
 Anotar 300–500 imágenes
@@ -209,6 +213,19 @@ Comparar contra baseline_full
 ```
 
 No es necesario anotar manualmente las 10 020 imágenes de los splits.
+
+La primera parte de esa ampliación ya está preparada: se seleccionaron 350
+imágenes nuevas de train y 75 de val para anotación multihoja, mientras que el
+piloto quedó retenido como test. Todavía no se anotaron esos lotes ni se entrenó
+YOLO26n. Consulte
+[Preparación del dataset del detector](../leaf-detection/yolo26-detector-dataset.md).
+
+Después se priorizó explorar segmentación y se auditaron dos fuentes externas
+YOLO/COCO. La auditoría identificó clases de hoja completa separables de las
+lesiones, 11 líneas YOLO recuperables desde COCO, una etiqueta vacía y cero
+duplicados contra el piloto. El paso inmediato es filtrar, revisar y consolidar
+esas fuentes; no es entrenar todavía. Consulte
+[Auditoría de datasets externos de segmentación](../leaf-detection/external-segmentation-datasets-eda.md).
 
 ## Conclusión
 

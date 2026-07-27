@@ -79,8 +79,8 @@ def main() -> None:
         "--baseline",
         action="store_true",
         default=None,
-        help="Fuerza el uso de splits/seed_42_baseline en vez de leer lime.baseline de "
-        "config/dataset.yaml.",
+        help="Fuerza PROJECT_DATA_ROOT/splits/seed_42_baseline en vez de leer "
+        "lime.baseline de config/dataset.yaml.",
     )
     parser.add_argument(
         "--run",

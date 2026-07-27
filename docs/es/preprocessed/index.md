@@ -211,6 +211,21 @@ distribución, no el rendimiento de un clasificador entrenado con ROI. Por eso
 `processing_profile: baseline_full` sigue activo y
 `leaf_detection.enabled: false`.
 
+## Fuentes externas de segmentación de hoja
+
+Se auditaron dos exportaciones YOLO con sus respaldos COCO como candidatas para
+un futuro segmentador binario de hoja. La auditoría recalculó 1,003 y 157
+imágenes, validó 14,619 líneas de polígonos, contrastó errores con COCO y
+comprobó duplicados contra el piloto retenido.
+
+No se entrenó YOLO, no se repararon fuentes y no se creó un dataset consolidado.
+Los hallazgos, decisiones por clase, gráficos y próximos pasos están en
+[Auditoría de datasets externos de segmentación](../leaf-detection/external-segmentation-datasets-eda.md).
+
+La secuencia de decisiones —bounding boxes, piloto, diagnóstico, cambio de
+distribución y estrategia de máscaras— está consolidada en
+[Historia del aislamiento de hojas](../leaf-detection/history.md).
+
 ## Auditoría de clases y splits (Fase 3.5)
 
 Antes de restaurar splits o entrenar, la configuración, la documentación y las carpetas de

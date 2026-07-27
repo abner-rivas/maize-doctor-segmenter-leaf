@@ -62,7 +62,7 @@ Se exploran los siguientes datasets, y se definen identificadores para cada uno,
 
 ## Flujo de trabajo implementado
 
-1. Clasificar por entorno en `/data/clean`:
+1. Clasificar por entorno en `$DATASET_ROOT/clean/`:
     1. `lab`: fotos en entornos controlados (fondo negro/blanco/gris, estudio).
     2. `real`: fotos tomadas en campo.
 
@@ -91,7 +91,9 @@ Se exploran los siguientes datasets, y se definen identificadores para cada uno,
 
 ## Resultados obtenidos
 
-Tras aplicar las rutinas automatizadas de deduplicación y filtros de exclusión por calidad, el volumen neto de imágenes útiles integradas en `data/clean/` por clase es el siguiente:
+Tras aplicar las rutinas automatizadas de deduplicación y filtros de exclusión
+por calidad, el volumen neto de imágenes útiles integradas en
+`$DATASET_ROOT/clean/` por clase es el siguiente:
 
 | Clase                        | Lab    | Real   | Total  |
 |------------------------------|-------:|-------:|-------:|
@@ -122,7 +124,11 @@ Se descartó su uso, debido a que el dataset incluye imágenes ya augmentadas, n
 
 ### Metodología
 
-El dataset original usa formato YOLO (bounding boxes + polígonos de segmentación) con splits `train/valid/test`. Se creó un script para extraer y reordenar las imágenes según las clases objetivo del proyecto, integrándolas en la estructura de `data/clean/` para su uso en el pipeline de entrenamiento.
+El dataset original usa formato YOLO (bounding boxes + polígonos de
+segmentación) con splits `train/valid/test`. Se creó un script para extraer y
+reordenar las imágenes según las clases objetivo, integrándolas en
+`$DATASET_ROOT/clean/`. `data/` dentro del repositorio queda reservado para
+splits y otros datos derivados reproducibles.
 
 ### Mapeo de clases YOLO -> carpetas clean
 
@@ -356,4 +362,3 @@ A diferencia de las otras clases de este dataset, las imágenes de Lethal Necros
 > **Contenido visual:** las imágenes de cogollero de este dataset son una mezcla de **hoja con daño** y **hoja con daño + gusano** visible, sin separación entre ambos tipos dentro de la carpeta.
 
 ### Healthy | Sana
-

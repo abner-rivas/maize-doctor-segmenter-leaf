@@ -1,8 +1,8 @@
 """Entrenamiento de baselines en GPU de Modal (https://modal.com/docs/guide).
 
 No importa funciones internas del pipeline: orquesta por
-subprocess el mismo script CLI que corre `make train-baselines` (train_baselines.py, que a
-su vez genera splits/seed_42_baseline de forma lazy si faltan), heredando el entorno de la
+subprocess el mismo script CLI que corre `make train-baselines` (train_baselines.py, que
+genera `PROJECT_DATA_ROOT/splits/seed_42_baseline` de forma lazy si falta), heredando el
 imagen (DATASET_ROOT=/data, PROJECT_DATA_ROOT=/project-data,
 OUTPUT_ROOT=/outputs) para que las tres raíces resuelvan a Volumes separados.
 
@@ -63,7 +63,7 @@ def seed_dataset() -> None:
     },
     secrets=[modal.Secret.from_name("hf")],
     # Techo dimensionado para el peor caso `--models all` (7 baselines) x 30 epochs. Con --no-cap
-    # el train baseline es ~11.5k imgs (data/clean: healthy 8744 + common_rust 2256 +
+    # el train baseline es ~11.5k imgs (/data/clean: healthy 8744 + common_rust 2256 +
     # fall_armyworm 4857 + nitrogen 523, split 70%), ~8x el perfil capado (~12 min/modelo).
     # Estimado ~1.5 h/modelo -> ~11 h los 7 secuenciales; 14 h dan margen para no morir por
     # timeout. El default son 3 modelos, así que sobra holgura.
@@ -85,7 +85,7 @@ def train_baselines(
 ) -> None:
     """Entrena los baselines indicados, persistiendo resultados en el Volume corn-outputs.
     Espeja `make train-baselines`/`train_baselines.py` - misma CLI, mismo comportamiento
-    (incluida la generación lazy de splits/seed_42_baseline si aún no existen).
+    (incluida la generación lazy de `PROJECT_DATA_ROOT/splits/seed_42_baseline` si falta).
     """
     dataset_vol.reload()  # ve el dataset seedeado por seed_dataset
 

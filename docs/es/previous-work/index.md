@@ -43,7 +43,11 @@ El alcance de este proyecto se ideó para abordar la segunda etapa, la clasifica
 
 Es en esta etapa de clasificación donde reside el "juicio" agronómico del sistema, se priorizará la evaluación sobre imágenes de campo real y no solo de laboratorio para no caer en esa ilusión de fiabilidad, se adopta el F1-macro con umbral de 0.85 como criterio de viabilidad para que las clases minoritarias pesen igual que las mayoritarias, se eligen arquitecturas ligeras como las del tipo EfficientNet-B0 pensando en el despliegue TFLite offline con un modelo muy liviano y una latencia por debajo de 300 ms.
 
-El clasificador que se trabaja en este proyecto está diseñado para operar sobre la hoja como región de interés, de modo que el día en que se anteponga un módulo de segmentación, ya sea una red en cascada o un recorte por profundidad, este componente o pipeline pueda recibir la hoja aislada sin la necesidad de rediseñarse en gran medida.
+Los clasificadores históricos de este proyecto fueron entrenados con imágenes
+completas (`baseline_full`). Una versión futura podrá operar sobre la hoja como
+región de interés, pero deberá entrenarse de nuevo con exactamente la misma
+representación segmentada que recibirá en evaluación e inferencia. No es seguro
+anteponer segmentación a los checkpoints actuales sin esa adaptación.
 
 En ese sentido la propuesta de este trabajo es ser un producto útil por sí mismo, capaz de dar un diagnóstico offline a un pequeño productor, y a la misma vez la segunda mitad ya construida de un sistema futuro que segmente, clasifique y de mejores diagnósticos.
 

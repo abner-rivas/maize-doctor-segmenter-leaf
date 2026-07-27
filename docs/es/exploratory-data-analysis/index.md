@@ -6,7 +6,10 @@ El análisis completo y reproducible, con todo el código, está en la notebook 
 
 ## Composición del dataset
 
-El dataset consolidado en `data/clean/` contiene **31 622 imágenes** distribuidas en **9 clases**, procedentes de 6 fuentes públicas. Cada imagen pertenece a un entorno de captura: `lab` (fondo controlado, iluminación artificial) o `real` (campo abierto, iluminación solar).
+El dataset consolidado en `$DATASET_ROOT/clean/` contiene **31 622 imágenes**
+distribuidas en **9 clases**, procedentes de 6 fuentes públicas. Cada imagen
+pertenece a un entorno de captura: `lab` (fondo controlado, iluminación
+artificial) o `real` (campo abierto, iluminación solar).
 
 #### Enfermedades foliares
 

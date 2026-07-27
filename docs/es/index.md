@@ -98,6 +98,16 @@ documentados en [Piloto manual ROI](/es/preprocessed/manual-roi-pilot) y
 [Diagnóstico full frente a ROI manual](/es/preprocessed/manual-roi-diagnostic).
 El [estado consolidado del requerimiento](/es/avance_requerimiento_deteccion_hoja)
 mantiene la tabla de fases, las evidencias y los próximos pasos.
+La [preparación del dataset YOLO26n](/es/leaf-detection/yolo26-detector-dataset)
+documenta la selección train/val, el test retenido, los paquetes CVAT y la
+auditoría de dependencias.
+La [auditoría de fuentes externas de segmentación](/es/leaf-detection/external-segmentation-datasets-eda)
+documenta dos datasets YOLO/COCO candidatos, sus clases de hoja y lesión,
+errores, duplicados, contraste de formatos y condiciones de aceptación.
+La [historia del aislamiento de hojas](/es/leaf-detection/history) conecta el
+problema de fondo, el piloto, el diagnóstico ROI, el cambio hacia segmentación,
+los artefactos activos y el pipeline futuro. Las decisiones se formalizaron en
+los [ADR del proyecto](/es/decisions/adr-project-data-root-and-output-root).
 
 El diagnóstico reutilizó tres checkpoints históricos entrenados con imágenes
 completas; no realizó entrenamiento ni constituye un baseline oficial. La caída

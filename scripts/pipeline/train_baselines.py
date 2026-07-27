@@ -450,7 +450,8 @@ def main() -> None:
     parser.add_argument(
         "--baseline",
         action="store_true",
-        help="Usa splits/seed_42_baseline en vez de splits/seed_42.",
+        help="Usa PROJECT_DATA_ROOT/splits/seed_42_baseline en vez de "
+        "PROJECT_DATA_ROOT/splits/seed_42.",
     )
     cap_group = parser.add_mutually_exclusive_group()
     cap_group.add_argument(
@@ -458,9 +459,9 @@ def main() -> None:
         type=int,
         default=None,
         dest="max_per_class",
-        help="Cap de imágenes por clase para splits/seed_42_baseline. Aplica al generar los "
-        "splits (lazy). Si el directorio ya existe se reutiliza tal cual y este flag se "
-        "ignora, salvo que se pase --regenerate-splits para forzar la regeneración.",
+        help="Cap de imágenes por clase para PROJECT_DATA_ROOT/splits/seed_42_baseline. "
+        "Aplica al generar los splits (lazy). Si el directorio ya existe se reutiliza tal "
+        "cual y este flag se ignora, salvo que se pase --regenerate-splits.",
     )
     cap_group.add_argument(
         "--no-cap",
@@ -473,9 +474,9 @@ def main() -> None:
         "--regenerate-splits",
         action="store_true",
         dest="regenerate_splits",
-        help="Borra y regenera splits/seed_42_baseline aunque ya exista, para que un cambio "
-        "de --max-per-class/--no-cap o de baseline.classes surta efecto (clave en el Volume "
-        "de Modal, donde los splits persisten entre corridas).",
+        help="Borra y regenera PROJECT_DATA_ROOT/splits/seed_42_baseline aunque ya exista, "
+        "para que un cambio de --max-per-class/--no-cap o de baseline.classes surta efecto "
+        "(clave en el Volume de Modal, donde los splits persisten entre corridas).",
     )
     parser.add_argument(
         "--splits-dir",
@@ -551,7 +552,7 @@ def main() -> None:
         elif args.max_per_class is not None:
             create_splits_args += ["--max-per-class", str(args.max_per_class)]
         logger.info(
-            "No existe %s. Generando splits/seed_42_baseline (lazy): %s",
+            "No existe %s. Generando PROJECT_DATA_ROOT/splits/seed_42_baseline (lazy): %s",
             splits_dir,
             " ".join(create_splits_args),
         )

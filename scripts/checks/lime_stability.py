@@ -73,7 +73,8 @@ def main() -> None:
         "--baseline",
         action="store_true",
         default=None,
-        help="Fuerza splits/seed_42_baseline en vez de leer lime.baseline del YAML.",
+        help="Fuerza PROJECT_DATA_ROOT/splits/seed_42_baseline en vez de leer "
+        "lime.baseline del YAML.",
     )
     parser.add_argument(
         "--output-dir",

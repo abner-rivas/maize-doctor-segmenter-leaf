@@ -125,8 +125,16 @@ def main() -> None:
         dest="splits_dir",
         help="Directorio con train.csv para reconstruir class_to_idx si no hay summary.json.",
     )
-    parser.add_argument("--baseline", action="store_true", help="Usa splits/seed_42_baseline.")
-    parser.add_argument("--full", action="store_true", help="Usa splits/seed_42.")
+    parser.add_argument(
+        "--baseline",
+        action="store_true",
+        help="Usa PROJECT_DATA_ROOT/splits/seed_42_baseline.",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Usa PROJECT_DATA_ROOT/splits/seed_42.",
+    )
     parser.add_argument("--image-size", type=int, default=None, dest="image_size")
     parser.add_argument("--top-k", type=int, default=3, dest="top_k")
     parser.add_argument(

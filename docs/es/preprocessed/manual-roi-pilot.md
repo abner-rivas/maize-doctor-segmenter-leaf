@@ -6,6 +6,10 @@ se necesita medir la calidad y el costo de la regla de anotación, detectar caso
 validar el flujo antes de escalarlo. El diagnóstico posterior usa un checkpoint ya existente:
 no entrena un detector o clasificador y no modifica imágenes ni checkpoints.
 
+La interpretación posterior y el cambio hacia segmentación se conservan en
+[Historia del aislamiento de hojas](../leaf-detection/history.md) y en el
+[ADR del diagnóstico ROI](../decisions/adr-manual-roi-diagnostic-result.md).
+
 ## 1. Seleccionar el piloto
 
 El selector lee un CSV existente con `image_path,label,environment`; no modifica ni regenera
@@ -268,3 +272,16 @@ volver a ejecutarse para documentar sus resultados. Consulte
 [Diagnóstico de imagen completa frente a ROI manual](manual-roi-diagnostic.md)
 para ver metodología, tablas globales, análisis por modelo, limitaciones,
 hipótesis y próximos experimentos.
+
+## 7. Papel del piloto en el detector
+
+El piloto completo procede del test oficial y queda retenido como test del
+detector: 99 imágenes anotadas serán evaluables y `image_0021` seguirá
+documentada como `ambiguous`, fuera de las métricas principales. Ninguna de sus
+imágenes puede usarse para train o val.
+
+La regla original de este piloto —marcar sólo la hoja principal— no se reutiliza
+para los nuevos lotes de entrenamiento del detector. En esos lotes se deben
+anotar **todas las hojas de maíz visibles y suficientemente claras**, permitiendo
+varias cajas por fotografía. La preparación completa se describe en
+[Dataset inicial del detector YOLO26n](../leaf-detection/yolo26-detector-dataset.md).

@@ -1,8 +1,13 @@
 # Estado del requerimiento de detección y aislamiento de hoja
 
-Este documento consolida el avance técnico del requerimiento DoctorMaiz. La
-prueba ejecutada es un **diagnóstico de inferencia** con checkpoints históricos;
-no corresponde a entrenamiento nuevo ni a un baseline oficial.
+Este documento consolida el avance técnico del requerimiento DoctorMaiz. Las
+ejecuciones realizadas son un diagnóstico de inferencia con checkpoints
+históricos y una auditoría EDA de fuentes externas; ninguna corresponde a
+entrenamiento nuevo ni a un baseline oficial.
+
+La cronología completa está en
+[Historia del aislamiento de hojas](leaf-detection/history.md) y las decisiones
+formales en [`docs/es/decisions/`](decisions/adr-project-data-root-and-output-root.md).
 
 ## Estado de datos y organización
 
@@ -81,28 +86,143 @@ recibieron recorte, otra escala, letterbox, padding y menos contexto sólo duran
 inferencia, provocando un cambio de distribución. Por tanto, no se debe activar
 ROI en inferencia sobre estos modelos históricos.
 
+## Preparación del dataset del detector
+
+Se preparó una selección reproducible para un futuro detector Ultralytics
+YOLO26n:
+
+- 350 imágenes nuevas tomadas sólo de `train.csv`: 280 reales y 70 de
+  laboratorio;
+- 75 imágenes nuevas tomadas sólo de `val.csv`: 60 reales y 15 de laboratorio;
+- piloto reservado como test: 99 `annotated` y `image_0021` documentada como
+  `ambiguous`;
+- semilla 42;
+- cero cruces por ruta, nombre o SHA-256.
+
+Train y val continúan `pending`: todavía no existen anotaciones reales para
+esos lotes. Los paquetes CVAT no incluyen etiquetas inventadas. La nueva regla
+del detector exige anotar todas las hojas visibles y permite varias cajas por
+fotografía, a diferencia del piloto anterior, que marcaba sólo la hoja
+principal.
+
+Las 99 cajas del test conservan la regla histórica de hoja principal. Antes de
+una evaluación oficial del detector deberán revisarse con la nueva regla
+multihoja; de lo contrario, hojas correctamente detectadas pero no anotadas
+podrían contabilizarse como falsos positivos.
+
+Ultralytics no está instalado en el shell auditado. `ultralytics==8.4.104` se
+registró únicamente como candidata compatible con los rangos declarados del
+proyecto; no se instaló, no se descargó `yolo26n.pt` y no se ejecutó
+entrenamiento. Detalles y comando reproducible:
+[Dataset inicial del detector YOLO26n](leaf-detection/yolo26-detector-dataset.md).
+
+## Auditoría de fuentes externas de segmentación
+
+Se auditaron dos fuentes YOLO con sus respaldos COCO sin modificar los
+originales:
+
+- `corn_leaf_diseases_classification`: 1,003 imágenes, 14,415 líneas,
+  14,395 polígonos válidos y 20 inválidas;
+- `corn`: 157 imágenes, 204 polígonos válidos y un TXT vacío.
+
+La clase `leaf` representa la hoja completa en ambas fuentes. En la primera,
+`gray_leaf_spot` y `northern_leaf_blight` representan lesiones y deben
+excluirse. Once líneas inválidas son bbox YOLO mezclados en el export de
+segmentación; las otras nueve corresponden a ocho autointersecciones y un
+vértice repetido. COCO contiene equivalentes válidos para los 11 bbox. No se
+encontraron duplicados internos, entre fuentes ni contra las 100 imágenes del
+piloto.
+
+Ambas fuentes quedaron como `accepted_with_filtering`: reúnen 1,000 y 156
+imágenes candidatas con hoja válida, respectivamente. Al terminar el EDA aún
+requerían revisión visual, reglas de filtrado, remapeo trazable a
+`0 = maize_leaf` y una consolidación derivada separada; esa consolidación se
+completó en la fase siguiente. Detalles:
+[Auditoría de datasets externos de segmentación](leaf-detection/external-segmentation-datasets-eda.md).
+
+## Consolidación controlada del dataset segmentado
+
+La decisión del EDA se materializó y luego se reconstruyó desde las fuentes sin
+modificarlas:
+
+- 1 160 imágenes consideradas;
+- 1 155 imágenes definitivas;
+- 1 224 polígonos definitivos, todos con `0 = maize_leaf`;
+- 13 392 anotaciones de lesión excluidas;
+- la recuperación COCO extremadamente pequeña excluida y enviada a
+  reanotación;
+- cero duplicados exactos eliminados y cero cruces contra el piloto;
+- 1 094 grupos de variante original, 39 con múltiples variantes Roboflow;
+- 36 filas de revisión procesadas y 35 casos humanos únicos.
+
+El pool vive en `data/leaf_detection/detector_dataset/all/`. Sus 1 155 imágenes
+tienen correspondencia 1:1 con 1 155 TXT no vacíos; todas las coordenadas son
+finitas, están en `[0,1]` y forman polígonos simples de al menos tres vértices.
+La hoja autointersectada, la recuperación COCO de área extremadamente pequeña
+y una imagen adicional están fuera y registradas en
+`reannotation_queue.csv`.
+
+Los resultados, flujos y validaciones están en
+`outputs/leaf_detection/detector_dataset_consolidation/`. No se crearon splits,
+no se instaló Ultralytics, no se descargaron pesos y no se entrenó ningún
+segmentador.
+
+### Estado del gate manual
+
+Las 36 filas de revisión están completas. Tras agrupar el caso repetido son 35
+casos únicos: 16 `approved`, 16 `exclude` y 3 `needs_reannotation`, sin
+contradicciones.
+
+`data/leaf_detection/detector_dataset/manifests/dataset_lock.json` tiene
+`status=ready_for_split_generation`. La reconstrucción doble desde las fuentes
+produjo el mismo fingerprint
+`c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c`.
+No se generaron splits.
+
+### Corrección de previews de revisión
+
+El renderer anterior asignaba literalmente `polygons=[]` a cada fila del
+manifiesto general, por lo que mostraba la imagen con `instances=0` aunque el
+TXT original contuviera geometría. Se sustituyó por resolución por caso:
+YOLO original, COCO equivalente, recuperación registrada y consolidado como
+último respaldo.
+
+Se regeneraron 35 previews individuales. Treinta y tres usan YOLO original,
+una usa la anotación COCO recuperada y una corresponde al TXT realmente vacío,
+mostrado como `NO GEOMETRY AVAILABLE`. La recuperación de área
+`4.2767428e-7` tiene zoom y 26 píxeles de máscara rasterizada; la hoja
+autointersectada conserva su polígono rojo y el cruce visible. El reporte
+`review_preview_validation.json` quedó `ready_for_human_review`, sin errores de
+render ni geometrías conocidas con cero instancias.
+
+No se alteraron las decisiones humanas ni el pool provisional. Por ello el
+gate del dataset continúa bloqueado y no se habilitan splits ni entrenamiento.
+
 ## Fases
 
 | Fase | Nombre | Estado |
 |---:|---|---|
-| 1 | Auditoría de anotaciones | Completada |
+| 1 | Auditoría de anotaciones históricas | Completada |
 | 2 | Procesamiento ROI y letterbox | Completada |
 | 3 | Herramientas del piloto | Completada |
-| 3.5 | Auditoría del dataset | Completada |
+| 3.5 | Auditoría del dataset de clasificación | Completada |
 | 4 | Validación y preparación remota | Completada |
 | 5 | Creación del piloto real | Completada |
 | 6 | Anotación manual en CVAT | Completada |
 | 6.5 | Importación de cajas rotadas | Completada |
 | 7 | Manifiesto ROI y previews | Completada |
 | 8 | Diagnóstico full vs. ROI manual | Completada |
-| 8.5 | Ablación del preprocesamiento ROI | Pendiente |
-| 9 | Ampliación de anotaciones | Pendiente |
-| 10 | Entrenamiento del detector | Pendiente |
-| 11 | Generación de ROI para splits | Pendiente |
-| 12 | Entrenamiento baseline_roi | Pendiente |
-| 13 | Integración con CornDataset | Pendiente |
-| 14 | Integración con predict.py | Pendiente |
-| 15 | LIME, Grad-CAM y evaluación final | Pendiente |
+| 8.5 | Búsqueda de fuentes de segmentación | Completada |
+| 9 | EDA de datasets externos de segmentación | Completada |
+| 9.5 | Consolidación y limpieza del dataset segmentado | Completada |
+| 10 | División train/val/test del segmentador | Pendiente |
+| 11 | Entrenamiento del segmentador | Pendiente |
+| 12 | Evaluación contra piloto retenido | Pendiente |
+| 13 | Generación de máscaras para splits | Pendiente |
+| 14 | Entrenamiento baseline_segmented | Pendiente |
+| 15 | Comparación contra baseline_full | Pendiente |
+| 16 | Integración en CornDataset y predict.py | Pendiente |
+| 17 | LIME, Grad-CAM y evaluación final | Pendiente |
 
 ## Hipótesis y próximos pasos
 
@@ -111,11 +231,28 @@ contexto, margen insuficiente, padding negro no visto, cambio de escala de
 síntomas, sensibilidad por arquitectura, necesidad de reentrenar con ROI y
 necesidad de conservar más extensión de hoja para deficiencias nutricionales.
 
-Primero debe realizarse la ablación de imagen completa/ROI, resize/letterbox y
-padding negro/neutro. Después, ampliar a 300–500 anotaciones, entrenar el
-detector, generar y validar ROI de train/val/test, congelar sus manifiestos,
-entrenar `baseline_roi` con el mismo pipeline y compararlo con `baseline_full`.
-No se propone anotar manualmente las 10 020 imágenes.
+El paso inmediato es completar las 34 revisiones manuales, resolver los dos
+casos visuales obligatorios y aprobar los previews. Después se crearán splits
+propios del segmentador agrupando por
+fuente, hash, original previo a Roboflow y `roboflow_variant_group`. La
+arquitectura, licencia, versión, GPU y exportabilidad se confirmarán antes de
+entrenar.
+
+El segmentador se evaluará contra el piloto mediante precision, recall, mAP,
+IoU, Dice, fallbacks y errores de selección. Sólo entonces se generarán
+`baseline_bbox_roi` y `baseline_masked_roi`, y cada clasificador se entrenará
+con la representación que recibirá en producción. La comparación final incluirá
+`baseline_full`, métricas por clase, LIME, Grad-CAM, tamaño y latencia. No se
+propone anotar manualmente las 10 020 imágenes ni usar el piloto para
+entrenamiento.
+
+## Auditoría del repositorio
+
+La segunda revisión inventarió datos, outputs, recursos públicos, documentación,
+notebooks, scripts, código y configuración. No movió ni eliminó evidencia.
+Identificó una copia exacta de `dataset_audit_final`, una ruta de preflight
+deprecada, copias intencionales del piloto y bytecode descartable. Los reportes
+están en `outputs/repository_audit/`.
 
 ## Configuración activa
 
