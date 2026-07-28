@@ -131,9 +131,22 @@ humana, pero no cambia el gate: las decisiones siguen pendientes y
 - splits propios sin fuga;
 - aprobación de la muestra manual estratificada.
 
-Todavía no existen splits propios del segmentador. La siguiente decisión debe
-agrupar por `roboflow_variant_group`, hash y fuente antes de separar
-train/val/test.
+## Decisión posterior: splits propios
+
+El 2026-07-28 se ejecutó la fase prevista sobre el padre definitivo
+`c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c`.
+Se unieron relaciones por fuente, nombre original, `roboflow_variant_group`,
+SHA-256 y hash perceptual con distancia Hamming menor o igual a 4. Los 1 035
+componentes resultantes se asignaron de forma determinista con semilla 42 y
+balance de imágenes, máscaras, fuente, área, orientación, resolución, bordes y
+múltiples instancias.
+
+El resultado es train/val/test con 809/173/173 imágenes y 858/183/183 máscaras.
+La distribución de fuentes es 109/23/23 para `corn` y 700/150/150 para
+`corn_leaf_diseases_classification`. No hay grupos, duplicados, variantes
+Roboflow ni vecinos perceptuales cruzados; tampoco cruces con el piloto. El
+estado final es `ready_for_training_preflight`. Esta decisión no entrenó un
+segmentador ni alteró las fuentes.
 
 ## Evidencia
 
@@ -142,4 +155,6 @@ train/val/test.
 - `data/leaf_detection/detector_dataset/manifests/consolidation_manifest.csv`;
 - `outputs/leaf_detection/detector_dataset_consolidation/`;
 - `outputs/leaf_detection/detector_dataset_consolidation/review_preview_validation.json`;
+- `outputs/leaf_detection/detector_dataset_splits/`;
+- `docs/es/leaf-detection/segmentation-dataset-splits.md`;
 - `docs/es/leaf-detection/external-segmentation-datasets-eda.md`.

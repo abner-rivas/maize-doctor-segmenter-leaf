@@ -1,0 +1,13 @@
+model: yolo26n-seg.pt
+data: data/leaf_detection/detector_dataset/dataset.yaml
+task: segment
+imgsz: 640
+epochs: 1
+batch: 2
+workers: 2
+device: 0
+seed: 42
+deterministic: true
+cache: false
+project: outputs/leaf_detection/segmenter
+name: yolo26n_seg_smoke

@@ -1,47 +1,180 @@
-"""Dry-run-only tests for Makefile interpreter flexibility and training guards."""
+"""Safety and orchestration tests for the project Makefile."""
 
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 from unittest import TestCase
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MAKEFILE = PROJECT_ROOT / "Makefile"
+
+SEGMENTATION_TARGETS = {
+    "help",
+    "leaf-segmentation-status",
+    "leaf-segmentation-verify-locks",
+    "leaf-segmentation-verify-splits",
+    "leaf-segmentation-preflight",
+    "leaf-segmentation-cloud-package",
+    "leaf-segmentation-cloud-package-verify",
+    "leaf-segmentation-cloud-package-list",
+    "leaf-segmentation-cloud-clean-temp",
+    "leaf-segmentation-cloud-bootstrap",
+    "leaf-segmentation-cloud-preflight",
+    "leaf-segmentation-cloud-smoke",
+    "leaf-segmentation-cloud-train",
+    "leaf-segmentation-cloud-resume",
+    "leaf-segmentation-cloud-validate",
+    "leaf-segmentation-cloud-test",
+    "leaf-segmentation-cloud-results",
+    "leaf-segmentation-cloud-checksums",
+    "leaf-segmentation-pilot-evaluate",
+    "leaf-segmentation-cloud-prepare",
+    "leaf-segmentation-cloud-check",
+}
 
 
 class MakefileSafetyTests(TestCase):
-    def _dry_run(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+    def _make(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            ["make", "-n", *arguments],
+            ["make", *arguments],
             cwd=PROJECT_ROOT,
             text=True,
             capture_output=True,
             check=False,
         )
 
-    def test_python_can_be_overridden(self) -> None:
-        result = self._dry_run("PYTHON=/opt/remote/bin/python", "splits-baseline")
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("/opt/remote/bin/python scripts/pipeline/create_splits.py", result.stdout)
+    def _dry_run(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return self._make("-n", *arguments)
 
-    def test_default_uses_python_from_active_environment(self) -> None:
-        result = self._dry_run("splits-baseline")
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("python scripts/pipeline/create_splits.py", result.stdout)
+    def test_help_works_and_classifies_targets(self) -> None:
+        result = self._make("help")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for heading in (
+            "LOCAL / SEGURO:",
+            "CLOUD / SIN ENTRENAR:",
+            "ENTRENAMIENTO / CONFIRMACIÓN OBLIGATORIA:",
+        ):
+            self.assertIn(heading, result.stdout)
 
-    def test_training_is_blocked_without_confirmation(self) -> None:
+    def test_status_is_read_only(self) -> None:
+        watched = [
+            PROJECT_ROOT
+            / "data/leaf_detection/detector_dataset/manifests/dataset_lock.json",
+            PROJECT_ROOT
+            / "data/leaf_detection/detector_dataset/manifests/split_lock.json",
+        ]
+        before = [(path.stat().st_mtime_ns, path.read_bytes()) for path in watched]
+        result = self._make(
+            "leaf-segmentation-status",
+            f"PYTHON={sys.executable}",
+        )
+        after = [(path.stat().st_mtime_ns, path.read_bytes()) for path in watched]
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(before, after)
+        self.assertIn('"train": 809', result.stdout)
+        self.assertIn('"val": 173', result.stdout)
+        self.assertIn('"test": 173', result.stdout)
+
+    def test_python_and_segmentation_variables_are_propagated(self) -> None:
+        result = self._dry_run(
+            "leaf-segmentation-cloud-preflight",
+            "PYTHON=/opt/remote/bin/python",
+            "SEGMENTATION_DEVICE=7",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('PYTHON="/opt/remote/bin/python"', result.stdout)
+        self.assertIn('SEGMENTATION_DEVICE="7"', result.stdout)
+
+        status = self._dry_run(
+            "leaf-segmentation-status",
+            "PYTHON=/opt/remote/bin/python",
+        )
+        self.assertEqual(status.returncode, 0, status.stderr)
+        self.assertIn(
+            "/opt/remote/bin/python scripts/package/leaf_segmentation_make.py",
+            status.stdout,
+        )
+
+    def test_general_training_keeps_its_existing_guards(self) -> None:
         for target in ("train", "train-baselines"):
             result = self._dry_run(target)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("CONFIRM_TRAINING=1", result.stderr)
 
-    def test_training_can_only_be_rendered_with_confirmation(self) -> None:
-        result = self._dry_run("train-baselines", "CONFIRM_TRAINING=1")
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("scripts/pipeline/train_baselines.py", result.stdout)
-
-    def test_validation_targets_are_not_blocked(self) -> None:
-        for target in ("smoke-loader", "audit-dataset", "validate-splits", "training-preflight"):
+    def test_protected_segmentation_targets_fail_before_rendering_scripts(self) -> None:
+        cases = {
+            "leaf-segmentation-cloud-smoke": (
+                "CONFIRM_SEGMENTATION_SMOKE_TRAINING=1",
+                "smoke_train.sh",
+            ),
+            "leaf-segmentation-cloud-train": (
+                "CONFIRM_SEGMENTATION_TRAINING=1",
+                "train.sh",
+            ),
+            "leaf-segmentation-cloud-resume": (
+                "CONFIRM_SEGMENTATION_TRAINING=1",
+                "resume_train.sh",
+            ),
+            "leaf-segmentation-pilot-evaluate": (
+                "CONFIRM_PILOT_EVALUATION=1",
+                "leaf_segmentation_pilot_evaluate.py",
+            ),
+        }
+        for target, (confirmation, script) in cases.items():
             result = self._dry_run(target)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertNotIn("CONFIRM_TRAINING", result.stderr)
+            self.assertNotEqual(result.returncode, 0, target)
+            self.assertIn(confirmation, result.stderr)
+            self.assertNotIn(script, result.stdout)
+
+    def test_confirmations_must_equal_exactly_one(self) -> None:
+        cases = (
+            (
+                "CONFIRM_SEGMENTATION_SMOKE_TRAINING",
+                "leaf-segmentation-cloud-smoke",
+            ),
+            ("CONFIRM_SEGMENTATION_TRAINING", "leaf-segmentation-cloud-train"),
+            ("CONFIRM_PILOT_EVALUATION", "leaf-segmentation-pilot-evaluate"),
+        )
+        for variable, target in cases:
+            for invalid in ("true", "1 2"):
+                result = self._dry_run(target, f"{variable}={invalid}")
+                self.assertNotEqual(result.returncode, 0)
+
+    def test_safe_prepare_has_no_accidental_cloud_or_training_dependencies(self) -> None:
+        result = self._dry_run("leaf-segmentation-cloud-prepare")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for forbidden in (
+            "bootstrap_cloud.sh",
+            "preflight_cloud.sh",
+            "smoke_train.sh",
+            "train.sh",
+            "resume_train.sh",
+            "leaf_segmentation_pilot_evaluate.py",
+        ):
+            self.assertNotIn(forbidden, result.stdout)
+        self.assertIn("build_leaf_segmentation_cloud_package.py", result.stdout)
+        self.assertIn("package-verify", result.stdout)
+
+    def test_package_recipe_has_no_gpu_install_download_or_training_action(self) -> None:
+        result = self._dry_run("leaf-segmentation-cloud-package")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for forbidden in ("nvidia-smi", "pip install", "YOLO(", " train "):
+            self.assertNotIn(forbidden, result.stdout)
+
+    def test_clean_outputs_requires_explicit_confirmation(self) -> None:
+        result = self._dry_run("clean-outputs")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("CONFIRM_CLEAN_OUTPUTS=1", result.stderr)
+        self.assertNotIn("rm -rf outputs/", result.stdout)
+        confirmed = self._dry_run("clean-outputs", "CONFIRM_CLEAN_OUTPUTS=1")
+        self.assertEqual(confirmed.returncode, 0, confirmed.stderr)
+        self.assertIn("rm -rf outputs/", confirmed.stdout)
+
+    def test_all_orchestration_targets_are_phony_and_paths_are_portable(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        phony_block = source.split(".PHONY:", maxsplit=1)[1].split("\n\n", maxsplit=1)[0]
+        for target in SEGMENTATION_TARGETS:
+            self.assertIn(target, phony_block)
+        self.assertNotIn("/home/", source)

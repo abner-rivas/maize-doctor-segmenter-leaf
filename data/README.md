@@ -23,10 +23,12 @@ data/
         ├── annotation_batches/ # 350 train + 75 val pendientes de CVAT
         ├── test/               # piloto retenido: 99 válidas + 1 ambigua
         ├── all/                # pool definitivo: 1 155 imágenes + TXT
-        ├── manifests/          # selección, consolidación, resumen y fugas
+        ├── images/{train,val,test}/ # 809/173/173 imágenes derivadas
+        ├── labels/{train,val,test}/ # TXT correspondientes
+        ├── manifests/          # consolidación, splits, locks y fugas
         ├── previews/           # revisión visual previa a crear splits
         ├── cvat/               # paquetes train/val sin etiquetas ficticias
-        ├── dataset.yaml        # describe sólo el pool all/, sin splits
+        ├── dataset.yaml        # configuración portable de los tres splits
         └── dataset.yaml.template
 ```
 
@@ -75,7 +77,7 @@ clase `0 = maize_leaf`. Se aplicaron 35 decisiones humanas únicas: 16
 `approved`, 16 `exclude` y 3 `needs_reannotation`. Los tres últimos casos
 permanecen fuera del pool y están documentados en `reannotation_queue.csv`.
 Ninguna aprobación anuló las validaciones semánticas, sintácticas o
-topológicas. No se crearon splits.
+topológicas.
 
 La trazabilidad completa está en
 `detector_dataset/manifests/consolidation_manifest.csv`; los resultados de
@@ -89,6 +91,14 @@ duplicados, fugas con el piloto ni errores geométricos. El fingerprint
 definitivo es
 `c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c`.
 
+Sobre ese padre congelado se generaron 1 035 grupos con semilla 42. La
+materialización final contiene 809/173/173 imágenes y 858/183/183 máscaras en
+train/val/test. La fuente minoritaria `corn` quedó 109/23/23 y la fuente
+grande 700/150/150. No hay fugas exactas, grupales, Roboflow, perceptuales
+(Hamming menor o igual a 4) ni contra el piloto. El
+`detector_dataset/manifests/split_lock.json` quedó
+`ready_for_training_preflight`.
+
 ## Ciclo de vida de artefactos
 
 Rutas activas:
@@ -97,7 +107,7 @@ Rutas activas:
 - `data/leaf_detection/pilot/`: piloto retenido y fuente CVAT;
 - `data/leaf_detection/external_sources/`: fuentes externas inmutables;
 - `data/leaf_detection/detector_dataset/`: lotes de anotación, test retenido y
-  pool definitivo de segmentación listo para generar splits.
+  pool definitivo con splits de segmentación reproducibles.
 
 Existen tres copias exactas de las 100 imágenes del piloto: la fuente activa,
 el paquete desempaquetado y `detector_dataset/test/images/`. La última es una

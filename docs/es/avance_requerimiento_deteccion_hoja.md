@@ -162,10 +162,9 @@ La hoja autointersectada, la recuperación COCO de área extremadamente pequeña
 y una imagen adicional están fuera y registradas en
 `reannotation_queue.csv`.
 
-Los resultados, flujos y validaciones están en
-`outputs/leaf_detection/detector_dataset_consolidation/`. No se crearon splits,
-no se instaló Ultralytics, no se descargaron pesos y no se entrenó ningún
-segmentador.
+Los resultados, flujos y validaciones del padre están en
+`outputs/leaf_detection/detector_dataset_consolidation/`. La fase no instaló
+Ultralytics, no descargó pesos y no entrenó ningún segmentador.
 
 ### Estado del gate manual
 
@@ -177,7 +176,76 @@ contradicciones.
 `status=ready_for_split_generation`. La reconstrucción doble desde las fuentes
 produjo el mismo fingerprint
 `c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c`.
-No se generaron splits.
+
+### Splits del segmentador
+
+El padre bloqueado se dividió por 1 035 grupos indivisibles, no mediante random
+split de archivos. Las señales de unión fueron procedencia, original previo a
+Roboflow, variante, SHA-256 y hash perceptual con Hamming menor o igual a 4.
+La asignación determinista con semilla 42 produjo:
+
+| Split | Imágenes | Proporción | Máscaras | `corn` | Fuente grande |
+|---|---:|---:|---:|---:|---:|
+| train | 809 | 70.0433 % | 858 | 109 | 700 |
+| val | 173 | 14.9784 % | 183 | 23 | 150 |
+| test | 173 | 14.9784 % | 183 | 23 | 150 |
+
+No se detectaron duplicados exactos, grupos, variantes Roboflow ni vecinos
+perceptuales compartidos entre splits, y tampoco fugas con el piloto. Dos
+reconstrucciones temporales produjeron asignaciones, manifiestos y
+fingerprints idénticos. `split_lock.json` quedó
+`ready_for_training_preflight`; el piloto sigue siendo evaluación externa y el
+test nuevo es la evaluación interna del dataset externo.
+
+La evidencia tabular, nueve gráficos y seis conjuntos de previews
+reproducibles están en
+`outputs/leaf_detection/detector_dataset_splits/`. Todavía no se entrenó el
+segmentador.
+
+### Preflight de entrenamiento del segmentador
+
+El preflight verificó otra vez `dataset_lock`, `split_lock`, el fingerprint
+padre y los fingerprints de train, val y test. También recorrió todos los TXT:
+1 224 polígonos de clase 0, cero bbox mezclados, cero archivos vacíos y cero
+errores.
+
+El entorno encontrado es Linux x86_64, Python 3.12.3 dentro de `.venv`,
+PyTorch 2.12.1+cu130, torchvision 0.27.1 y cuDNN 92000. Aunque PyTorch fue
+compilado con CUDA 13.0, `torch.cuda.is_available()` es falso y `nvidia-smi`
+no logra comunicarse con el driver; no se pueden medir GPU ni VRAM.
+Ultralytics no está instalado y `yolo26n-seg.pt`/`yolo26n-seg.yaml` no están
+disponibles localmente. Por ello no se afirmó compatibilidad, no se construyó
+el modelo y no hubo forward.
+
+El smoke loader sí cargó 4 imágenes de train, 2 de val y 2 de test, rasterizó
+las máscaras y creó tensores finitos `[8, 3, 640, 640]` y
+`[8, 1, 640, 640]`. El estado final es
+`blocked_by_missing_dependency`, con pesos ausentes y falta de GPU local como
+bloqueos adicionales.
+
+La configuración remota propuesta usa `imgsz=640`, semilla 42,
+`deterministic=True` y `batch=-1` para que AutoBatch lo determine según la
+VRAM remota. El objetivo `leaf-segmentation-cloud-train` exige
+`CONFIRM_SEGMENTATION_TRAINING=1`. No se instaló, descargó ni entrenó nada.
+
+### Paquete de entrenamiento cloud
+
+Se preparó `cloud_training/` para que la máquina remota sólo deba activar un
+entorno GPU, ejecutar bootstrap, aprobar el preflight, autorizar el smoke y
+después autorizar el entrenamiento completo. El bootstrap fija
+`ultralytics==8.4.104`, genera constraints desde torch/torchvision remotos y se
+bloquea si la simulación de pip pretende sustituirlos.
+
+El paquete usa una lista blanca: incluye los splits, `dataset.yaml`, los cinco
+manifiestos requeridos, código y documentación mínima. Excluye `all/`,
+`external_sources/`, el piloto, paquetes ZIP, outputs históricos, checkpoints,
+notebooks, cachés y entornos virtuales. El piloto tiene un manifiesto separado
+para una transferencia futura como evaluación externa.
+
+Smoke y entrenamiento usan guards diferentes. La reanudación exige
+confirmación y un `last.pt` existente; val y test interno se ejecutan por
+separado y nunca incluyen el piloto. Consulte
+`docs/es/leaf-detection/segmentation-cloud-training.md`.
 
 ### Corrección de previews de revisión
 
@@ -195,8 +263,10 @@ autointersectada conserva su polígono rojo y el cruce visible. El reporte
 `review_preview_validation.json` quedó `ready_for_human_review`, sin errores de
 render ni geometrías conocidas con cero instancias.
 
-No se alteraron las decisiones humanas ni el pool provisional. Por ello el
-gate del dataset continúa bloqueado y no se habilitan splits ni entrenamiento.
+No se alteraron las decisiones humanas ni el pool provisional. En ese momento
+el gate del dataset seguía bloqueado; se desbloqueó después, al completarse las
+35 decisiones humanas, y hoy `dataset_lock.status=ready_for_split_generation`
+con los splits ya generados.
 
 ## Fases
 
@@ -215,7 +285,8 @@ gate del dataset continúa bloqueado y no se habilitan splits ni entrenamiento.
 | 8.5 | Búsqueda de fuentes de segmentación | Completada |
 | 9 | EDA de datasets externos de segmentación | Completada |
 | 9.5 | Consolidación y limpieza del dataset segmentado | Completada |
-| 10 | División train/val/test del segmentador | Pendiente |
+| 10 | División train/val/test del segmentador | Completada |
+| 10.5 | Preflight local y paquete de entrenamiento cloud | Completada |
 | 11 | Entrenamiento del segmentador | Pendiente |
 | 12 | Evaluación contra piloto retenido | Pendiente |
 | 13 | Generación de máscaras para splits | Pendiente |
@@ -231,12 +302,12 @@ contexto, margen insuficiente, padding negro no visto, cambio de escala de
 síntomas, sensibilidad por arquitectura, necesidad de reentrenar con ROI y
 necesidad de conservar más extensión de hoja para deficiencias nutricionales.
 
-El paso inmediato es completar las 34 revisiones manuales, resolver los dos
-casos visuales obligatorios y aprobar los previews. Después se crearán splits
-propios del segmentador agrupando por
-fuente, hash, original previo a Roboflow y `roboflow_variant_group`. La
-arquitectura, licencia, versión, GPU y exportabilidad se confirmarán antes de
-entrenar.
+Las revisiones manuales, los splits agrupados y el paquete cloud ya están
+completos. El paso inmediato es ejecutar en la máquina remota el bootstrap, el
+preflight GPU/modelo y el smoke de una época; sólo con esa evidencia se
+autorizará el entrenamiento completo. La compatibilidad de `yolo26n-seg` con
+`ultralytics==8.4.104`, la licencia y la exportabilidad se confirmarán en ese
+preflight remoto antes de entrenar.
 
 El segmentador se evaluará contra el piloto mediante precision, recall, mAP,
 IoU, Dice, fallbacks y errores de selección. Sólo entonces se generarán

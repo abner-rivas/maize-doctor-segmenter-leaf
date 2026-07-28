@@ -1,0 +1,1064 @@
+{
+  "file_count": 211,
+  "files": [
+    {
+      "path": "data/leaf_detection/pilot/README.md",
+      "sha256": "3adbb379cc3ff43deeb89c7d8cb6188c40cf6c27b98afde093bd820992cc301b",
+      "size_bytes": 691
+    },
+    {
+      "path": "data/leaf_detection/pilot/annotation_guide.md",
+      "sha256": "dc17b7b54abcd3e791abc180dd3c3645ff6392b91011656ea6ab8c6f23677023",
+      "size_bytes": 1307
+    },
+    {
+      "path": "data/leaf_detection/pilot/annotations.xml",
+      "sha256": "29b8f11be19987e0239843aaa3ea03559de0fa0255f5be5d6be3b1898ab6065f",
+      "size_bytes": 23666
+    },
+    {
+      "path": "data/leaf_detection/pilot/annotations/cvat/annotations.xml",
+      "sha256": "29b8f11be19987e0239843aaa3ea03559de0fa0255f5be5d6be3b1898ab6065f",
+      "size_bytes": 23666
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0001.jpg",
+      "sha256": "d47b5613ed65cb11aa423c3ef96a961878799f88e4d1349aabfefd409a68ffb6",
+      "size_bytes": 4796307
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0002.jpg",
+      "sha256": "d58f668b80f514c21cde17eeeb226063eb321c051a74b416ea4585a0ef2f923d",
+      "size_bytes": 3321
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0003.jpg",
+      "sha256": "3b885878a9d884c1721fc261dfa84b8d55cd8f39c272eb7b14fda9be80ba9273",
+      "size_bytes": 5316156
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0004.jpg",
+      "sha256": "83f2e558908251da89e3f1fb43de54405d063efe2916f76ca4706a2287372fa0",
+      "size_bytes": 738455
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0005.jpg",
+      "sha256": "fffcb33957130d0c8ddab1b0a10eae5dee797cc6c94155be64a0182e86095b7c",
+      "size_bytes": 212785
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0006.jpg",
+      "sha256": "3f04676744358c72f596e373edd0881ba8cef5a035cab8b91a62e6c7d30c908d",
+      "size_bytes": 76618
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0007.jpg",
+      "sha256": "48526467b2abcdb0022e60045a69251afedb9329b99695b8e2d5933ca575c2d4",
+      "size_bytes": 680295
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0008.jpg",
+      "sha256": "82f162781cfa0e2639927d3da2bc6f8f025a23e755bba7d4769ef2065ce0cb7f",
+      "size_bytes": 68151
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0009.jpg",
+      "sha256": "4e2d577699ce4105162945262c55aac08500d6651f182e960aa0c76205024456",
+      "size_bytes": 59137
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0010.jpg",
+      "sha256": "77589dfa4570a2a64d78ec7a3e836137a3deb5676b86d7e1b9713cc02d2b665b",
+      "size_bytes": 5397905
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0011.jpg",
+      "sha256": "2529a6ca1caa8dc856175e8befa08cc47a31a92570adc5f26b47e9394527d5a0",
+      "size_bytes": 397625
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0012.jpg",
+      "sha256": "aea5a73d24ce945dfa4fb6baade0da79379348f55e7449805ef385aeb93344e3",
+      "size_bytes": 1610757
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0013.jpg",
+      "sha256": "6045f4bd13993a0d018e678d1c2a8ed40235a3d09a28504fd975bc4da9390b9e",
+      "size_bytes": 839533
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0014.jpg",
+      "sha256": "84409bcdb35a030a8a0e119022f48c38243bdbc9915d69d5873dd57b24e1e368",
+      "size_bytes": 238893
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0015.jpg",
+      "sha256": "0aa7aed16c0c8f06c5ef1af52eaa93d955e9ee2ca14cf3499a29342693258dbb",
+      "size_bytes": 58229
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0016.jpg",
+      "sha256": "9a4e8f6d853c80d4626435edc3ccdd087c5ac28e0edff98890a62767024f172b",
+      "size_bytes": 669412
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0017.jpg",
+      "sha256": "3be8a6728d16f6470f26da9d13c2bceb0c58b6463e93af57ffdbdf9143e0be11",
+      "size_bytes": 69879
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0018.jpg",
+      "sha256": "a2b3e7e901797fb3bc44fb64635f8805eb4e17616e71c0d4daee1ed168a137ca",
+      "size_bytes": 66679
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0019.jpg",
+      "sha256": "7f2c0b0904ca90d14f1bc431db5cab750dc275a856e08d708eba0df638ba10f7",
+      "size_bytes": 5261262
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0020.jpg",
+      "sha256": "ed02b1b643304666772cee3b28347122662c67de70821f09c050b7c99108bb8f",
+      "size_bytes": 49983
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0021.jpg",
+      "sha256": "e3d162f33c2d0a76a5dc7765fba424bfa439a2264e507c69426c89ab8dceb5aa",
+      "size_bytes": 7038595
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0022.jpg",
+      "sha256": "3c802f9b1f92447dd72a928b61ca8796a50d63c3c2050285de77d228e44ad311",
+      "size_bytes": 4804128
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0023.jpeg",
+      "sha256": "d9d89d0b452287b0be3d66c3a18bde4bee9c67dd3d1fafa0e3c31dae138ab8a6",
+      "size_bytes": 659803
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0024.jpg",
+      "sha256": "ed4360a8efb144c6636ab78d2eee6d29c66373e78c41ec05f12c1486977c73c1",
+      "size_bytes": 67621
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0025.jpg",
+      "sha256": "77f47071048bd57d18cd53250bd2ac34d5a4496da550027124a812e08f12a6b3",
+      "size_bytes": 365534
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0026.jpeg",
+      "sha256": "2677e887b093e6e3a291bdd89e4590be574d8910df89b008b0b88e5680d1d0ea",
+      "size_bytes": 64354
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0027.jpg",
+      "sha256": "b5768cd21d6ff1cc557d2b3fee51d1eff10d548e41218f6a30d4c65e8d03acdf",
+      "size_bytes": 67087
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0028.jpg",
+      "sha256": "8946d4d0cf8f3f911439b3207bf0afa8989c5ca20df3539c2d4fef765b8d33e3",
+      "size_bytes": 4453291
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0029.jpg",
+      "sha256": "4a40eb8f1ef2fd56f5d4318205bc39f95186aeba53307613f6ee894ad6197472",
+      "size_bytes": 61157
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0030.jpg",
+      "sha256": "9b4a19c90bc8727c775e29974f96aeeceff7a480a069f462f1759c9ffdacf6a1",
+      "size_bytes": 7053440
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0031.jpg",
+      "sha256": "588bd302b93ae6da69524cb7839ba318d07188ea3498e88f9103acaee98b9814",
+      "size_bytes": 724283
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0032.jpg",
+      "sha256": "1277b791424705eb08732f91f821dcd41c7831ca8ffc7d184d16e6b31b5ee611",
+      "size_bytes": 262153
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0033.jpg",
+      "sha256": "d1863e2b5c2b7fcdb48cfab18d2fdc8ad739562487847ed05c111a940d132220",
+      "size_bytes": 69618
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0034.jpg",
+      "sha256": "09be5d9fe270df9c8d4284ae0ef5cd22d4594e1c11c77b61f319539a47b8b25d",
+      "size_bytes": 4985756
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0035.jpg",
+      "sha256": "3d318609c7b22c8ef30b62baa0383a0cbe36e3ae20cb9e5686fa1af391e74bfc",
+      "size_bytes": 64714
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0036.jpg",
+      "sha256": "d851fdb8b55bb595ba204c810f2c02dd23d409d9e3c4d492b42f80f023e8f16f",
+      "size_bytes": 90548
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0037.jpg",
+      "sha256": "2266441a0ce026cd9e32918d1581c960c174463001da2522d9c485965968fc15",
+      "size_bytes": 5952922
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0038.jpg",
+      "sha256": "4d7f12ceeba9bf5ac05b12e7df20635c2c51fb6affa63efe22a56eb7309c30d1",
+      "size_bytes": 135505
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0039.jpg",
+      "sha256": "fb7b4d355403244a74f3fd3b4f51729783a3a6f10f60d9772b85f645d346c2fb",
+      "size_bytes": 1573094
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0040.jpg",
+      "sha256": "a2f32fd8aa9fc5dc932cdb91408201e0cef3a58b3b9cec715ad36bba1d1cfba0",
+      "size_bytes": 6104
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0041.jpeg",
+      "sha256": "86edd5fa0b7cdc88b9239cf1ee03457a6d2cb370fd182693e5f6947b5608ede9",
+      "size_bytes": 657095
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0042.jpg",
+      "sha256": "d4df8529fb3c60749c5b32d27ad9826a99a02ddf496940aa77c05ad51d1346fa",
+      "size_bytes": 46336
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0043.jpg",
+      "sha256": "f92324f23e9f1bc2433f7f07107409ad99300509812e49b7563f8734db04f84d",
+      "size_bytes": 625465
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0044.jpg",
+      "sha256": "11787a50caf8214f32f324d3a3db2bb67d37358962325ad5bc3410052b013f35",
+      "size_bytes": 69120
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0045.jpg",
+      "sha256": "120d0cf03923ba2bfb18a506dbd32f8c670c155517aebf9d350ffd909f1f9787",
+      "size_bytes": 81633
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0046.jpg",
+      "sha256": "9e67dd739442320e442c4c2c6d8df266ff4bb2fa971bc3af3fdd15d436c5ab75",
+      "size_bytes": 5723222
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0047.jpg",
+      "sha256": "a489b418b48b0f4e6b6033949b40c99d9a99e02eb06cd528cc1cdab007b47e15",
+      "size_bytes": 344224
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0048.jpg",
+      "sha256": "df6adeb4fa286558241de97c40741971a66202542b01e5d43855004bc350d458",
+      "size_bytes": 3362074
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0049.jpg",
+      "sha256": "fcb69ee5502f88125faf64ff222a9fced7bd147b7a9f17f64d5d325fda000cc0",
+      "size_bytes": 788361
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0050.jpg",
+      "sha256": "4ef5b29b3f557452e4d81a1db57d8b63041a1f838249f634e51d5ac55c960442",
+      "size_bytes": 261396
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0051.jpg",
+      "sha256": "300dbe85ea848154e56088a9c9753c286e0e4a7ef7ea2788eed6128a4d4e20dc",
+      "size_bytes": 75203
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0052.jpg",
+      "sha256": "8a749286623f4749d0dee3295b9b0835e1cf16d09ad9fdff937da7d64d7bbfbf",
+      "size_bytes": 674231
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0053.jpg",
+      "sha256": "d9de3277dd4aab6384324e65f04f1c4700ce05c39a02d8bf3b3778f62154d84b",
+      "size_bytes": 69762
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0054.jpg",
+      "sha256": "cf97bd1468bc0cbc8ff1ddc2507940450d8baa2299c3d8241407054f0b8a3212",
+      "size_bytes": 72568
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0055.jpg",
+      "sha256": "c3ab3d4e5e8a111a6eca3e408e861b16c950fe8184beb52dd4c0b0b372b357af",
+      "size_bytes": 5609473
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0056.jpg",
+      "sha256": "dca12aaef8c5f65d335410c53120a56d9d6a96e16f6689647e74b573cf460b9b",
+      "size_bytes": 10391807
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0057.jpg",
+      "sha256": "2a334bae50273fecd0d9abb53991f572811fdbfcce733adc0235a37bdcb9ef78",
+      "size_bytes": 3667935
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0058.jpg",
+      "sha256": "553fea355e4cf78cb993ae647c0d15169e655e98b21490572e5fe6332fb51565",
+      "size_bytes": 7490
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0059.jpeg",
+      "sha256": "7b533b5b2cce71ec0a0737b5ee788c763a40ea6846d890aac7608daee4772803",
+      "size_bytes": 545741
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0060.jpg",
+      "sha256": "6f97f32730b6c04da20e298ea7d384a040db839edf02e0dca1474165c2ee8f7b",
+      "size_bytes": 55565
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0061.jpg",
+      "sha256": "bad7fa6090bfec0b07774c44242ddbec4b856841d493daee30d57d1f511c45ed",
+      "size_bytes": 825658
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0062.jpg",
+      "sha256": "90095e279b70e405ab7625e420d3dae35cfe2a553425c8b9566e4cd645ffb0bd",
+      "size_bytes": 67361
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0063.jpeg",
+      "sha256": "9a89b77d1c3ac6bc07ce44f164c14423e4fa8de07ac5b59d9509ad46a4aec987",
+      "size_bytes": 12398
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0064.jpg",
+      "sha256": "a27b38f52e0978321f587cdfd367bc77799e82810f19d92e695f34df5ef79692",
+      "size_bytes": 4910618
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0065.jpg",
+      "sha256": "7ba47a65984ed0d6de4ccb9cd8c2e7537fe437af7f1dfdea9d752a9a4230548f",
+      "size_bytes": 18504
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0066.jpg",
+      "sha256": "8920ce5264f25b6fda8cb5784322338461d78320d16bbb809496c1f5200edb0b",
+      "size_bytes": 1318051
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0067.jpg",
+      "sha256": "6bdf3c9f205473170f793eb7e409d34bb07b660a661ea75478a9919a09483a94",
+      "size_bytes": 10422
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0068.jpeg",
+      "sha256": "e78f964746418672434cf5982fc4b0063598bf88bb1bdc7b925a6e2c99ae70c2",
+      "size_bytes": 947210
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0069.jpg",
+      "sha256": "bfd52828c8bc86210c1f9dba6c57ac1e7191b0002fc3974d20c70b650b4d3473",
+      "size_bytes": 101977
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0070.jpg",
+      "sha256": "df2db5b6edf1ba9c92384d28d42e5c82e145bebd4c234357715f90f55b3bbd82",
+      "size_bytes": 866992
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0071.jpg",
+      "sha256": "eadedfe4235650983c5867ed3e1aa929c63f4a0e8998f23646b54791317429df",
+      "size_bytes": 68404
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0072.jpg",
+      "sha256": "b8883c5c41f90912d2042a0ec5ae42fddf68a16ef26549a4ad354f55f02a0708",
+      "size_bytes": 79209
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0073.jpg",
+      "sha256": "63028a1bef1890cea60328dcde9af18c82e6755f9f8a6fd65ecdeec4337eaa15",
+      "size_bytes": 5589843
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0074.jpg",
+      "sha256": "62469a648e4cc9871c4bf970e2225852b632b76830c2d8a357cf036d3d2778df",
+      "size_bytes": 3508
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0075.jpg",
+      "sha256": "84f51eec3333d76fdaacd3190ad5fbe4f1ecfc155796dbe65cefdb16c80f827d",
+      "size_bytes": 5763329
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0076.jpg",
+      "sha256": "c7e73b78bc64d733a43165f8fddc8194e38f1a4c53b7b466eb03ef1dab06a059",
+      "size_bytes": 600336
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0077.jpg",
+      "sha256": "916298c3a14e535d7b142eaa95a78a2d06055b48aa8070ee5b4139de89b2ee7a",
+      "size_bytes": 243399
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0078.jpg",
+      "sha256": "cfcffdd87d4c5f774fbce5974a7709027ad0e7a67daca397cf56ce15795384b0",
+      "size_bytes": 80522
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0079.jpg",
+      "sha256": "d284a93ed22b858673f69416fe359a18393fa9bec7bf0a5abe0ee2709be39d09",
+      "size_bytes": 477671
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0080.jpg",
+      "sha256": "ec4f865906570db4f1ef331af47f7d3eb8a2e8ccf48ec196a0a5712889f80dfd",
+      "size_bytes": 62855
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0081.jpg",
+      "sha256": "fa7d056caa97b8d27cd6928fd95df75c3863ff881b71d7441ce288f03526a60e",
+      "size_bytes": 66532
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0082.jpg",
+      "sha256": "c8d48f692cb72851b492fc71e15fd1987fd6320fd42ad5f935132708819dd758",
+      "size_bytes": 4499823
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0083.jpg",
+      "sha256": "9cd66ab89e3520bb486273234382b1fb3632952c3703a829bcf91265c971584b",
+      "size_bytes": 2869
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0084.jpg",
+      "sha256": "addbaff33869d631ff5b6ddf580e6cde6b8907d52d9acfae7967304ca2566471",
+      "size_bytes": 4048498
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0085.jpg",
+      "sha256": "f837ceece591794fa9c8805b158d250f2e2ae42fcfdbab759456d538ec659aaf",
+      "size_bytes": 179678
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0086.jpg",
+      "sha256": "3375d5de73b88abf3f32e38b7914eb5c42b9e282141eb1eee126d502db0b5b4f",
+      "size_bytes": 301113
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0087.jpg",
+      "sha256": "ebc1a9cd4b6c3adce3f0fa847d2ba5d404d3156732562079628365a4f36a9ce0",
+      "size_bytes": 56964
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0088.jpg",
+      "sha256": "a5d4bb23c770ed7ff507cbceac4036567c6b1239df0ee8fc10d391f747905601",
+      "size_bytes": 840925
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0089.jpg",
+      "sha256": "585f0d73241455aa1735fcae99a0050b30b91fe3337727672ad90e32bb0cc6af",
+      "size_bytes": 58412
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0090.jpg",
+      "sha256": "03784e17706d07b1595a8e2a1f3b42cc0d5c2da64da3056c50de5d7686bd72e9",
+      "size_bytes": 71296
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0091.jpg",
+      "sha256": "fb471c500de983afd2040891e4e41b0cdcba6987210da7e980d9bb6a12b6146c",
+      "size_bytes": 64682
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0092.jpg",
+      "sha256": "70b29e7830229830f63302b11bfced54219d5de082d1b27c228638f078fb6c5a",
+      "size_bytes": 4913879
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0093.jpg",
+      "sha256": "181c5dea533fe0ee3f8c8453bf7b093da1bc00cbe522fcd23751ce8d7cabda9d",
+      "size_bytes": 56479
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0094.jpg",
+      "sha256": "b1ff13c0dee5d15564b332051320487d4b518207a9b697902694134d7f8114f5",
+      "size_bytes": 279920
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0095.jpg",
+      "sha256": "a76827cf4554a4f265c7260ec86957a08861aeaaa476b6d9b3a04d75c49b15c7",
+      "size_bytes": 56575
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0096.jpg",
+      "sha256": "b16a2b6cf779a91b5fdf980a69ca11ea39ac1b6a96f704f02856ea80ffed200b",
+      "size_bytes": 353943
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0097.jpg",
+      "sha256": "952261d4899edb8530eb466b90b2df33a9f2a69b788552c140f0e2f0fc8a4669",
+      "size_bytes": 68086
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0098.jpg",
+      "sha256": "020eb74a7707a69b42904be72470c0280e066072a5218cb1120323d5a99acc19",
+      "size_bytes": 65177
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0099.jpg",
+      "sha256": "031512501fa109d7f61031d5943f7cdc82ae9d638cebf91201a35f24d9d0e45f",
+      "size_bytes": 1506887
+    },
+    {
+      "path": "data/leaf_detection/pilot/images/image_0100.jpg",
+      "sha256": "cac0a75f26caa866cd688051d67952d2fa2fb174385b63bc568b66bcb105473f",
+      "size_bytes": 1603221
+    },
+    {
+      "path": "data/leaf_detection/pilot/manifests/imported_annotations.csv",
+      "sha256": "f09004cdea91d7dc78498b1067b7a820bf50658175f575daa6d14be0aa9472fc",
+      "size_bytes": 37968
+    },
+    {
+      "path": "data/leaf_detection/pilot/manifests/imported_annotations_summary.json",
+      "sha256": "ba0afce855bf736cae0c97ff269ab1eb392b2f03b2ecd1740a4c1ec7be2138ae",
+      "size_bytes": 831
+    },
+    {
+      "path": "data/leaf_detection/pilot/manifests/pilot_manifest.csv",
+      "sha256": "177b8b82326a3e2cae6372ae31007e469521eb7de638d6670e2d307b4e7abdaf",
+      "size_bytes": 28597
+    },
+    {
+      "path": "data/leaf_detection/pilot/manifests/pilot_summary.json",
+      "sha256": "8fe8a1c85b6508d8f8069dd878feabc4b7bab391cb912adc4f72301c04d6f89b",
+      "size_bytes": 1216
+    },
+    {
+      "path": "data/leaf_detection/pilot/manifests/roi_manifest.csv",
+      "sha256": "f046e3cab6171fdb9c7152f8ca80b4a95f70cd8162e1c8768c9347180aa3f705",
+      "size_bytes": 28634
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/doctor_maiz_leaf_pilot_yolo.zip",
+      "sha256": "7f8df3611d40d72d1241e285e7500553f8680a956f6080e7f31582bfd9203746",
+      "size_bytes": 23794
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images.zip",
+      "sha256": "ccc3049b9773bebf2382313dae36eb02f4876994d086b9abfb742507d44249b0",
+      "size_bytes": 138887113
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0001.jpg",
+      "sha256": "d47b5613ed65cb11aa423c3ef96a961878799f88e4d1349aabfefd409a68ffb6",
+      "size_bytes": 4796307
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0002.jpg",
+      "sha256": "d58f668b80f514c21cde17eeeb226063eb321c051a74b416ea4585a0ef2f923d",
+      "size_bytes": 3321
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0003.jpg",
+      "sha256": "3b885878a9d884c1721fc261dfa84b8d55cd8f39c272eb7b14fda9be80ba9273",
+      "size_bytes": 5316156
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0004.jpg",
+      "sha256": "83f2e558908251da89e3f1fb43de54405d063efe2916f76ca4706a2287372fa0",
+      "size_bytes": 738455
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0005.jpg",
+      "sha256": "fffcb33957130d0c8ddab1b0a10eae5dee797cc6c94155be64a0182e86095b7c",
+      "size_bytes": 212785
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0006.jpg",
+      "sha256": "3f04676744358c72f596e373edd0881ba8cef5a035cab8b91a62e6c7d30c908d",
+      "size_bytes": 76618
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0007.jpg",
+      "sha256": "48526467b2abcdb0022e60045a69251afedb9329b99695b8e2d5933ca575c2d4",
+      "size_bytes": 680295
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0008.jpg",
+      "sha256": "82f162781cfa0e2639927d3da2bc6f8f025a23e755bba7d4769ef2065ce0cb7f",
+      "size_bytes": 68151
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0009.jpg",
+      "sha256": "4e2d577699ce4105162945262c55aac08500d6651f182e960aa0c76205024456",
+      "size_bytes": 59137
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0010.jpg",
+      "sha256": "77589dfa4570a2a64d78ec7a3e836137a3deb5676b86d7e1b9713cc02d2b665b",
+      "size_bytes": 5397905
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0011.jpg",
+      "sha256": "2529a6ca1caa8dc856175e8befa08cc47a31a92570adc5f26b47e9394527d5a0",
+      "size_bytes": 397625
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0012.jpg",
+      "sha256": "aea5a73d24ce945dfa4fb6baade0da79379348f55e7449805ef385aeb93344e3",
+      "size_bytes": 1610757
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0013.jpg",
+      "sha256": "6045f4bd13993a0d018e678d1c2a8ed40235a3d09a28504fd975bc4da9390b9e",
+      "size_bytes": 839533
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0014.jpg",
+      "sha256": "84409bcdb35a030a8a0e119022f48c38243bdbc9915d69d5873dd57b24e1e368",
+      "size_bytes": 238893
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0015.jpg",
+      "sha256": "0aa7aed16c0c8f06c5ef1af52eaa93d955e9ee2ca14cf3499a29342693258dbb",
+      "size_bytes": 58229
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0016.jpg",
+      "sha256": "9a4e8f6d853c80d4626435edc3ccdd087c5ac28e0edff98890a62767024f172b",
+      "size_bytes": 669412
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0017.jpg",
+      "sha256": "3be8a6728d16f6470f26da9d13c2bceb0c58b6463e93af57ffdbdf9143e0be11",
+      "size_bytes": 69879
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0018.jpg",
+      "sha256": "a2b3e7e901797fb3bc44fb64635f8805eb4e17616e71c0d4daee1ed168a137ca",
+      "size_bytes": 66679
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0019.jpg",
+      "sha256": "7f2c0b0904ca90d14f1bc431db5cab750dc275a856e08d708eba0df638ba10f7",
+      "size_bytes": 5261262
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0020.jpg",
+      "sha256": "ed02b1b643304666772cee3b28347122662c67de70821f09c050b7c99108bb8f",
+      "size_bytes": 49983
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0021.jpg",
+      "sha256": "e3d162f33c2d0a76a5dc7765fba424bfa439a2264e507c69426c89ab8dceb5aa",
+      "size_bytes": 7038595
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0022.jpg",
+      "sha256": "3c802f9b1f92447dd72a928b61ca8796a50d63c3c2050285de77d228e44ad311",
+      "size_bytes": 4804128
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0023.jpeg",
+      "sha256": "d9d89d0b452287b0be3d66c3a18bde4bee9c67dd3d1fafa0e3c31dae138ab8a6",
+      "size_bytes": 659803
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0024.jpg",
+      "sha256": "ed4360a8efb144c6636ab78d2eee6d29c66373e78c41ec05f12c1486977c73c1",
+      "size_bytes": 67621
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0025.jpg",
+      "sha256": "77f47071048bd57d18cd53250bd2ac34d5a4496da550027124a812e08f12a6b3",
+      "size_bytes": 365534
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0026.jpeg",
+      "sha256": "2677e887b093e6e3a291bdd89e4590be574d8910df89b008b0b88e5680d1d0ea",
+      "size_bytes": 64354
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0027.jpg",
+      "sha256": "b5768cd21d6ff1cc557d2b3fee51d1eff10d548e41218f6a30d4c65e8d03acdf",
+      "size_bytes": 67087
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0028.jpg",
+      "sha256": "8946d4d0cf8f3f911439b3207bf0afa8989c5ca20df3539c2d4fef765b8d33e3",
+      "size_bytes": 4453291
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0029.jpg",
+      "sha256": "4a40eb8f1ef2fd56f5d4318205bc39f95186aeba53307613f6ee894ad6197472",
+      "size_bytes": 61157
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0030.jpg",
+      "sha256": "9b4a19c90bc8727c775e29974f96aeeceff7a480a069f462f1759c9ffdacf6a1",
+      "size_bytes": 7053440
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0031.jpg",
+      "sha256": "588bd302b93ae6da69524cb7839ba318d07188ea3498e88f9103acaee98b9814",
+      "size_bytes": 724283
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0032.jpg",
+      "sha256": "1277b791424705eb08732f91f821dcd41c7831ca8ffc7d184d16e6b31b5ee611",
+      "size_bytes": 262153
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0033.jpg",
+      "sha256": "d1863e2b5c2b7fcdb48cfab18d2fdc8ad739562487847ed05c111a940d132220",
+      "size_bytes": 69618
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0034.jpg",
+      "sha256": "09be5d9fe270df9c8d4284ae0ef5cd22d4594e1c11c77b61f319539a47b8b25d",
+      "size_bytes": 4985756
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0035.jpg",
+      "sha256": "3d318609c7b22c8ef30b62baa0383a0cbe36e3ae20cb9e5686fa1af391e74bfc",
+      "size_bytes": 64714
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0036.jpg",
+      "sha256": "d851fdb8b55bb595ba204c810f2c02dd23d409d9e3c4d492b42f80f023e8f16f",
+      "size_bytes": 90548
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0037.jpg",
+      "sha256": "2266441a0ce026cd9e32918d1581c960c174463001da2522d9c485965968fc15",
+      "size_bytes": 5952922
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0038.jpg",
+      "sha256": "4d7f12ceeba9bf5ac05b12e7df20635c2c51fb6affa63efe22a56eb7309c30d1",
+      "size_bytes": 135505
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0039.jpg",
+      "sha256": "fb7b4d355403244a74f3fd3b4f51729783a3a6f10f60d9772b85f645d346c2fb",
+      "size_bytes": 1573094
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0040.jpg",
+      "sha256": "a2f32fd8aa9fc5dc932cdb91408201e0cef3a58b3b9cec715ad36bba1d1cfba0",
+      "size_bytes": 6104
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0041.jpeg",
+      "sha256": "86edd5fa0b7cdc88b9239cf1ee03457a6d2cb370fd182693e5f6947b5608ede9",
+      "size_bytes": 657095
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0042.jpg",
+      "sha256": "d4df8529fb3c60749c5b32d27ad9826a99a02ddf496940aa77c05ad51d1346fa",
+      "size_bytes": 46336
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0043.jpg",
+      "sha256": "f92324f23e9f1bc2433f7f07107409ad99300509812e49b7563f8734db04f84d",
+      "size_bytes": 625465
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0044.jpg",
+      "sha256": "11787a50caf8214f32f324d3a3db2bb67d37358962325ad5bc3410052b013f35",
+      "size_bytes": 69120
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0045.jpg",
+      "sha256": "120d0cf03923ba2bfb18a506dbd32f8c670c155517aebf9d350ffd909f1f9787",
+      "size_bytes": 81633
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0046.jpg",
+      "sha256": "9e67dd739442320e442c4c2c6d8df266ff4bb2fa971bc3af3fdd15d436c5ab75",
+      "size_bytes": 5723222
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0047.jpg",
+      "sha256": "a489b418b48b0f4e6b6033949b40c99d9a99e02eb06cd528cc1cdab007b47e15",
+      "size_bytes": 344224
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0048.jpg",
+      "sha256": "df6adeb4fa286558241de97c40741971a66202542b01e5d43855004bc350d458",
+      "size_bytes": 3362074
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0049.jpg",
+      "sha256": "fcb69ee5502f88125faf64ff222a9fced7bd147b7a9f17f64d5d325fda000cc0",
+      "size_bytes": 788361
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0050.jpg",
+      "sha256": "4ef5b29b3f557452e4d81a1db57d8b63041a1f838249f634e51d5ac55c960442",
+      "size_bytes": 261396
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0051.jpg",
+      "sha256": "300dbe85ea848154e56088a9c9753c286e0e4a7ef7ea2788eed6128a4d4e20dc",
+      "size_bytes": 75203
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0052.jpg",
+      "sha256": "8a749286623f4749d0dee3295b9b0835e1cf16d09ad9fdff937da7d64d7bbfbf",
+      "size_bytes": 674231
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0053.jpg",
+      "sha256": "d9de3277dd4aab6384324e65f04f1c4700ce05c39a02d8bf3b3778f62154d84b",
+      "size_bytes": 69762
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0054.jpg",
+      "sha256": "cf97bd1468bc0cbc8ff1ddc2507940450d8baa2299c3d8241407054f0b8a3212",
+      "size_bytes": 72568
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0055.jpg",
+      "sha256": "c3ab3d4e5e8a111a6eca3e408e861b16c950fe8184beb52dd4c0b0b372b357af",
+      "size_bytes": 5609473
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0056.jpg",
+      "sha256": "dca12aaef8c5f65d335410c53120a56d9d6a96e16f6689647e74b573cf460b9b",
+      "size_bytes": 10391807
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0057.jpg",
+      "sha256": "2a334bae50273fecd0d9abb53991f572811fdbfcce733adc0235a37bdcb9ef78",
+      "size_bytes": 3667935
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0058.jpg",
+      "sha256": "553fea355e4cf78cb993ae647c0d15169e655e98b21490572e5fe6332fb51565",
+      "size_bytes": 7490
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0059.jpeg",
+      "sha256": "7b533b5b2cce71ec0a0737b5ee788c763a40ea6846d890aac7608daee4772803",
+      "size_bytes": 545741
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0060.jpg",
+      "sha256": "6f97f32730b6c04da20e298ea7d384a040db839edf02e0dca1474165c2ee8f7b",
+      "size_bytes": 55565
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0061.jpg",
+      "sha256": "bad7fa6090bfec0b07774c44242ddbec4b856841d493daee30d57d1f511c45ed",
+      "size_bytes": 825658
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0062.jpg",
+      "sha256": "90095e279b70e405ab7625e420d3dae35cfe2a553425c8b9566e4cd645ffb0bd",
+      "size_bytes": 67361
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0063.jpeg",
+      "sha256": "9a89b77d1c3ac6bc07ce44f164c14423e4fa8de07ac5b59d9509ad46a4aec987",
+      "size_bytes": 12398
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0064.jpg",
+      "sha256": "a27b38f52e0978321f587cdfd367bc77799e82810f19d92e695f34df5ef79692",
+      "size_bytes": 4910618
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0065.jpg",
+      "sha256": "7ba47a65984ed0d6de4ccb9cd8c2e7537fe437af7f1dfdea9d752a9a4230548f",
+      "size_bytes": 18504
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0066.jpg",
+      "sha256": "8920ce5264f25b6fda8cb5784322338461d78320d16bbb809496c1f5200edb0b",
+      "size_bytes": 1318051
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0067.jpg",
+      "sha256": "6bdf3c9f205473170f793eb7e409d34bb07b660a661ea75478a9919a09483a94",
+      "size_bytes": 10422
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0068.jpeg",
+      "sha256": "e78f964746418672434cf5982fc4b0063598bf88bb1bdc7b925a6e2c99ae70c2",
+      "size_bytes": 947210
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0069.jpg",
+      "sha256": "bfd52828c8bc86210c1f9dba6c57ac1e7191b0002fc3974d20c70b650b4d3473",
+      "size_bytes": 101977
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0070.jpg",
+      "sha256": "df2db5b6edf1ba9c92384d28d42e5c82e145bebd4c234357715f90f55b3bbd82",
+      "size_bytes": 866992
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0071.jpg",
+      "sha256": "eadedfe4235650983c5867ed3e1aa929c63f4a0e8998f23646b54791317429df",
+      "size_bytes": 68404
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0072.jpg",
+      "sha256": "b8883c5c41f90912d2042a0ec5ae42fddf68a16ef26549a4ad354f55f02a0708",
+      "size_bytes": 79209
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0073.jpg",
+      "sha256": "63028a1bef1890cea60328dcde9af18c82e6755f9f8a6fd65ecdeec4337eaa15",
+      "size_bytes": 5589843
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0074.jpg",
+      "sha256": "62469a648e4cc9871c4bf970e2225852b632b76830c2d8a357cf036d3d2778df",
+      "size_bytes": 3508
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0075.jpg",
+      "sha256": "84f51eec3333d76fdaacd3190ad5fbe4f1ecfc155796dbe65cefdb16c80f827d",
+      "size_bytes": 5763329
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0076.jpg",
+      "sha256": "c7e73b78bc64d733a43165f8fddc8194e38f1a4c53b7b466eb03ef1dab06a059",
+      "size_bytes": 600336
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0077.jpg",
+      "sha256": "916298c3a14e535d7b142eaa95a78a2d06055b48aa8070ee5b4139de89b2ee7a",
+      "size_bytes": 243399
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0078.jpg",
+      "sha256": "cfcffdd87d4c5f774fbce5974a7709027ad0e7a67daca397cf56ce15795384b0",
+      "size_bytes": 80522
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0079.jpg",
+      "sha256": "d284a93ed22b858673f69416fe359a18393fa9bec7bf0a5abe0ee2709be39d09",
+      "size_bytes": 477671
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0080.jpg",
+      "sha256": "ec4f865906570db4f1ef331af47f7d3eb8a2e8ccf48ec196a0a5712889f80dfd",
+      "size_bytes": 62855
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0081.jpg",
+      "sha256": "fa7d056caa97b8d27cd6928fd95df75c3863ff881b71d7441ce288f03526a60e",
+      "size_bytes": 66532
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0082.jpg",
+      "sha256": "c8d48f692cb72851b492fc71e15fd1987fd6320fd42ad5f935132708819dd758",
+      "size_bytes": 4499823
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0083.jpg",
+      "sha256": "9cd66ab89e3520bb486273234382b1fb3632952c3703a829bcf91265c971584b",
+      "size_bytes": 2869
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0084.jpg",
+      "sha256": "addbaff33869d631ff5b6ddf580e6cde6b8907d52d9acfae7967304ca2566471",
+      "size_bytes": 4048498
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0085.jpg",
+      "sha256": "f837ceece591794fa9c8805b158d250f2e2ae42fcfdbab759456d538ec659aaf",
+      "size_bytes": 179678
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0086.jpg",
+      "sha256": "3375d5de73b88abf3f32e38b7914eb5c42b9e282141eb1eee126d502db0b5b4f",
+      "size_bytes": 301113
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0087.jpg",
+      "sha256": "ebc1a9cd4b6c3adce3f0fa847d2ba5d404d3156732562079628365a4f36a9ce0",
+      "size_bytes": 56964
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0088.jpg",
+      "sha256": "a5d4bb23c770ed7ff507cbceac4036567c6b1239df0ee8fc10d391f747905601",
+      "size_bytes": 840925
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0089.jpg",
+      "sha256": "585f0d73241455aa1735fcae99a0050b30b91fe3337727672ad90e32bb0cc6af",
+      "size_bytes": 58412
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0090.jpg",
+      "sha256": "03784e17706d07b1595a8e2a1f3b42cc0d5c2da64da3056c50de5d7686bd72e9",
+      "size_bytes": 71296
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0091.jpg",
+      "sha256": "fb471c500de983afd2040891e4e41b0cdcba6987210da7e980d9bb6a12b6146c",
+      "size_bytes": 64682
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0092.jpg",
+      "sha256": "70b29e7830229830f63302b11bfced54219d5de082d1b27c228638f078fb6c5a",
+      "size_bytes": 4913879
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0093.jpg",
+      "sha256": "181c5dea533fe0ee3f8c8453bf7b093da1bc00cbe522fcd23751ce8d7cabda9d",
+      "size_bytes": 56479
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0094.jpg",
+      "sha256": "b1ff13c0dee5d15564b332051320487d4b518207a9b697902694134d7f8114f5",
+      "size_bytes": 279920
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0095.jpg",
+      "sha256": "a76827cf4554a4f265c7260ec86957a08861aeaaa476b6d9b3a04d75c49b15c7",
+      "size_bytes": 56575
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0096.jpg",
+      "sha256": "b16a2b6cf779a91b5fdf980a69ca11ea39ac1b6a96f704f02856ea80ffed200b",
+      "size_bytes": 353943
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0097.jpg",
+      "sha256": "952261d4899edb8530eb466b90b2df33a9f2a69b788552c140f0e2f0fc8a4669",
+      "size_bytes": 68086
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0098.jpg",
+      "sha256": "020eb74a7707a69b42904be72470c0280e066072a5218cb1120323d5a99acc19",
+      "size_bytes": 65177
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0099.jpg",
+      "sha256": "031512501fa109d7f61031d5943f7cdc82ae9d638cebf91201a35f24d9d0e45f",
+      "size_bytes": 1506887
+    },
+    {
+      "path": "data/leaf_detection/pilot/packages/pilot_images/images/image_0100.jpg",
+      "sha256": "cac0a75f26caa866cd688051d67952d2fa2fb174385b63bc568b66bcb105473f",
+      "size_bytes": 1603221
+    }
+  ],
+  "included_in_training_package": false,
+  "purpose": "external_held_out_evaluation_transport_only",
+  "schema_version": 1,
+  "total_bytes": 417823515
+}

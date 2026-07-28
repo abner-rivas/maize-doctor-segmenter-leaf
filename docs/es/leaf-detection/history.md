@@ -57,13 +57,27 @@ resultados no se interpreten fuera de contexto.
     las anotaciones originales: 33 YOLO, una COCO y un TXT realmente vacío
     señalado de forma explícita. La validación quedó
     `ready_for_human_review`.
-22. **Próxima fase.** Completar la revisión humana; después reconstruir
-    desde las fuentes originales y crear splits
-    propios agrupados por original, hash, fuente y variante Roboflow.
-23. **Evaluación futura.** El segmentador se evaluará contra el piloto retenido.
-24. **Clasificación adaptada.** Se entrenarán comparativamente
+22. **Cierre del dataset padre.** Las decisiones humanas se completaron y el
+    pool se reconstruyó con 1 155 imágenes, 1 224 máscaras y fingerprint
+    `c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c`.
+23. **Splits reproducibles.** Se formaron 1 035 grupos por procedencia,
+    original, variante Roboflow, SHA-256 y cercanía perceptual. Con semilla 42
+    quedaron 809/173/173 imágenes y 858/183/183 máscaras.
+24. **Gate de entrenamiento.** Cero fugas exactas, grupales, Roboflow,
+    perceptuales o contra el piloto; la reconstrucción doble fue idéntica y
+    `split_lock.status=ready_for_training_preflight`.
+25. **Evaluación futura.** El segmentador se evaluará contra el piloto retenido.
+26. **Clasificación adaptada.** Se entrenarán comparativamente
     `baseline_full`, `baseline_bbox_roi` y `baseline_masked_roi` con
     representaciones consistentes entre entrenamiento e inferencia.
+27. **Preflight del segmentador.** Locks, fingerprints, dataset y batch 4/2/2
+    pasaron. El entorno tiene PyTorch 2.12.1+cu130, pero no CUDA utilizable,
+    pesos locales ni Ultralytics; quedó `blocked_by_missing_dependency` con
+    cero entrenamiento y cero descargas.
+28. **Paquete cloud-ready.** Se creó un payload determinista con lista blanca,
+    bootstrap compatible con el PyTorch remoto, preflight GPU/modelo, smoke y
+    entrenamiento autorizados por guards separados, reanudación manual y
+    evaluación val/test. `all/`, fuentes, piloto e históricos quedan fuera.
 
 ## Qué validó el piloto
 
@@ -97,6 +111,9 @@ YOLO segmentará hojas; el clasificador continuará diagnosticando.
 - `outputs/baselines/`;
 - `outputs/leaf_detection/external_sources_eda/`;
 - `outputs/leaf_detection/detector_dataset_consolidation/`;
+- `outputs/leaf_detection/detector_dataset_splits/`;
+- `outputs/leaf_detection/training_preflight/`;
+- `outputs/leaf_detection/packages/`;
 - código en `src/preprocessing/`, `src/data/` y `scripts/`.
 
 ### Evidencia histórica
@@ -147,14 +164,13 @@ imagen
 
 ## Próximo experimento
 
-El trabajo inmediato no es entrenar: es completar las 34 revisiones manuales y
-aprobar los previews del consolidado, incluidos los dos casos obligatorios de
-`mandatory_visual_review.csv`. Después:
+Las revisiones manuales, los splits agrupados, el preflight local y el paquete
+cloud están completos. El trabajo inmediato, en la máquina remota:
 
-1. crear splits del segmentador agrupando hash, fuente, secuencia, nombre base
-   y `roboflow_variant_group`;
-2. confirmar arquitectura, licencia, versión, GPU y exportabilidad;
-3. entrenar el segmentador;
+1. ejecutar bootstrap y preflight GPU/modelo (verifica `yolo26n-seg` con
+   `ultralytics==8.4.104`, licencia, pesos y forward);
+2. ejecutar el smoke de una época y revisar batch, VRAM y velocidad;
+3. autorizar y entrenar el baseline del segmentador;
 4. evaluar precision, recall, mAP, IoU, Dice, fallbacks y errores de selección;
 5. generar variantes full, bbox y máscara;
 6. entrenar y comparar clasificadores adaptados;
@@ -162,14 +178,16 @@ aprobar los previews del consolidado, incluidos los dos casos obligatorios de
 
 ## Decisiones pendientes
 
-- aprobación de los 32 casos estratificados;
-- tratamiento final de la imagen vacía de `corn`;
-- revisión de la advertencia topológica incluida como candidata;
-- reglas finales de split por grupos de variantes;
-- modelo y licencia del segmentador;
-- fondo neutral, margen y selección de máscara;
-- umbrales de aceptación en el piloto;
-- decisión sobre la ruta de boxes preparada pero aún no anotada.
+- confirmación remota de soporte y licencia de `yolo26n-seg` en
+  `ultralytics==8.4.104`;
+- política de `cache` (false frente a disk) tras medir el DataLoader en el
+  smoke;
+- fondo neutral, margen y selección de máscara principal;
+- umbrales de aceptación provisionales y evaluación del piloto (sus cajas usan
+  la regla histórica de hoja principal: revisión cualitativa primero);
+- decisión sobre la ruta de boxes preparada pero aún no anotada
+  (`annotation_batches/`: 350 train + 75 val siguen `pending`);
+- tratamiento futuro de los tres casos en `reannotation_queue.csv`.
 
 ## Registros de decisión
 

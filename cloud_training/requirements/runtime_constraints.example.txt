@@ -1,0 +1,4 @@
+# bootstrap_cloud.sh generates runtime_constraints.txt from the remote environment.
+# Example only; do not copy these versions blindly.
+torch==<REMOTE_PREINSTALLED_TORCH_VERSION>
+torchvision==<REMOTE_PREINSTALLED_TORCHVISION_VERSION>
