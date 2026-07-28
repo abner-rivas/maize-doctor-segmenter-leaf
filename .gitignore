@@ -2,6 +2,7 @@
 .env.local
 .env.*.local
 .envrc
+.venv-modal
 
 **.local**
 
@@ -39,3 +40,4 @@ __pycache__/
 /tmp/**
 
 .ruff_cache/
+.venv-modal/
