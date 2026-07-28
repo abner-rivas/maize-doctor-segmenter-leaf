@@ -3,14 +3,20 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_ROOT}"
-PYTHON_BIN="${PYTHON:-python}"
 
-# Reutiliza el entorno creado por bootstrap_cloud.sh cuando no hay venv activo,
-# para que preflight/smoke/train usen el mismo intérprete que instaló Ultralytics.
-if [[ -z "${VIRTUAL_ENV:-}" && -f .venv-cloud/bin/activate ]]; then
-  # shellcheck disable=SC1091
-  source .venv-cloud/bin/activate
+# Todos los pasos posteriores al bootstrap usan exactamente su intérprete,
+# aunque el proveedor haya activado otro virtualenv en la sesión.
+if [[ -x .venv-cloud/bin/python ]]; then
+  PYTHON_BIN="${REPO_ROOT}/.venv-cloud/bin/python"
+elif [[ -n "${PYTHON:-}" ]] && command -v "${PYTHON}" >/dev/null 2>&1; then
+  PYTHON_BIN="${PYTHON}"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN=python3
+elif command -v python >/dev/null 2>&1; then
   PYTHON_BIN=python
+else
+  echo "No se encontró un intérprete Python" >&2
+  exit 2
 fi
 
 json_value() {

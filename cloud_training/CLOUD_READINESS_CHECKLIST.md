@@ -15,10 +15,9 @@ Ninguna casilla de una etapa posterior debe marcarse antes que las anteriores.
 - [x] Piloto intacto: 100 imágenes, sin participación en train/val/test
 - [x] `processing_profile=baseline_full` y `leaf_detection.enabled=false`
 - [x] `pytest` en verde y `ruff check src/ scripts/ tests/` limpio
-- [ ] **Paquete reconstruido con el código corregido** (el paquete del 2026-07-28
-      09:19 contiene versiones anteriores de `run_ultralytics.py`, `lib.sh` y
-      `Makefile`) → `make leaf-segmentation-cloud-prepare`
-- [ ] Nuevo SHA-256 del paquete anotado y comparado tras la subida
+- [x] **Paquete reconstruido con el código corregido** y verificado por
+      extracción contra el repositorio
+- [ ] SHA-256 del paquete comparado tras la subida a la máquina remota
 
 ## Gate 1 — Cloud ready
 
@@ -32,7 +31,9 @@ Ninguna casilla de una etapa posterior debe marcarse antes que las anteriores.
 - [ ] `torch.cuda.is_available()` sigue en `true` tras instalar Ultralytics
 - [ ] `bash cloud_training/preflight_cloud.sh` → `ready_for_smoke_training`
 - [ ] `weights_manifest.json` con ruta, tamaño, SHA-256 y versión de Ultralytics
-- [ ] **`model_check.segmentation_output = true`** (el forward produjo máscaras)
+- [ ] `model_check.resolved_task = segment`
+- [ ] `model_check.segmentation_head_verified = true`
+- [ ] `model_check.forward_finite = true` en el tensor CUDA sintético
 - [ ] Licencia de Ultralytics resuelta y anotada
 - [ ] VRAM total y libre registradas en `gpu.json`
 - [ ] Al menos 10 GiB libres para resultados
@@ -71,9 +72,14 @@ Mediciones a anotar para las decisiones posteriores:
 
 ## Gate 3 — Baseline completed
 
-`CONFIRM_SEGMENTATION_TRAINING=1 make leaf-segmentation-cloud-train`
+```bash
+CONFIRM_SEGMENTATION_TRAINING=1 \
+make leaf-segmentation-cloud-train \
+CONFIG=outputs/leaf_detection/segmenter/configs/train_yolo26n_seg.final.yaml
+```
 
 - [ ] Entrenamiento finalizado (o detenido por `patience`)
+- [ ] `active_run_manifest.json` identifica el run y la configuración exactos
 - [ ] `best.pt` y `last.pt` presentes
 - [ ] `results.csv`, `args.yaml` y gráficos guardados
 - [ ] Métricas de val registradas
@@ -90,10 +96,21 @@ Mediciones a anotar para las decisiones posteriores:
 - [ ] La diferencia entre configuraciones supera la desviación entre semillas
 - [ ] Ni el test interno ni el piloto se usaron para elegir nada
 
+Métricas downstream sobre val (requiere predicciones en formato YOLO-seg):
+
+```bash
+make leaf-segmentation-downstream-metrics PREDICTIONS=<dir> SPLIT=val
+```
+
+- [ ] `leaf_pixel_recall` y `under_segmentation_ratio` revisados por fuente
+- [ ] Tasa de imágenes sin detección y de fallback anotadas
+- [ ] Comparadas las métricas de `corn` frente a `corn_leaf_diseases_classification`
+
 ## Gate 5 — Internal test completed
 
 - [ ] Configuración congelada antes de mirar el test
 - [ ] `make leaf-segmentation-cloud-test` ejecutado **una sola vez**
+      (el script aborta si `test_summary.json` ya existe)
 - [ ] Métricas y análisis de errores registrados
 - [ ] **Ningún hiperparámetro ajustado después**
 

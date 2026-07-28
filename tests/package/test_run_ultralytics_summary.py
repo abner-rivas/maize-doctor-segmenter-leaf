@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -38,6 +39,7 @@ def test_to_serializable_handles_tensors_scalars_and_none() -> None:
         "tensor": runner.to_serializable(_FakeTensor([1.5, 2.0])),
         "none": runner.to_serializable(None),
         "nested": runner.to_serializable([_FakeTensor([0.25]), 3, "x"]),
+        "mapping": runner.to_serializable({"seg": _FakeTensor([0.125])}),
         "fallback": runner.to_serializable(object()),
     }
     encoded = json.dumps(payload)
@@ -45,6 +47,7 @@ def test_to_serializable_handles_tensors_scalars_and_none() -> None:
     assert decoded["tensor"] == [1.5, 2.0]
     assert decoded["none"] is None
     assert decoded["nested"] == [[0.25], 3, "x"]
+    assert decoded["mapping"] == {"seg": [0.125]}
     assert isinstance(decoded["fallback"], str)
 
 
@@ -55,6 +58,23 @@ def test_resolve_trainer_prefers_model_trainer_over_metrics() -> None:
     assert runner.resolve_trainer(model, metrics) is trainer
     selected = getattr(getattr(runner.resolve_trainer(model, metrics), "args", None), "batch", -1)
     assert selected == 16
+
+
+def test_resume_manifests_never_collide() -> None:
+    """Cada reanudación debe conservar su propio manifiesto, sin sobrescribir."""
+    from datetime import datetime, timezone
+
+    directory = Path("/tmp/segmenter")
+    first = runner.timestamped_manifest_path(
+        directory, datetime(2026, 7, 28, 10, 0, 0, 1, tzinfo=timezone.utc)
+    )
+    second = runner.timestamped_manifest_path(
+        directory, datetime(2026, 7, 28, 10, 0, 0, 2, tzinfo=timezone.utc)
+    )
+    assert first != second
+    assert first.parent == directory
+    assert first.name.startswith("resume_manifest_")
+    assert first.suffix == ".json"
 
 
 def test_resolve_trainer_falls_back_to_result_then_none() -> None:
@@ -68,3 +88,62 @@ def test_resolve_trainer_falls_back_to_result_then_none() -> None:
     assert resolved is None
     fallback_batch = getattr(getattr(resolved, "args", None), "batch", -1)
     assert fallback_batch == -1
+
+
+def test_selected_batch_prefers_resolved_positive_batch() -> None:
+    trainer = SimpleNamespace(
+        batch_size=12,
+        args=SimpleNamespace(batch=-1),
+    )
+    assert runner.selected_positive_batch(trainer) == 12
+
+
+def test_selected_batch_rejects_autobatch_sentinel_bool_and_zero() -> None:
+    for value in (-1, 0, True):
+        trainer = SimpleNamespace(
+            batch_size=None,
+            args=SimpleNamespace(batch=value),
+        )
+        try:
+            runner.selected_positive_batch(trainer)
+        except RuntimeError as exc:
+            assert "Batch efectivo inválido" in str(exc)
+        else:
+            raise AssertionError(f"batch inválido aceptado: {value!r}")
+
+
+def test_finite_numeric_gate_rejects_nan_inf_and_missing_values() -> None:
+    assert runner.require_finite_numeric(
+        "loss", {"box": [0.5], "seg": _FakeTensor([0.25])}
+    ) == [0.5, 0.25]
+    for value in (None, [], [math.nan], {"loss": math.inf}):
+        try:
+            runner.require_finite_numeric("loss", value)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError(f"valor no finito aceptado: {value!r}")
+
+
+def test_direct_training_modes_require_exact_confirmation(monkeypatch) -> None:
+    for mode, variable in (
+        ("smoke", "CONFIRM_SEGMENTATION_SMOKE_TRAINING"),
+        ("train", "CONFIRM_SEGMENTATION_TRAINING"),
+        ("resume", "CONFIRM_SEGMENTATION_TRAINING"),
+    ):
+        monkeypatch.delenv(variable, raising=False)
+        try:
+            runner.require_confirmation(mode)
+        except RuntimeError as exc:
+            assert variable in str(exc)
+        else:
+            raise AssertionError(f"{mode} fue aceptado sin confirmación")
+        monkeypatch.setenv(variable, "true")
+        try:
+            runner.require_confirmation(mode)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError(f"{mode} aceptó una confirmación no exacta")
+        monkeypatch.setenv(variable, "1")
+        runner.require_confirmation(mode)

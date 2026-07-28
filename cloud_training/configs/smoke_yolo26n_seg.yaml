@@ -3,7 +3,7 @@ data: data/leaf_detection/detector_dataset/dataset.yaml
 task: segment
 imgsz: 640
 epochs: 1
-batch: 2
+batch: -1
 workers: 2
 device: 0
 seed: 42

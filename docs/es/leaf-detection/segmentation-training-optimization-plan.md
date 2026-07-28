@@ -15,7 +15,9 @@ y una regla para elegirlos.
 ### Perfil reproducible (obligatorio para el baseline y toda comparación)
 
 `seed=42`, `deterministic=true`, `cache` según decisión posterior al smoke,
-batch entero fijo medido en el smoke. Es el perfil de `train_yolo26n_seg.yaml`.
+batch entero fijo medido en el smoke. Es el perfil del
+`train_yolo26n_seg.final.yaml` generado; el YAML bajo `cloud_training/configs/`
+es sólo la plantilla con `batch=-1`.
 
 ### Perfil rápido (sólo ingeniería)
 
@@ -103,11 +105,11 @@ justificado con la distribución de tamaños actual.
 
 ## 5. Nomenclatura de corridas y política de reanudación
 
-La configuración oficial usa `name: yolo26n_seg_baseline` fijo. Ultralytics no
-sobrescribe —crearía `yolo26n_seg_baseline2`—, pero `validate.sh`,
-`evaluate_test.sh` y `leaf_segmentation_make.py` apuntan a la ruta del primero,
-así que una segunda corrida quedaría entrenada pero nunca evaluada (riesgo
-R-20).
+La configuración oficial usa `name: yolo26n_seg_baseline` fijo. Antes de
+entrenar, el runner comprueba que ese directorio no exista y fija
+`exist_ok=false`; si existe, bloquea el inicio en vez de aceptar un
+`yolo26n_seg_baseline2` implícito. También crea
+`active_run_manifest.json` con la identidad y las rutas exactas del run.
 
 Nomenclatura propuesta para la fase de ablaciones:
 
@@ -126,8 +128,10 @@ todas separadas:
 | Fine-tuning | `best.pt` con otra configuración | **no distinguido** |
 | Evaluación | `best.pt` sin entrenar | implementado |
 
-Además `resume_manifest.json` se sobrescribe en cada reanudación, de modo que
-una corrida interrumpida tres veces conserva sólo el último registro (IMP-10).
+Cada reanudación conserva un `resume_manifest_<timestamp>.json` y actualiza una
+copia estable. `resume_train.sh` obtiene `last.pt` del manifiesto activo y
+verifica el hash de la configuración y los fingerprints del dataset; no busca
+checkpoints por nombre ni fecha.
 
 ## 6. Política de inferencia (diseño, sin integrar)
 
@@ -158,6 +162,28 @@ val y nunca con test ni con el piloto.
   silenciosamente recortada de forma incorrecta.** La tasa de fallback es una
   métrica de primer nivel: un modelo con buen mAP y 20 % de fallback es peor en
   producción que uno algo inferior con 2 %.
+
+### Métricas downstream ya implementadas
+
+`src/evaluation/segmentation_downstream.py` calcula estas métricas a partir de
+etiquetas predichas en formato YOLO-seg, sin cargar modelo ni requerir GPU:
+
+```bash
+make leaf-segmentation-downstream-metrics PREDICTIONS=<dir> SPLIT=val
+```
+
+Produce `per_image_metrics.csv` y un `summary.json` con los agregados globales y
+desagregados **por fuente**, por orientación y por bin de área de la máscara real.
+Las columnas siguen la asimetría del proyecto: `leaf_pixel_recall`,
+`under_segmentation_ratio` y `cropped_leaf_percent` miden el error costoso
+(perder tejido), mientras que `over_segmentation_ratio` mide el tolerable
+(añadir fondo). También reporta `images_without_detection_rate`, `fallback_rate`
+y el subconjunto multi-hoja.
+
+Requisito pendiente (IMP-19): `validate.sh` guarda `save_json` pero no
+`save_txt`, así que hoy las predicciones en formato YOLO-seg deben generarse
+aparte. Añadir `save_txt=True` a la validación es un cambio de configuración
+oficial y requiere aprobación.
 
 ## 7. Fondo neutral (ablación futura)
 
@@ -197,9 +223,9 @@ variantes. Si el segmentador cambia, las tres variantes se rehacen juntas.
 
 ## 9. Paquete cloud
 
-Composición medida: 2 316 archivos de dataset (2.335 GB) y sólo 2.78 MB de
-código, scripts y documentación. El archivo comprimido pesa 2 132 850 255 B, un
-8.8 % menos que el payload.
+Composición medida: 2 316 archivos de dataset y 2 401 archivos totales en la
+lista blanca. El paquete v2 comprimido pesa 2 132 872 194 B; su payload
+declarado ocupa 2 338 320 457 B.
 
 Opciones consideradas, ninguna aplicada:
 

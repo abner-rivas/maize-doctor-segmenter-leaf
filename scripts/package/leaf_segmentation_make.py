@@ -16,6 +16,8 @@ from src.training.segmentation_preflight import (
     verify_cloud_training_payload,
 )
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -98,7 +100,7 @@ def package_verify(args: argparse.Namespace) -> None:
     actual = sha256(archive)
     if actual != expected:
         raise SystemExit(f"SHA-256 inválido: {actual} != {expected}")
-    result = verify_extracted(archive)
+    result = verify_extracted(archive, PROJECT_ROOT)
     print(
         json.dumps(
             {"archive": str(archive), "sha256": actual, "verification": result},

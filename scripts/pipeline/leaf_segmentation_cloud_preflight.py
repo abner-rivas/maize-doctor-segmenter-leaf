@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import os
 import platform
@@ -33,7 +34,10 @@ DATASET = project_path(
     "data/leaf_detection/detector_dataset",
 )
 MODEL_NAME = os.getenv("SEGMENTATION_MODEL", "yolo26n-seg.pt")
-DEVICE = int(os.getenv("SEGMENTATION_DEVICE", "0"))
+DEVICE = int(os.getenv("SEGMENTATION_DEVICE", "0").split(",", maxsplit=1)[0])
+ULTRALYTICS_REQUIREMENT = (
+    PROJECT_ROOT / "cloud_training" / "requirements" / "ultralytics.in"
+)
 
 
 def write(name: str, payload: object) -> None:
@@ -50,6 +54,42 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def expected_ultralytics_version() -> str:
+    matches = [
+        line.strip().removeprefix("ultralytics==")
+        for line in ULTRALYTICS_REQUIREMENT.read_text(encoding="utf-8").splitlines()
+        if line.strip().startswith("ultralytics==")
+    ]
+    if len(matches) != 1 or not matches[0]:
+        raise RuntimeError(
+            f"Versión exacta inválida en {ULTRALYTICS_REQUIREMENT}"
+        )
+    return matches[0]
+
+
+def tensor_leaves(value: object) -> list[torch.Tensor]:
+    if isinstance(value, torch.Tensor):
+        return [value]
+    if isinstance(value, dict):
+        return [
+            tensor
+            for item in value.values()
+            for tensor in tensor_leaves(item)
+        ]
+    if isinstance(value, (list, tuple)):
+        return [tensor for item in value for tensor in tensor_leaves(item)]
+    return []
+
+
+def package_commit() -> str:
+    version_file = PROJECT_ROOT / "cloud_training" / "COMMIT_VERSION.txt"
+    if version_file.is_file():
+        for line in version_file.read_text(encoding="utf-8").splitlines():
+            if line.startswith("commit="):
+                return line.partition("=")[2] or "unavailable"
+    return "unavailable"
 
 
 def main() -> None:
@@ -73,31 +113,61 @@ def main() -> None:
         "cuda_compiled": torch.version.cuda,
         "cudnn": torch.backends.cudnn.version(),
         "device_count": torch.cuda.device_count(),
+        "device_verified": False,
         "name": None,
         "vram_free_bytes": None,
         "vram_total_bytes": None,
     }
     if gpu["cuda_available"]:
-        gpu["name"] = torch.cuda.get_device_name(DEVICE)
-        gpu["vram_free_bytes"], gpu["vram_total_bytes"] = torch.cuda.mem_get_info(
-            DEVICE
-        )
+        try:
+            gpu["name"] = torch.cuda.get_device_name(DEVICE)
+            gpu["vram_free_bytes"], gpu["vram_total_bytes"] = (
+                torch.cuda.mem_get_info(DEVICE)
+            )
+            gpu["device_verified"] = True
+        except Exception as exc:
+            gpu["device_error"] = repr(exc)
+            if status == "ready_for_smoke_training":
+                status = "blocked_by_gpu"
+            blockers.append(f"GPU device {DEVICE} inválido: {exc!r}")
     elif status == "ready_for_smoke_training":
         status = "blocked_by_gpu"
         blockers.append("CUDA no disponible")
     write("gpu.json", gpu)
+    dependency_error: str | None = None
+    torchvision_version: str | None = None
+    try:
+        torchvision = importlib.import_module("torchvision")
+        torchvision_version = str(torchvision.__version__)
+    except Exception as exc:
+        dependency_error = f"torchvision no importable: {exc!r}"
+        if status == "ready_for_smoke_training":
+            status = "blocked_by_dependency"
+        blockers.append(dependency_error)
+    try:
+        installed_ultralytics = metadata.version("ultralytics")
+    except metadata.PackageNotFoundError:
+        installed_ultralytics = None
+    expected_ultralytics = expected_ultralytics_version()
+    if (
+        installed_ultralytics != expected_ultralytics
+        and status == "ready_for_smoke_training"
+    ):
+        status = "blocked_by_dependency"
+        blockers.append(
+            "Ultralytics inválido: "
+            f"{installed_ultralytics!r} != {expected_ultralytics!r}"
+        )
     environment = {
         "platform": platform.platform(),
         "python": platform.python_version(),
+        "python_executable": sys.executable,
         "torch": torch.__version__,
-        "torchvision": metadata.version("torchvision"),
-        "commit": subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            text=True,
-            capture_output=True,
-            check=False,
-        ).stdout.strip()
-        or "unavailable",
+        "torchvision": torchvision_version,
+        "torchvision_import_error": dependency_error,
+        "ultralytics": installed_ultralytics,
+        "expected_ultralytics": expected_ultralytics,
+        "commit": package_commit(),
     }
     write("environment.json", environment)
     subprocess.run(
@@ -112,6 +182,9 @@ def main() -> None:
         "constructed": False,
         "forward_executed": False,
         "segmentation_output": False,
+        "segmentation_head_verified": False,
+        "forward_finite": False,
+        "forward_tensor_shapes": [],
         "ultralytics": None,
     }
     weights_manifest: dict[str, object] = {
@@ -125,10 +198,19 @@ def main() -> None:
             from ultralytics import YOLO
             from ultralytics import __version__ as ultralytics_version
 
+            if ultralytics_version != expected_ultralytics:
+                raise RuntimeError(
+                    "Versión importada de Ultralytics no coincide con el lock: "
+                    f"{ultralytics_version} != {expected_ultralytics}"
+                )
             model_check["ultralytics"] = ultralytics_version
             torch.cuda.reset_peak_memory_stats(DEVICE)
             model = YOLO(MODEL_NAME)
             model_check["constructed"] = True
+            model_task = str(getattr(model, "task", ""))
+            model_check["resolved_task"] = model_task
+            if model_task != "segment":
+                raise RuntimeError(f"Task inesperado para el modelo: {model_task!r}")
             candidate = Path(str(getattr(model, "ckpt_path", MODEL_NAME))).resolve()
             if not candidate.is_file():
                 raise FileNotFoundError(f"Pesos no resueltos: {candidate}")
@@ -142,23 +224,51 @@ def main() -> None:
                     "ultralytics_version": ultralytics_version,
                 }
             )
-            sample = next((DATASET / "images" / "train").iterdir())
-            results = model.predict(
-                source=str(sample), imgsz=640, device=DEVICE, verbose=False
+            network = model.model
+            layers = getattr(network, "model", ())
+            head = layers[-1] if len(layers) else None
+            head_name = type(head).__name__ if head is not None else ""
+            segmentation_head = "segment" in head_name.casefold() or hasattr(
+                head, "proto"
             )
+            model_check["head_class"] = head_name
+            model_check["segmentation_head_verified"] = segmentation_head
+            if not segmentation_head:
+                raise RuntimeError(
+                    f"Head de segmentación no verificado: {head_name!r}"
+                )
+            cuda_device = torch.device(f"cuda:{DEVICE}")
+            network.to(cuda_device)
+            network.eval()
+            synthetic = torch.zeros(
+                (1, 3, 640, 640),
+                dtype=torch.float32,
+                device=cuda_device,
+            )
+            with torch.inference_mode():
+                raw_output = network(synthetic)
+            tensors = tensor_leaves(raw_output)
             model_check["forward_executed"] = True
+            model_check["forward_tensor_shapes"] = [
+                list(tensor.shape) for tensor in tensors
+            ]
+            model_check["forward_finite"] = bool(
+                tensors and all(torch.isfinite(tensor).all().item() for tensor in tensors)
+            )
             model_check["segmentation_output"] = bool(
-                results and getattr(results[0], "masks", None) is not None
+                segmentation_head and model_check["forward_finite"]
             )
             if not model_check["segmentation_output"]:
-                raise RuntimeError("El forward no produjo máscaras")
+                raise RuntimeError(
+                    "El forward sintético del segmentador no produjo tensores finitos"
+                )
             memory = {
                 "checked": True,
                 "peak_allocated_bytes": torch.cuda.max_memory_allocated(DEVICE),
                 "peak_reserved_bytes": torch.cuda.max_memory_reserved(DEVICE),
                 "vram_free_bytes": torch.cuda.mem_get_info(DEVICE)[0],
             }
-        except ModuleNotFoundError as exc:
+        except (ModuleNotFoundError, metadata.PackageNotFoundError) as exc:
             status = "blocked_by_dependency"
             blockers.append(str(exc))
         except FileNotFoundError as exc:
@@ -176,7 +286,9 @@ def main() -> None:
             "status": status,
             "blockers": blockers,
             "dataset_verified": bool(dataset.get("passed")),
-            "gpu_verified": bool(gpu["cuda_available"]),
+            "gpu_verified": bool(
+                gpu["cuda_available"] and gpu["device_verified"]
+            ),
             "model_verified": bool(model_check["segmentation_output"]),
             "training_started": False,
             "epochs_run": 0,

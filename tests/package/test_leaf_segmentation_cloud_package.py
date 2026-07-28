@@ -49,17 +49,71 @@ def test_shell_training_guards_precede_all_script_actions() -> None:
         assert "exit 2" in source[guard:first_action]
 
 
+def test_internal_test_has_a_single_use_gate() -> None:
+    """El test interno se evalúa una vez: repetirlo permitiría ajustar sobre él."""
+    source = (CLOUD / "evaluate_test.sh").read_text(encoding="utf-8")
+    guard = source.index("test_summary.json")
+    invocation = source.index("run_ultralytics.py")
+    assert guard < invocation
+    assert "FORCE_INTERNAL_TEST_RERUN" in source[:invocation]
+    assert "exit 2" in source[guard:invocation]
+
+
+def test_validation_has_no_single_use_gate() -> None:
+    """val es el nivel de desarrollo y debe poder reejecutarse sin límite."""
+    source = (CLOUD / "validate.sh").read_text(encoding="utf-8")
+    assert "FORCE_INTERNAL_TEST_RERUN" not in source
+    assert "val_summary.json" not in source
+
+
+def test_cloud_scripts_reuse_the_bootstrap_environment() -> None:
+    source = (CLOUD / "lib.sh").read_text(encoding="utf-8")
+    assert ".venv-cloud/bin/python" in source
+    assert "bin/activate" not in source
+    assert "VIRTUAL_ENV" not in source
+
+
 def test_cloud_yaml_configs_are_deterministic_and_safe() -> None:
     smoke = yaml.safe_load((CLOUD / "configs/smoke_yolo26n_seg.yaml").read_text())
     train = yaml.safe_load((CLOUD / "configs/train_yolo26n_seg.yaml").read_text())
     validate = yaml.safe_load(
         (CLOUD / "configs/validate_yolo26n_seg.yaml").read_text()
     )
-    assert smoke["epochs"] == 1 and smoke["batch"] == 2
+    assert smoke["epochs"] == 1 and smoke["batch"] == -1
     assert train["epochs"] == 150 and train["batch"] == -1
     assert train["seed"] == smoke["seed"] == validate["seed"] == 42
     assert train["task"] == smoke["task"] == validate["task"] == "segment"
     assert "pilot" not in str(smoke) + str(train) + str(validate)
+
+
+def test_bootstrap_uses_one_version_source_and_checks_cuda_before_and_after() -> None:
+    source = (CLOUD / "bootstrap_cloud.sh").read_text(encoding="utf-8")
+    requirement = (CLOUD / "requirements/ultralytics.in").read_text(encoding="utf-8")
+    assert requirement.strip().endswith("ultralytics==8.4.104")
+    assert 'ULTRALYTICS_VERSION="8.4.104"' not in source
+    assert "requirements/ultralytics.in" in source
+    assert source.count("import torchvision") >= 2
+    assert source.count("torch.cuda.is_available()") >= 2
+    assert "pip install --dry-run" in source
+    assert "runtime_constraints.txt" in source
+
+
+def test_cloud_preflight_uses_detection_independent_segment_forward() -> None:
+    source = (
+        ROOT / "scripts/pipeline/leaf_segmentation_cloud_preflight.py"
+    ).read_text(encoding="utf-8")
+    assert "model.predict(" not in source
+    assert "torch.zeros(" in source
+    assert "segmentation_head_verified" in source
+    assert "forward_finite" in source
+
+
+def test_full_train_script_accepts_only_config_environment() -> None:
+    source = (CLOUD / "train.sh").read_text(encoding="utf-8")
+    assert 'CONFIG_PATH="${CONFIG:-' in source
+    assert '"$#" -ne 0' in source
+    assert '--config "${CONFIG_PATH}"' in source
+    assert "configs/train_yolo26n_seg.yaml" not in source
 
 
 def test_allow_list_excludes_protected_and_historical_trees() -> None:

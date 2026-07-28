@@ -10,7 +10,9 @@ instala Ultralytics, no descarga pesos y no ejecuta forward ni épocas.
 
 - bootstrap con resolución `pip --dry-run`, constraints dinámicos y bloqueo si
   se intenta sustituir torch o torchvision;
-- preflight GPU/modelo que vuelve a verificar locks, fingerprints y dataset;
+- preflight GPU/modelo que vuelve a verificar locks, fingerprints canónicos y
+  dataset, y ejecuta un forward sintético del head de segmentación sin depender
+  de que una imagen produzca detecciones;
 - smoke de una época protegido por
   `CONFIRM_SEGMENTATION_SMOKE_TRAINING=1`;
 - entrenamiento y reanudación protegidos por
@@ -29,31 +31,48 @@ archivo de entrenamiento.
 ## Flujo remoto
 
 ```bash
-bash cloud_training/bootstrap_cloud.sh
-bash cloud_training/preflight_cloud.sh
+make leaf-segmentation-cloud-bootstrap
+make leaf-segmentation-cloud-preflight
 
 CONFIRM_SEGMENTATION_SMOKE_TRAINING=1 \
-  bash cloud_training/smoke_train.sh
+  make leaf-segmentation-cloud-smoke
 
+# Revise el batch medido y congele cualquier ajuste de workers/cache en este YAML.
 CONFIRM_SEGMENTATION_TRAINING=1 \
-  bash cloud_training/train.sh
+  make leaf-segmentation-cloud-train \
+  CONFIG=outputs/leaf_detection/segmenter/configs/train_yolo26n_seg.final.yaml
 
-bash cloud_training/validate.sh
-bash cloud_training/evaluate_test.sh
+make leaf-segmentation-cloud-validate
+make leaf-segmentation-cloud-test
 ```
 
+El test interno tiene un gate de un solo uso: `evaluate_test.sh` aborta si
+`test_summary.json` ya existe. Sólo una decisión formal registrada justifica
+`FORCE_INTERNAL_TEST_RERUN=1`. La validación sobre `val` no tiene ese gate
+porque es el nivel de desarrollo y debe poder repetirse.
+
+Cada reanudación escribe su propio `resume_manifest_<timestamp>.json` además de
+la copia con nombre estable, de modo que una corrida interrumpida varias veces
+conserva el historial completo.
+
 El preflight puede resolver los pesos en la nube, registra su ruta, tamaño,
-SHA-256, fuente y versión de Ultralytics, y se detiene antes del entrenamiento.
-El smoke registra duración, VRAM máxima, métricas, pérdidas disponibles,
-checkpoint y batch seleccionado. Si AutoBatch resuelve un entero positivo,
-se conserva una configuración final bajo
-`outputs/leaf_detection/segmenter/configs/`.
+SHA-256, fuente y versión exacta de Ultralytics, verifica el task y el head de
+segmentación con un tensor CUDA sintético y se detiene antes del entrenamiento.
+El smoke usa `batch=-1` para medir AutoBatch y sólo declara éxito si el batch
+efectivo es un entero positivo, las pérdidas/métricas son finitas, la GPU fue
+usada y `last.pt` existe con hash. La configuración final se crea una vez bajo
+`outputs/leaf_detection/segmenter/configs/`; nunca se sobrescribe.
+
+Antes de iniciar las 150 épocas, el runner crea
+`active_run_manifest.json` con la identidad, configuración, fingerprints y
+rutas esperadas del run. Así una interrupción se reanuda desde el `last.pt`
+exacto y nunca desde un directorio incrementado implícitamente.
 
 La reanudación nunca es automática:
 
 ```bash
 CONFIRM_SEGMENTATION_TRAINING=1 \
-  bash cloud_training/resume_train.sh --reason interruption
+  make leaf-segmentation-cloud-resume
 ```
 
 ## Construcción local permitida

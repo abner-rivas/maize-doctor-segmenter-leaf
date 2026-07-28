@@ -42,7 +42,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--train-ratio", type=float, default=0.70)
     parser.add_argument("--val-ratio", type=float, default=0.15)
     parser.add_argument("--test-ratio", type=float, default=0.15)
-    parser.add_argument("--materialization", choices=("copy", "hardlink"), default="copy")
+    parser.add_argument(
+        "--materialization",
+        choices=("copy", "hardlink"),
+        default="copy",
+        help=(
+            "Materialización de los splits definitivos. Las dos corridas "
+            "temporales de reproducibilidad siempre usan hardlink."
+        ),
+    )
     parser.add_argument(
         "--perceptual-threshold",
         type=int,
@@ -116,7 +124,15 @@ def main() -> None:
     parent_lock = verify_parent_dataset(args.dataset_root)
     source_records = load_split_records(args.dataset_root)
     temporary_runs: list[dict[str, str]] = []
-    with tempfile.TemporaryDirectory(prefix="leaf-segmentation-splits-") as temporary:
+    # Las dos corridas de reproducibilidad sólo comparan asignaciones y
+    # manifiestos: materializan por hardlink (con fallback a copia si el
+    # sistema de archivos lo impide) para no copiar el dataset dos veces.
+    # El directorio temporal vive junto al dataset para que el hardlink sea
+    # posible en el mismo sistema de archivos.
+    with tempfile.TemporaryDirectory(
+        prefix=".tmp-leaf-segmentation-splits-",
+        dir=args.dataset_root.parent,
+    ) as temporary:
         temporary_root = Path(temporary)
         for index in (1, 2):
             run_root = temporary_root / f"run_{index}"
@@ -131,7 +147,7 @@ def main() -> None:
                     report_root=report_root,
                     seed=args.seed,
                     ratios=ratios,
-                    materialization=args.materialization,
+                    materialization="hardlink",
                     perceptual_threshold=args.perceptual_threshold,
                     pilot_root=args.dataset_root.parent / "pilot",
                 )

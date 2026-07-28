@@ -7,7 +7,8 @@ parte de train, val ni test interno.
 ## Procedimiento
 
 1. Extraer el `.tar.gz` en almacenamiento persistente.
-2. Activar el entorno Python/GPU provisto por la plataforma.
+2. Confirmar que el Python provisto por la plataforma importa torch y
+   torchvision con CUDA; no activar un virtualenv ajeno al paquete.
 3. Ejecutar `bash cloud_training/bootstrap_cloud.sh`.
 4. Ejecutar `bash cloud_training/preflight_cloud.sh`.
 5. Revisar `outputs/leaf_detection/cloud_preflight/summary.json`.
@@ -15,7 +16,7 @@ parte de train, val ni test interno.
    `CONFIRM_SEGMENTATION_SMOKE_TRAINING=1 bash cloud_training/smoke_train.sh`.
 7. Revisar `outputs/leaf_detection/segmenter/smoke_summary.json` y el batch.
 8. Autorizar el entrenamiento:
-   `CONFIRM_SEGMENTATION_TRAINING=1 bash cloud_training/train.sh`.
+   `CONFIRM_SEGMENTATION_TRAINING=1 CONFIG=outputs/leaf_detection/segmenter/configs/train_yolo26n_seg.final.yaml bash cloud_training/train.sh`.
 9. Ejecutar `bash cloud_training/validate.sh`.
 10. Ejecutar `bash cloud_training/evaluate_test.sh`.
 11. Descargar `outputs/leaf_detection/` antes de apagar la máquina.
@@ -59,7 +60,8 @@ CONFIRM_SEGMENTATION_SMOKE_TRAINING=1 \
 make leaf-segmentation-cloud-smoke
 
 CONFIRM_SEGMENTATION_TRAINING=1 \
-make leaf-segmentation-cloud-train
+make leaf-segmentation-cloud-train \
+CONFIG=outputs/leaf_detection/segmenter/configs/train_yolo26n_seg.final.yaml
 
 make leaf-segmentation-cloud-validate
 make leaf-segmentation-cloud-test

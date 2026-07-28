@@ -1,6 +1,6 @@
-# Usa el intérprete del entorno activo en Linux, macOS y Windows.
-# Todas las variables son sobreescribibles desde la CLI.
-PYTHON ?= python
+# Usa python3 cuando existe y conserva compatibilidad con entornos que sólo
+# publican el alias python. Todas las variables son sobreescribibles desde CLI.
+PYTHON ?= $(shell command -v python3 >/dev/null 2>&1 && printf python3 || printf python)
 PIP ?= $(PYTHON) -m pip
 RUFF ?= $(PYTHON) -m ruff
 PYRIGHT ?= $(PYTHON) -m pyright
@@ -31,7 +31,10 @@ LEAF_SEGMENTATION_OUTPUT ?= outputs/leaf_detection
 LEAF_SEGMENTATION_PACKAGE_DIR ?= $(LEAF_SEGMENTATION_OUTPUT)/packages
 SEGMENTATION_MODEL ?= yolo26n-seg.pt
 SEGMENTATION_DEVICE ?= 0
+CONFIG ?= $(LEAF_SEGMENTATION_OUTPUT)/segmenter/configs/train_yolo26n_seg.final.yaml
 PACKAGE ?=
+PREDICTIONS ?=
+SPLIT ?= val
 
 .PHONY: help \
 	leaf-segmentation-status leaf-segmentation-verify-locks \
@@ -44,6 +47,7 @@ PACKAGE ?=
 	leaf-segmentation-cloud-test leaf-segmentation-cloud-results \
 	leaf-segmentation-cloud-checksums leaf-segmentation-pilot-evaluate \
 	leaf-segmentation-cloud-prepare leaf-segmentation-cloud-check \
+	leaf-segmentation-downstream-metrics \
 	compile-pdf install download-dataset splits splits-baseline train \
 	train-baselines explain-lime explain-report explain-errors test-loader \
 	smoke-loader audit-dataset validate-splits training-preflight \
@@ -91,6 +95,8 @@ help:
 		'  leaf-segmentation-cloud-clean-temp       Borrar sólo temporales del packager' \
 		'  leaf-segmentation-cloud-prepare          Locks + splits + package + verify' \
 		'  leaf-segmentation-cloud-check            Status + locks + splits' \
+		'  leaf-segmentation-downstream-metrics     IoU/Dice/recall por fuente' \
+		'                                           PREDICTIONS=<dir> [SPLIT=val]' \
 		'' \
 		'CLOUD / SIN ENTRENAR:' \
 		'  leaf-segmentation-cloud-bootstrap        Instalar en entorno cloud aislado' \
@@ -208,6 +214,14 @@ leaf-segmentation-preflight:
 		--dataset-root "$(LEAF_SEGMENTATION_DATASET)" \
 		--output-root "$(LEAF_SEGMENTATION_OUTPUT)/training_preflight"
 
+leaf-segmentation-downstream-metrics:
+	$(if $(PREDICTIONS),,$(error ERROR: indique PREDICTIONS=<directorio con etiquetas YOLO-seg predichas>))
+	$(PYTHON) scripts/pipeline/leaf_segmentation_downstream_metrics.py \
+		--dataset-root "$(LEAF_SEGMENTATION_DATASET)" \
+		--prediction-root "$(PREDICTIONS)" \
+		--split "$(SPLIT)" \
+		--output-root "$(LEAF_SEGMENTATION_OUTPUT)/downstream_metrics"
+
 leaf-segmentation-status:
 	$(LEAF_SEGMENTATION_MAKE_HELPER) status
 
@@ -265,6 +279,7 @@ leaf-segmentation-cloud-train:
 		LEAF_SEGMENTATION_OUTPUT="$(LEAF_SEGMENTATION_OUTPUT)" \
 		SEGMENTATION_MODEL="$(SEGMENTATION_MODEL)" \
 		SEGMENTATION_DEVICE="$(SEGMENTATION_DEVICE)" \
+		CONFIG="$(CONFIG)" \
 		bash "$(CLOUD_TRAINING_DIR)/train.sh"
 
 leaf-segmentation-cloud-resume:

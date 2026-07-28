@@ -115,6 +115,36 @@ def test_changed_split_fingerprint_blocks(
         preflight.verify_training_locks(root)
 
 
+def test_cloud_payload_rejects_self_consistent_noncanonical_parent(
+    tmp_path: Path,
+) -> None:
+    """Cambiar datos y ambos locks no puede crear un payload alternativo válido."""
+    root = tmp_path / "dataset"
+    manifests = root / "manifests"
+    manifests.mkdir(parents=True)
+    alternate = "a" * 64
+    (manifests / "dataset_lock.json").write_text(
+        json.dumps(
+            {
+                "status": "ready_for_split_generation",
+                "global_fingerprint": {"sha256": alternate},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (manifests / "split_lock.json").write_text(
+        json.dumps(
+            {
+                "status": "ready_for_training_preflight",
+                "parent_dataset_fingerprint": alternate,
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(preflight.PreflightError, match="contrato congelado"):
+        preflight.verify_cloud_training_payload(root)
+
+
 def test_valid_dataset_yaml_and_segmentation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

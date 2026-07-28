@@ -31,7 +31,38 @@ from src.data.segmentation_split import SPLITS, verify_parent_dataset
 
 EXPECTED_IMAGES = {"train": 809, "val": 173, "test": 173}
 EXPECTED_MASKS = {"train": 858, "val": 183, "test": 183}
-CANDIDATE_PACKAGE_VERSION = "8.4.104"
+EXPECTED_PARENT_FINGERPRINT = (
+    "c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c"
+)
+EXPECTED_SPLIT_FINGERPRINTS = {
+    "train": "6aa0bd03098137999f0ee9753a9128939ac123004513b1f7c5655d34c0fdd9df",
+    "val": "3c7bf7aba8a9f29b409c61bad4d9e9d59a3387915592f181ad3950ac8374e720",
+    "test": "046545351ce79431bb1a995dfbc7dfa44c642a18a046860ed5edb9fc0ed89c51",
+}
+EXPECTED_COMBINED_FINGERPRINT = (
+    "874b217b927285c418f7e52df6f374c97481856c88a3e8e5757be9f6c5c1f51a"
+)
+EXPECTED_SEED = 42
+EXPECTED_IMAGE_TOTAL = 1155
+EXPECTED_MASK_TOTAL = 1224
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _candidate_package_version() -> str:
+    requirement = (
+        _PROJECT_ROOT / "cloud_training" / "requirements" / "ultralytics.in"
+    )
+    matches = [
+        line.strip().removeprefix("ultralytics==")
+        for line in requirement.read_text(encoding="utf-8").splitlines()
+        if line.strip().startswith("ultralytics==")
+    ]
+    if len(matches) != 1 or not matches[0]:
+        raise RuntimeError(f"Versión de Ultralytics inválida en {requirement}")
+    return matches[0]
+
+
+CANDIDATE_PACKAGE_VERSION = _candidate_package_version()
 CANDIDATE_MODEL = "yolo26n-seg"
 WEIGHTS_FILENAME = f"{CANDIDATE_MODEL}.pt"
 CONFIG_FILENAME = f"{CANDIDATE_MODEL}.yaml"
@@ -137,24 +168,81 @@ def verify_cloud_training_payload(dataset_root: Path) -> dict[str, Any]:
     if split_lock.get("status") != "ready_for_training_preflight":
         raise PreflightError("split_lock no está listo")
     parent_fingerprint = str(parent.get("global_fingerprint", {}).get("sha256", ""))
-    if split_lock.get("parent_dataset_fingerprint") != parent_fingerprint:
-        raise PreflightError("Fingerprint padre inconsistente entre locks")
+    if parent_fingerprint != EXPECTED_PARENT_FINGERPRINT:
+        raise PreflightError(
+            "Fingerprint padre fuera del contrato congelado: "
+            f"{parent_fingerprint} != {EXPECTED_PARENT_FINGERPRINT}"
+        )
+    if split_lock.get("parent_dataset_fingerprint") != EXPECTED_PARENT_FINGERPRINT:
+        raise PreflightError("Fingerprint padre inválido en split_lock")
+    if split_lock.get("seed") != EXPECTED_SEED:
+        raise PreflightError(f"Seed inválido en split_lock: {split_lock.get('seed')!r}")
+    for field, expected_value in (
+        ("combined_fingerprint", EXPECTED_COMBINED_FINGERPRINT),
+        ("actual_counts", EXPECTED_IMAGES),
+        ("mask_counts", EXPECTED_MASKS),
+        ("image_count", EXPECTED_IMAGE_TOTAL),
+        ("mask_count", EXPECTED_MASK_TOTAL),
+        ("parent_content_equivalent", True),
+        ("training_performed", False),
+        ("cross_split_duplicate_count", 0),
+        ("cross_split_group_leakage_count", 0),
+        ("cross_split_roboflow_variant_count", 0),
+        ("cross_split_perceptual_count", 0),
+        ("pilot_leakage_count", 0),
+    ):
+        if split_lock.get(field) != expected_value:
+            raise PreflightError(
+                f"split_lock.{field}={split_lock.get(field)!r} != {expected_value!r}"
+            )
+    frozen_fingerprints = json.loads(
+        (manifests / "split_fingerprints.json").read_text(encoding="utf-8")
+    )
+    expected_fingerprint_manifest = {
+        "parent_dataset_fingerprint": EXPECTED_PARENT_FINGERPRINT,
+        "combined_fingerprint": EXPECTED_COMBINED_FINGERPRINT,
+        **{
+            f"{split}_fingerprint": fingerprint
+            for split, fingerprint in EXPECTED_SPLIT_FINGERPRINTS.items()
+        },
+    }
+    for field, expected_value in expected_fingerprint_manifest.items():
+        if frozen_fingerprints.get(field) != expected_value:
+            raise PreflightError(
+                f"split_fingerprints.{field} fuera del contrato congelado"
+            )
     with (manifests / "split_manifest.csv").open(
         encoding="utf-8", newline=""
     ) as handle:
         rows = list(csv.DictReader(handle))
+    row_counts = dict(Counter(row.get("split", "") for row in rows))
+    if row_counts != EXPECTED_IMAGES or len(rows) != EXPECTED_IMAGE_TOTAL:
+        raise PreflightError(
+            f"Conteos del manifiesto modificados: {row_counts}, total={len(rows)}"
+        )
     actual = {
         split: _split_digest(rows, dataset_root, split) for split in SPLITS
     }
-    expected = {
+    lock_fingerprints = {
         split: str(split_lock.get(f"{split}_fingerprint", "")) for split in SPLITS
     }
-    if actual != expected:
-        raise PreflightError(f"Fingerprints de splits modificados: {actual} != {expected}")
+    if lock_fingerprints != EXPECTED_SPLIT_FINGERPRINTS:
+        raise PreflightError(
+            "Los fingerprints declarados no coinciden con el contrato congelado"
+        )
+    if actual != EXPECTED_SPLIT_FINGERPRINTS:
+        raise PreflightError(
+            "Contenido de splits modificado: "
+            f"{actual} != {EXPECTED_SPLIT_FINGERPRINTS}"
+        )
     return {
         "passed": True,
         "parent_fingerprint": parent_fingerprint,
         "split_fingerprints": actual,
+        "combined_fingerprint": EXPECTED_COMBINED_FINGERPRINT,
+        "seed": EXPECTED_SEED,
+        "image_counts": row_counts,
+        "mask_counts": EXPECTED_MASKS,
         "verified_manifest_rows": len(rows),
     }
 

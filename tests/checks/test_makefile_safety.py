@@ -32,6 +32,7 @@ SEGMENTATION_TARGETS = {
     "leaf-segmentation-pilot-evaluate",
     "leaf-segmentation-cloud-prepare",
     "leaf-segmentation-cloud-check",
+    "leaf-segmentation-downstream-metrics",
 }
 
 
@@ -95,6 +96,23 @@ class MakefileSafetyTests(TestCase):
         self.assertIn(
             "/opt/remote/bin/python scripts/package/leaf_segmentation_make.py",
             status.stdout,
+        )
+
+    def test_full_training_propagates_the_frozen_config(self) -> None:
+        config = (
+            "outputs/leaf_detection/segmenter/configs/"
+            "train_yolo26n_seg.final.yaml"
+        )
+        result = self._dry_run(
+            "leaf-segmentation-cloud-train",
+            "CONFIRM_SEGMENTATION_TRAINING=1",
+            f"CONFIG={config}",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f'CONFIG="{config}"', result.stdout)
+        self.assertNotIn(
+            '--config "cloud_training/configs/train_yolo26n_seg.yaml"',
+            result.stdout,
         )
 
     def test_general_training_keeps_its_existing_guards(self) -> None:
@@ -162,6 +180,20 @@ class MakefileSafetyTests(TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         for forbidden in ("nvidia-smi", "pip install", "YOLO(", " train "):
             self.assertNotIn(forbidden, result.stdout)
+
+    def test_downstream_metrics_requires_predictions_and_never_trains(self) -> None:
+        result = self._dry_run("leaf-segmentation-downstream-metrics")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("PREDICTIONS=", result.stderr)
+        rendered = self._dry_run(
+            "leaf-segmentation-downstream-metrics",
+            "PREDICTIONS=/tmp/predicciones",
+        )
+        self.assertEqual(rendered.returncode, 0, rendered.stderr)
+        self.assertIn("leaf_segmentation_downstream_metrics.py", rendered.stdout)
+        self.assertIn('--split "val"', rendered.stdout)
+        for forbidden in ("yolo ", "train", "pip install", "nvidia-smi"):
+            self.assertNotIn(forbidden, rendered.stdout)
 
     def test_clean_outputs_requires_explicit_confirmation(self) -> None:
         result = self._dry_run("clean-outputs")

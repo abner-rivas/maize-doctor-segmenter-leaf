@@ -172,7 +172,9 @@ def perceptual_hash(path: Path, size: int = 8) -> str:
     with Image.open(path) as image:
         gray = ImageOps.exif_transpose(image).convert("L")
         resized = gray.resize((size, size), Image.Resampling.LANCZOS)
-        pixels = list(resized.getdata())
+        # tobytes() en modo L devuelve exactamente los mismos valores que el
+        # deprecado getdata() (Pillow 14); el hash resultante no cambia.
+        pixels = list(resized.tobytes())
     average = sum(pixels) / len(pixels)
     value = 0
     for index, pixel in enumerate(pixels):

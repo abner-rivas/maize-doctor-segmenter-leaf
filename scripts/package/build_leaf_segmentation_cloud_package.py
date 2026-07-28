@@ -16,7 +16,7 @@ from typing import Iterable
 from src.config import PROJECT_ROOT, get_output_root
 from src.training.segmentation_preflight import verify_cloud_training_payload
 
-PACKAGE_VERSION = "v1-c087af60-seed42"
+PACKAGE_VERSION = "v2-c087af60-seed42"
 METADATA_PATHS = {
     Path("cloud_training/package_manifest.json"),
     Path("cloud_training/checksums.sha256"),
@@ -112,6 +112,7 @@ def code_paths(root: Path) -> list[Path]:
         )
     for relative in (
         "scripts/pipeline/leaf_segmentation_cloud_preflight.py",
+        "scripts/pipeline/leaf_segmentation_downstream_metrics.py",
         "scripts/pipeline/leaf_segmentation_pilot_evaluate.py",
         "scripts/pipeline/leaf_segmentation_preflight.py",
         "scripts/package/build_leaf_segmentation_cloud_package.py",
@@ -119,6 +120,7 @@ def code_paths(root: Path) -> list[Path]:
         "docs/es/leaf-detection/segmentation-cloud-training.md",
         "docs/es/leaf-detection/segmentation-training-preflight.md",
         "docs/es/leaf-detection/segmentation-dataset-splits.md",
+        "docs/es/leaf-detection/segmentation-training-optimization-plan.md",
     ):
         path = root / relative
         if path.is_file():
@@ -270,7 +272,10 @@ def build_archive(
     return archive, manifest
 
 
-def verify_extracted(archive: Path) -> dict[str, object]:
+def verify_extracted(
+    archive: Path,
+    source_root: Path | None = None,
+) -> dict[str, object]:
     with tempfile.TemporaryDirectory(
         prefix=".tmp_leaf_cloud_verify_",
         dir=archive.parent,
@@ -338,6 +343,61 @@ def verify_extracted(archive: Path) -> dict[str, object]:
                 or verified_digests.get(relative) != row.get("sha256")
             ):
                 raise RuntimeError(f"Entrada inválida en manifiesto: {relative}")
+        expected_members = {
+            *(str(row["path"]) for row in manifest_rows),
+            "cloud_training/package_manifest.json",
+            "cloud_training/checksums.sha256",
+        }
+        archive_members: dict[str, tarfile.TarInfo] = {}
+        for member in members:
+            parts = Path(member.name).parts
+            if len(parts) < 2 or not member.isfile():
+                raise RuntimeError(f"Miembro no regular o sin raíz única: {member.name}")
+            archive_members[Path(*parts[1:]).as_posix()] = member
+        if set(archive_members) != expected_members:
+            raise RuntimeError(
+                "El tar contiene archivos extra o faltantes: "
+                f"extra={sorted(set(archive_members) - expected_members)}, "
+                f"missing={sorted(expected_members - set(archive_members))}"
+            )
+        for relative, member in archive_members.items():
+            executable = relative.endswith(".sh") or Path(relative).name in {
+                "run_ultralytics.py",
+                "leaf_segmentation_cloud_preflight.py",
+            }
+            expected_mode = 0o755 if executable else 0o644
+            if member.mode != expected_mode:
+                raise RuntimeError(
+                    f"Permiso inválido: {relative}: {oct(member.mode)} "
+                    f"!= {oct(expected_mode)}"
+                )
+        source_checked = 0
+        if source_root is not None:
+            source_root = source_root.resolve()
+            source_dataset = source_root / str(manifest["dataset_relative_path"])
+            current_paths = {
+                path.relative_to(source_root).as_posix()
+                for path in collect_payload(source_root, source_dataset)
+            }
+            manifest_paths = {str(row["path"]) for row in manifest_rows}
+            if current_paths != manifest_paths:
+                raise RuntimeError(
+                    "El payload no corresponde a la lista blanca actual: "
+                    f"extra={sorted(manifest_paths - current_paths)}, "
+                    f"missing={sorted(current_paths - manifest_paths)}"
+                )
+            for row in manifest_rows:
+                relative = str(row["path"])
+                source = source_root / relative
+                if (
+                    not source.is_file()
+                    or source.stat().st_size != row["size_bytes"]
+                    or sha256(source) != row["sha256"]
+                ):
+                    raise RuntimeError(
+                        f"El paquete no corresponde al código/dataset actual: {relative}"
+                    )
+                source_checked += 1
         required = {
             "Makefile",
             "cloud_training/bootstrap_cloud.sh",
@@ -349,9 +409,12 @@ def verify_extracted(archive: Path) -> dict[str, object]:
             "cloud_training/evaluate_test.sh",
             "cloud_training/run_ultralytics.py",
             "cloud_training/package_manifest.json",
+            "cloud_training/CLOUD_READINESS_CHECKLIST.md",
             "scripts/package/build_leaf_segmentation_cloud_package.py",
             "scripts/package/leaf_segmentation_make.py",
+            "scripts/pipeline/leaf_segmentation_downstream_metrics.py",
             "scripts/pipeline/leaf_segmentation_pilot_evaluate.py",
+            "src/evaluation/segmentation_downstream.py",
         }
         missing = sorted(path for path in required if not (extracted / path).is_file())
         if missing:
@@ -371,6 +434,7 @@ def verify_extracted(archive: Path) -> dict[str, object]:
             "checksums_verified": checked,
             "forbidden_paths_found": forbidden,
             "dataset_counts": counts,
+            "source_files_verified": source_checked,
         }
 
 
@@ -400,7 +464,11 @@ def main() -> None:
         args.version,
         args.dataset_root.resolve(),
     )
-    result = verify_extracted(archive) if args.verify_extract else {"passed": None}
+    result = (
+        verify_extracted(archive, args.project_root.resolve())
+        if args.verify_extract
+        else {"passed": None}
+    )
     print(
         json.dumps(
             {"archive": manifest["archive"], "verification": result},

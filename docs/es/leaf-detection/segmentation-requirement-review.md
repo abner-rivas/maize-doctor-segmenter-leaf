@@ -26,6 +26,8 @@ Todos los valores declarados en el requerimiento resultaron correctos:
 | `split_lock.status` | `ready_for_training_preflight` | igual | lectura del lock |
 | Paquete | 2 132 850 255 B | idéntico | `stat` |
 | SHA-256 del paquete | `5d4d2bb6…b999` | idéntico | `sha256sum` recalculado |
+| *(paquete reconstruido)* | — | `ec5dac44…dd6d` | ver V-03 |
+| *(paquete v2 para upload/train)* | — | `4886ef3a…805c` | ver V-04 |
 | Ultralytics local | no instalado | `ModuleNotFoundError` | import |
 | `processing_profile` | `baseline_full` | igual | `config/dataset.yaml` |
 | `leaf_detection.enabled` | `false` | igual | `config/dataset.yaml` |
@@ -42,9 +44,22 @@ archivo (211) y `find -type f` no (210); por eso el manifiesto de transporte
 declara 23 666 bytes de más respecto al lock. Los 211 archivos del manifiesto
 existen en disco con hash y tamaño idénticos: no hay pérdida ni corrupción.
 
-**V-03 (relevante).** El paquete cloud fue construido el 2026-07-28 a las 09:19,
-antes de las correcciones de esta revisión. Contiene versiones anteriores de
-`run_ultralytics.py`, `lib.sh` y `Makefile`. Debe reconstruirse antes de subirlo.
+**V-03 (relevante, resuelto).** El paquete construido a las 09:19 contenía
+versiones anteriores de `run_ultralytics.py`, `lib.sh` y `Makefile`. Se
+reconstruyó con el código corregido: nuevo SHA-256
+`ec5dac4478f43a83e9afeca3734131041022cac1611b76942de914e5ba93dd6d`
+(2 132 860 866 B). El contenido se verificó por extracción contra el repositorio
+y el determinismo se confirmó con dos construcciones independientes que
+produjeron el mismo hash.
+
+**V-04 (ruta crítica corregida).** Tras corregir propagación de `CONFIG`,
+AutoBatch, gates de pérdidas/GPU/checkpoints, locks canónicos, bootstrap,
+preflight e identidad reanudable del run, se generó el paquete
+`v2-c087af60-seed42`: SHA-256
+`4886ef3a11edb5d4819b9e980981a3f697f85129238a0b25e78eb9b0bc82805c`
+(2 132 873 091 B). Dos reconstrucciones consecutivas produjeron el mismo hash;
+la extracción verificó 2 402 checksums, 2 401 archivos contra el árbol fuente
+y cero rutas prohibidas.
 
 ## 2. Historia técnica reconstruida
 
@@ -194,7 +209,8 @@ seguir siendo el nano.
 
 ## 6. Defectos encontrados en el código cloud
 
-Tres defectos que sólo se habrían manifestado tras consumir GPU:
+Tres defectos que sólo se habrían manifestado tras consumir GPU (todos
+corregidos, con prueba, y ya incluidos en el paquete reconstruido):
 
 1. **`selected_batch` y `loss` se leían de `result.trainer`.** El objeto que
    devuelve `YOLO.train()` son las métricas, no el trainer, así que
@@ -236,10 +252,13 @@ registro histórico.
 ## 8. Conclusión
 
 **Listo:** dataset, splits, locks, fingerprints, aislamiento del piloto,
-protecciones del Makefile, determinismo del empaquetado y trazabilidad completa.
+protecciones del Makefile, determinismo del empaquetado, trazabilidad completa,
+paquete reconstruido con el código corregido, gate de un solo uso del test
+interno y métricas downstream implementadas con pruebas.
 
-**Antes del smoke:** reconstruir el paquete cloud con el código corregido y
-verificar en la Fase A que `ultralytics==8.4.104` soporta `yolo26n-seg`.
+**Antes del smoke:** verificar en la Fase A que `ultralytics==8.4.104` soporta
+`yolo26n-seg` y ejecuta un forward que produzca máscaras. Es el único bloqueador
+que queda y requiere una GPU real.
 
 **Después del smoke:** decidir `cache`, congelar el batch medido, ajustar
 `workers` a la máquina real y estimar coste con datos reales.
