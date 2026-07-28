@@ -1,0 +1,103 @@
+{
+  "candidate": "yolo26n-seg.pt",
+  "constructed": true,
+  "forward_executed": true,
+  "forward_finite": true,
+  "forward_tensor_shapes": [
+    [
+      1,
+      300,
+      38
+    ],
+    [
+      1,
+      32,
+      160,
+      160
+    ],
+    [
+      1,
+      4,
+      8400
+    ],
+    [
+      1,
+      80,
+      8400
+    ],
+    [
+      1,
+      64,
+      80,
+      80
+    ],
+    [
+      1,
+      128,
+      40,
+      40
+    ],
+    [
+      1,
+      256,
+      20,
+      20
+    ],
+    [
+      1,
+      32,
+      8400
+    ],
+    [
+      1,
+      32,
+      160,
+      160
+    ],
+    [
+      1,
+      4,
+      8400
+    ],
+    [
+      1,
+      80,
+      8400
+    ],
+    [
+      1,
+      64,
+      80,
+      80
+    ],
+    [
+      1,
+      128,
+      40,
+      40
+    ],
+    [
+      1,
+      256,
+      20,
+      20
+    ],
+    [
+      1,
+      32,
+      8400
+    ],
+    [
+      1,
+      32,
+      160,
+      160
+    ]
+  ],
+  "head_class": "Segment26",
+  "resolved_task": "segment",
+  "segmentation_head_verified": true,
+  "segmentation_output": true,
+  "task": "segment",
+  "ultralytics": "8.4.104"
+}

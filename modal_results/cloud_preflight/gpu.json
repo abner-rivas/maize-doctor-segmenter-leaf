@@ -1,0 +1,10 @@
+{
+  "cuda_available": true,
+  "cuda_compiled": "12.4",
+  "cudnn": 90100,
+  "device_count": 1,
+  "device_verified": true,
+  "name": "NVIDIA A10",
+  "vram_free_bytes": 23191027712,
+  "vram_total_bytes": 23684841472
+}

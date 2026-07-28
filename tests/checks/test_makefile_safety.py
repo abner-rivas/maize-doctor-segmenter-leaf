@@ -33,6 +33,17 @@ SEGMENTATION_TARGETS = {
     "leaf-segmentation-cloud-prepare",
     "leaf-segmentation-cloud-check",
     "leaf-segmentation-downstream-metrics",
+    "leaf-segmentation-modal-volume-create",
+    "leaf-segmentation-modal-upload",
+    "leaf-segmentation-modal-prepare",
+    "leaf-segmentation-modal-preflight",
+    "leaf-segmentation-modal-smoke",
+    "leaf-segmentation-modal-train",
+    "leaf-segmentation-modal-resume",
+    "leaf-segmentation-modal-validate",
+    "leaf-segmentation-modal-results",
+    "leaf-segmentation-modal-checksums",
+    "leaf-segmentation-modal-download",
 }
 
 
@@ -159,6 +170,85 @@ class MakefileSafetyTests(TestCase):
             for invalid in ("true", "1 2"):
                 result = self._dry_run(target, f"{variable}={invalid}")
                 self.assertNotEqual(result.returncode, 0)
+
+    def test_modal_training_targets_keep_the_local_confirmation_guards(self) -> None:
+        cases = {
+            "leaf-segmentation-modal-smoke": (
+                "CONFIRM_SEGMENTATION_SMOKE_TRAINING=1",
+                "modal_training.py::smoke",
+            ),
+            "leaf-segmentation-modal-train": (
+                "CONFIRM_SEGMENTATION_TRAINING=1",
+                "modal_training.py::train",
+            ),
+            "leaf-segmentation-modal-resume": (
+                "CONFIRM_SEGMENTATION_TRAINING=1",
+                "modal_training.py::resume",
+            ),
+        }
+        for target, (confirmation, remote_function) in cases.items():
+            blocked = self._dry_run(target)
+            self.assertNotEqual(blocked.returncode, 0, target)
+            self.assertIn(confirmation, blocked.stderr)
+            self.assertNotIn(remote_function, blocked.stdout)
+
+        smoke = self._dry_run(
+            "leaf-segmentation-modal-smoke",
+            "CONFIRM_SEGMENTATION_SMOKE_TRAINING=1",
+        )
+        self.assertEqual(smoke.returncode, 0, smoke.stderr)
+        self.assertIn(
+            "modal run modal_training.py::smoke --confirm true",
+            smoke.stdout,
+        )
+        for target in (
+            "leaf-segmentation-modal-train",
+            "leaf-segmentation-modal-resume",
+        ):
+            rendered = self._dry_run(
+                target,
+                "CONFIRM_SEGMENTATION_TRAINING=1",
+            )
+            self.assertEqual(rendered.returncode, 0, rendered.stderr)
+            self.assertIn("modal run --detach", rendered.stdout)
+            self.assertIn("--confirm true", rendered.stdout)
+
+    def test_modal_gpu_allowlist_blocks_invalid_or_ambiguous_values(self) -> None:
+        for invalid in ("T4", "H100", "A10 L4"):
+            result = self._dry_run(
+                "leaf-segmentation-modal-preflight",
+                f"MODAL_SEGMENTATION_GPU={invalid}",
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("A10, L4 o A100", result.stderr)
+            self.assertNotIn("modal_training.py::preflight", result.stdout)
+
+    def test_modal_volume_flow_uses_the_frozen_package_once(self) -> None:
+        upload = self._dry_run("leaf-segmentation-modal-upload")
+        self.assertEqual(upload.returncode, 0, upload.stderr)
+        self.assertIn(
+            "doctor_maiz_leaf_segmentation_cloud_v2-c087af60-seed42.tar.gz",
+            upload.stdout,
+        )
+        self.assertIn(
+            "4886ef3a11edb5d4819b9e980981a3f697f85129238a0b25e78eb9b0bc82805c",
+            upload.stdout,
+        )
+        self.assertEqual(upload.stdout.count("modal volume put"), 2)
+        self.assertNotIn("volume put --force", upload.stdout)
+        self.assertNotIn("add_local_dir", upload.stdout)
+
+        prepare = self._dry_run("leaf-segmentation-modal-prepare")
+        self.assertEqual(prepare.returncode, 0, prepare.stderr)
+        self.assertIn(
+            "modal run modal_training.py::prepare",
+            prepare.stdout,
+        )
+
+        download = self._dry_run("leaf-segmentation-modal-download")
+        self.assertEqual(download.returncode, 0, download.stderr)
+        self.assertIn("modal volume get --force", download.stdout)
+        self.assertIn("/project/outputs/leaf_detection/", download.stdout)
 
     def test_safe_prepare_has_no_accidental_cloud_or_training_dependencies(self) -> None:
         result = self._dry_run("leaf-segmentation-cloud-prepare")

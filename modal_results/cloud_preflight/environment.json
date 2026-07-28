@@ -1,0 +1,11 @@
+{
+  "commit": "a86a2ddf1d0d1d23c93a19059cb5fc9bdb0f557f",
+  "expected_ultralytics": "8.4.104",
+  "platform": "Linux-4.19.0-gvisor-x86_64-with-glibc2.35",
+  "python": "3.11.11",
+  "python_executable": "/opt/conda/bin/python",
+  "torch": "2.6.0+cu124",
+  "torchvision": "0.21.0+cu124",
+  "torchvision_import_error": null,
+  "ultralytics": "8.4.104"
+}

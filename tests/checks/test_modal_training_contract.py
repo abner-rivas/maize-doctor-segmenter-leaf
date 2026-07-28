@@ -1,0 +1,443 @@
+"""Static contract tests for the Modal leaf-segmentation control plane."""
+
+from __future__ import annotations
+
+import ast
+import os
+import subprocess
+import sys
+from pathlib import Path
+from unittest import TestCase
+from unittest.mock import patch
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MODAL_TRAINING = PROJECT_ROOT / "modal_training.py"
+SOURCE = MODAL_TRAINING.read_text(encoding="utf-8")
+TREE = ast.parse(SOURCE)
+
+
+def _remote_functions() -> dict[str, ast.FunctionDef]:
+    functions: dict[str, ast.FunctionDef] = {}
+    for node in TREE.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if any(
+            isinstance(decorator, ast.Call)
+            and isinstance(decorator.func, ast.Attribute)
+            and isinstance(decorator.func.value, ast.Name)
+            and decorator.func.value.id == "app"
+            and decorator.func.attr == "function"
+            for decorator in node.decorator_list
+        ):
+            functions[node.name] = node
+    return functions
+
+
+def _function_source(name: str) -> str:
+    node = next(
+        node
+        for node in TREE.body
+        if isinstance(node, ast.FunctionDef) and node.name == name
+    )
+    source = ast.get_source_segment(SOURCE, node)
+    assert source is not None
+    return source
+
+
+def _version_validator():
+    constants: dict[str, object] = {}
+    validator: ast.FunctionDef | None = None
+    for node in TREE.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if (
+                    isinstance(target, ast.Name)
+                    and target.id.startswith("EXPECTED_")
+                ):
+                    try:
+                        constants[target.id] = ast.literal_eval(node.value)
+                    except ValueError:
+                        pass
+        elif isinstance(node, ast.FunctionDef) and node.name == "_validate_image_versions":
+            validator = node
+    assert validator is not None
+    namespace = dict(constants)
+    code = compile(
+        ast.Module(body=[validator], type_ignores=[]),
+        filename=str(MODAL_TRAINING),
+        mode="exec",
+    )
+    exec(code, namespace)
+    return namespace["_validate_image_versions"]
+
+
+VALIDATE_IMAGE_VERSIONS = _version_validator()
+
+
+def _project_environment_function(project_root: Path):
+    function = next(
+        node
+        for node in TREE.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_project_environment"
+    )
+    namespace = {
+        "PROJECT_ROOT": project_root,
+        "os": os,
+        "sys": sys,
+    }
+    code = compile(
+        ast.Module(body=[function], type_ignores=[]),
+        filename=str(MODAL_TRAINING),
+        mode="exec",
+    )
+    exec(code, namespace)
+    return namespace["_project_environment"]
+
+
+class ModalTrainingContractTests(TestCase):
+    def test_app_volume_and_frozen_package_are_exact(self) -> None:
+        self.assertIn(
+            'app = modal.App("doctor-maiz-leaf-segmentation")',
+            SOURCE,
+        )
+        self.assertIn(
+            'VOLUME_NAME = "doctor-maiz-leaf-segmentation"',
+            SOURCE,
+        )
+        self.assertIn('VOLUME_MOUNT = Path("/workspace")', SOURCE)
+        self.assertIn("create_if_missing=False", SOURCE)
+        self.assertIn(
+            'PACKAGE_NAME = f"doctor_maiz_leaf_segmentation_cloud_{PACKAGE_VERSION}.tar.gz"',
+            SOURCE,
+        )
+        self.assertIn(
+            'PACKAGE_SHA256 = "4886ef3a11edb5d4819b9e980981a3f697f85129238a0b25e78eb9b0bc82805c"',
+            SOURCE,
+        )
+
+    def test_image_is_reproducible_and_never_embeds_local_data(self) -> None:
+        self.assertIn(
+            'BASE_IMAGE_TAG = "pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime"',
+            SOURCE,
+        )
+        self.assertIn(
+            '"sha256:77f17f843507062875ce8be2a6f76aa6aa3df7f9ef1e31d9d7432f4b0f563dee"',
+            SOURCE,
+        )
+        for version in (
+            'EXPECTED_TORCH = "2.6.0"',
+            'EXPECTED_TORCHVISION = "0.21.0"',
+            'EXPECTED_ULTRALYTICS = "8.4.104"',
+            'EXPECTED_CUDA = "12.4"',
+            'EXPECTED_CUDA_LOCAL = "cu124"',
+        ):
+            self.assertIn(version, SOURCE)
+        for forbidden in (
+            "add_local_dir",
+            "add_local_file",
+            ".venv-cloud",
+            "modal.Secret",
+        ):
+            self.assertNotIn(forbidden, SOURCE)
+        self.assertIn("IMAGE_RECIPE_SHA256", SOURCE)
+        self.assertIn('"modal_image_id": _modal_object_id(modal_image)', SOURCE)
+        self.assertIn("python -m pip freeze", SOURCE)
+
+    def test_cuda_local_versions_match_their_base_releases(self) -> None:
+        VALIDATE_IMAGE_VERSIONS(
+            {
+                "python": "3.11.13",
+                "torch": "2.6.0+cu124",
+                "torch_import": "2.6.0+cu124",
+                "torchvision": "0.21.0+cu124",
+                "torchvision_import": "0.21.0+cu124",
+                "ultralytics": "8.4.104",
+                "torch_cuda": "12.4",
+            },
+            (3, 11, 13),
+        )
+
+    def test_different_base_release_is_rejected(self) -> None:
+        actual = self._valid_image_versions()
+        actual["torch"] = "2.6.1+cu124"
+        with self.assertRaisesRegex(RuntimeError, r"torch='2\.6\.1\+cu124'"):
+            VALIDATE_IMAGE_VERSIONS(actual, (3, 11, 13))
+
+    def test_startswith_lookalike_release_is_rejected(self) -> None:
+        actual = self._valid_image_versions()
+        actual["torch"] = "2.6.01+cu124"
+        with self.assertRaisesRegex(RuntimeError, r"torch='2\.6\.01\+cu124'"):
+            VALIDATE_IMAGE_VERSIONS(actual, (3, 11, 13))
+
+    def test_different_cuda_is_rejected(self) -> None:
+        actual = self._valid_image_versions()
+        actual["torch_cuda"] = "12.6"
+        with self.assertRaisesRegex(RuntimeError, r"torch\.version\.cuda='12\.6'"):
+            VALIDATE_IMAGE_VERSIONS(actual, (3, 11, 13))
+
+    def test_missing_cuda_local_suffix_is_rejected(self) -> None:
+        actual = self._valid_image_versions()
+        actual["torch_import"] = "2.6.0"
+        with self.assertRaisesRegex(RuntimeError, r"torch_import='2\.6\.0'"):
+            VALIDATE_IMAGE_VERSIONS(actual, (3, 11, 13))
+
+    def test_different_ultralytics_is_rejected(self) -> None:
+        actual = self._valid_image_versions()
+        actual["ultralytics"] = "8.4.105"
+        with self.assertRaisesRegex(RuntimeError, r"ultralytics='8\.4\.105'"):
+            VALIDATE_IMAGE_VERSIONS(actual, (3, 11, 13))
+
+    def test_build_validation_does_not_require_a_gpu(self) -> None:
+        build_source = _function_source("_validate_modal_image_versions")
+        self.assertNotIn("torch.cuda.is_available", build_source)
+
+    def test_image_uses_module_level_run_function_for_version_check(self) -> None:
+        validator = next(
+            node
+            for node in TREE.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_validate_modal_image_versions"
+        )
+        self.assertIsInstance(validator, ast.FunctionDef)
+        self.assertIn(
+            ".run_function(_validate_modal_image_versions)",
+            SOURCE,
+        )
+        self.assertNotIn("_IMAGE_VERSION_CHECK", SOURCE)
+
+    def test_python_validation_is_never_passed_as_dockerfile_commands(self) -> None:
+        self.assertNotIn(".dockerfile_commands(", SOURCE)
+        self.assertNotIn("setup_dockerfile_commands=", SOURCE)
+        image_source = SOURCE.split("modal_image =", maxsplit=1)[1].split(
+            "app = modal.App", maxsplit=1
+        )[0]
+        self.assertNotIn("python -c", image_source)
+        run_commands_source = image_source.split(".run_commands(", 1)[1].split(
+            ")", 1
+        )[0]
+        self.assertNotIn("_validate_modal_image_versions", run_commands_source)
+
+    def test_runtime_preflight_still_requires_cuda(self) -> None:
+        runtime_source = _function_source("_runtime_report")
+        self.assertIn("if require_gpu:", runtime_source)
+        self.assertIn("torch.cuda.is_available()", runtime_source)
+
+    def test_project_root_is_first_without_duplicate_in_pythonpath(self) -> None:
+        project_root = Path("/workspace/project")
+        project_environment = _project_environment_function(project_root)
+        previous = os.pathsep.join(
+            (
+                "/existing/one",
+                str(project_root),
+                "/existing/two",
+                str(project_root),
+            )
+        )
+        with patch.dict(
+            os.environ,
+            {
+                "PYTHONPATH": previous,
+                "DOCTOR_MAIZ_EXISTING_ENV": "preserved",
+            },
+        ):
+            environment = project_environment()
+
+        self.assertEqual(
+            environment["PYTHONPATH"].split(os.pathsep),
+            [str(project_root), "/existing/one", "/existing/two"],
+        )
+        self.assertEqual(environment["DOCTOR_MAIZ_EXISTING_ENV"], "preserved")
+
+    def test_project_environment_has_no_hardcoded_local_path(self) -> None:
+        environment_source = _function_source("_project_environment")
+        self.assertNotIn("/home/desarrolloab", environment_source)
+        self.assertIn("project_root = str(PROJECT_ROOT)", environment_source)
+
+    def test_project_environment_allows_importing_src_config(self) -> None:
+        project_environment = _project_environment_function(PROJECT_ROOT)
+        with patch.dict(os.environ, {"PYTHONPATH": "/existing/pythonpath"}):
+            environment = project_environment()
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from src.config import PROJECT_ROOT; print(PROJECT_ROOT)",
+            ],
+            cwd="/tmp",
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout.strip(), str(PROJECT_ROOT))
+
+    def test_all_remote_operations_receive_project_environment(self) -> None:
+        self.assertIn("env=environment", _function_source("_run"))
+        self.assertIn(
+            "environment=_project_environment()",
+            _function_source("_make"),
+        )
+        self.assertIn("_make(", _function_source("_execute"))
+        for operation in (
+            "preflight",
+            "smoke",
+            "train",
+            "resume",
+            "validate",
+            "results",
+            "checksums",
+        ):
+            self.assertIn("_execute(", _function_source(operation), operation)
+
+    def test_prepare_never_reloads_and_commits_closed_extraction(self) -> None:
+        prepare_source = _function_source("prepare")
+        self.assertNotIn("workspace.reload()", prepare_source)
+        self.assertIn("workspace.commit()", prepare_source)
+        self.assertIn("prepared_already", prepare_source)
+        self.assertIn("prepared_recovered", prepare_source)
+        self.assertLess(
+            prepare_source.index("with tarfile.open"),
+            prepare_source.index("tar.extractall"),
+        )
+        self.assertLess(
+            prepare_source.index("tar.extractall"),
+            prepare_source.index("extracted.rename(PROJECT_ROOT)"),
+        )
+        self.assertLess(
+            prepare_source.index("extracted.rename(PROJECT_ROOT)"),
+            prepare_source.rindex("workspace.commit()"),
+        )
+
+    def test_reload_is_centralized_outside_the_volume_before_access(self) -> None:
+        reload_source = _function_source("_reload_workspace_before_access")
+        self.assertEqual(SOURCE.count("workspace.reload()"), 1)
+        self.assertLess(
+            reload_source.index('os.chdir("/tmp")'),
+            reload_source.index("workspace.reload()"),
+        )
+        execute_source = _function_source("_execute")
+        ordered_operations = (
+            "_reload_workspace_before_access()",
+            "_prepared_payload()",
+            "os.chdir(PROJECT_ROOT)",
+            "_runtime_report(",
+            "_make(",
+            "workspace.commit()",
+        )
+        offsets = [execute_source.index(operation) for operation in ordered_operations]
+        self.assertEqual(offsets, sorted(offsets))
+        for operation in (
+            "preflight",
+            "smoke",
+            "train",
+            "resume",
+            "validate",
+            "results",
+            "checksums",
+        ):
+            self.assertIn("_execute(", _function_source(operation), operation)
+
+    def test_train_has_no_reload_during_training(self) -> None:
+        train_source = _function_source("train")
+        self.assertNotIn("reload", train_source)
+        self.assertIn("validate_final_config=True", train_source)
+        self.assertIn("CONFIRM_SEGMENTATION_TRAINING=1", train_source)
+
+    def test_prepare_recovers_only_its_checksum_scoped_staging(self) -> None:
+        self.assertIn(
+            'PREPARE_STAGING = VOLUME_MOUNT / f".project_extracting_{PACKAGE_SHA256}"',
+            SOURCE,
+        )
+        cleanup_source = _function_source("_remove_prepare_staging")
+        self.assertIn("shutil.rmtree(PREPARE_STAGING)", cleanup_source)
+        self.assertNotIn("INCOMING_ROOT", cleanup_source)
+        self.assertNotIn("PROJECT_ROOT", cleanup_source)
+        prepare_source = _function_source("prepare")
+        self.assertNotIn("shutil.rmtree(INCOMING_ROOT)", prepare_source)
+        self.assertNotIn("shutil.rmtree(PROJECT_ROOT)", prepare_source)
+
+    def test_prepare_blocks_bad_checksum_before_extraction(self) -> None:
+        prepare_source = _function_source("prepare")
+        self.assertLess(
+            prepare_source.index("actual_sha256 != PACKAGE_SHA256"),
+            prepare_source.index("tarfile.open"),
+        )
+        self.assertIn("SHA-256 del paquete inválido", prepare_source)
+        self.assertIn("Sidecar SHA-256 inconsistente", prepare_source)
+
+    @staticmethod
+    def _valid_image_versions() -> dict[str, str | None]:
+        return {
+            "python": "3.11.13",
+            "torch": "2.6.0+cu124",
+            "torch_import": "2.6.0+cu124",
+            "torchvision": "0.21.0+cu124",
+            "torchvision_import": "0.21.0+cu124",
+            "ultralytics": "8.4.104",
+            "torch_cuda": "12.4",
+        }
+
+    def test_only_allowed_gpu_types_can_be_requested(self) -> None:
+        self.assertIn('ALLOWED_GPUS = ("A10", "L4", "A100")', SOURCE)
+        self.assertIn(
+            'os.getenv("DOCTOR_MAIZ_MODAL_GPU", "A10")',
+            SOURCE,
+        )
+        self.assertIn("MINIMUM_VRAM_BYTES = 12 * 1024**3", SOURCE)
+        self.assertNotIn("gpu=[", SOURCE)
+
+    def test_all_required_remote_functions_mount_the_volume(self) -> None:
+        functions = _remote_functions()
+        self.assertEqual(
+            set(functions),
+            {
+                "prepare",
+                "preflight",
+                "smoke",
+                "train",
+                "resume",
+                "validate",
+                "results",
+                "checksums",
+            },
+        )
+        for name, function in functions.items():
+            decorator = function.decorator_list[0]
+            assert isinstance(decorator, ast.Call)
+            keywords = {keyword.arg: keyword.value for keyword in decorator.keywords}
+            self.assertIn("volumes", keywords, name)
+            self.assertIsInstance(keywords["volumes"], ast.Name)
+            self.assertEqual(keywords["volumes"].id, "VOLUME_MOUNTS")
+
+    def test_training_requires_literal_string_confirmation(self) -> None:
+        functions = _remote_functions()
+        for name in ("smoke", "train", "resume"):
+            function = functions[name]
+            defaults = function.args.defaults
+            self.assertEqual(len(defaults), 1)
+            self.assertIsInstance(defaults[0], ast.Constant)
+            self.assertEqual(defaults[0].value, "false")
+        self.assertIn('if value != "true":', SOURCE)
+        self.assertIn("use --confirm true exactamente", SOURCE)
+
+    def test_prepare_and_runtime_guards_are_persistent(self) -> None:
+        for contract in (
+            'PROJECT_ROOT = VOLUME_MOUNT / "project"',
+            'INCOMING_ROOT = VOLUME_MOUNT / "incoming"',
+            'PREPARED_MARKER = PROJECT_ROOT / ".modal_package_prepared.json"',
+            "workspace.reload()",
+            "workspace.commit()",
+            '"runtime_environment.lock"',
+            "runtime_environment.modal.lock",
+            "ready_for_smoke_training",
+            "memory_total_mib",
+            "initial_utilization_percent",
+            'payload.get("epochs") != 150',
+        ):
+            self.assertIn(contract, SOURCE)
+
+    def test_no_remote_test_or_pilot_entrypoint_exists(self) -> None:
+        functions = _remote_functions()
+        self.assertNotIn("test", functions)
+        self.assertNotIn("pilot", functions)

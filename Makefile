@@ -36,6 +36,13 @@ PACKAGE ?=
 PREDICTIONS ?=
 SPLIT ?= val
 
+MODAL_SEGMENTATION_APP ?= modal_training.py
+MODAL_SEGMENTATION_VOLUME ?= doctor-maiz-leaf-segmentation
+MODAL_SEGMENTATION_GPU ?= A10
+MODAL_SEGMENTATION_PACKAGE ?= $(LEAF_SEGMENTATION_PACKAGE_DIR)/doctor_maiz_leaf_segmentation_cloud_v2-c087af60-seed42.tar.gz
+MODAL_SEGMENTATION_PACKAGE_SHA256 ?= 4886ef3a11edb5d4819b9e980981a3f697f85129238a0b25e78eb9b0bc82805c
+MODAL_SEGMENTATION_DOWNLOAD_DIR ?= outputs-remote-leaf-segmentation
+
 .PHONY: help \
 	leaf-segmentation-status leaf-segmentation-verify-locks \
 	leaf-segmentation-verify-splits leaf-segmentation-preflight \
@@ -48,6 +55,12 @@ SPLIT ?= val
 	leaf-segmentation-cloud-checksums leaf-segmentation-pilot-evaluate \
 	leaf-segmentation-cloud-prepare leaf-segmentation-cloud-check \
 	leaf-segmentation-downstream-metrics \
+	leaf-segmentation-modal-volume-create \
+	leaf-segmentation-modal-upload leaf-segmentation-modal-prepare \
+	leaf-segmentation-modal-preflight leaf-segmentation-modal-smoke \
+	leaf-segmentation-modal-train leaf-segmentation-modal-resume \
+	leaf-segmentation-modal-validate leaf-segmentation-modal-results \
+	leaf-segmentation-modal-checksums leaf-segmentation-modal-download \
 	compile-pdf install download-dataset splits splits-baseline train \
 	train-baselines explain-lime explain-report explain-errors test-loader \
 	smoke-loader audit-dataset validate-splits training-preflight \
@@ -80,6 +93,10 @@ define REQUIRE_PILOT_EVALUATION_CONFIRMATION
 $(if $(and $(filter 1,$(strip $(CONFIRM_PILOT_EVALUATION))),$(filter 1,$(words $(strip $(CONFIRM_PILOT_EVALUATION))))),,$(error ERROR: evaluación del piloto no autorizada. Ejecute: CONFIRM_PILOT_EVALUATION=1 make leaf-segmentation-pilot-evaluate))
 endef
 
+define REQUIRE_MODAL_SEGMENTATION_GPU
+$(if $(and $(filter A10 L4 A100,$(strip $(MODAL_SEGMENTATION_GPU))),$(filter 1,$(words $(strip $(MODAL_SEGMENTATION_GPU))))),,$(error ERROR: MODAL_SEGMENTATION_GPU debe ser exactamente A10, L4 o A100))
+endef
+
 help:
 	@printf '%s\n' \
 		'DoctorMaiz — interfaz de segmentación' \
@@ -106,10 +123,23 @@ help:
 		'  leaf-segmentation-cloud-results          Mostrar resultados sin cambiarlos' \
 		'  leaf-segmentation-cloud-checksums        Hashes de resultados' \
 		'' \
+		'MODAL / SEGMENTACIÓN:' \
+		'  leaf-segmentation-modal-volume-create    Crear Volume persistente' \
+		'  leaf-segmentation-modal-upload           Subir paquete v2 una sola vez' \
+		'  leaf-segmentation-modal-prepare          Verificar y extraer paquete v2' \
+		'  leaf-segmentation-modal-preflight        Validar entorno y GPU (A10)' \
+		'  leaf-segmentation-modal-validate         Validar best.pt sólo sobre val' \
+		'  leaf-segmentation-modal-results          Inventario persistente' \
+		'  leaf-segmentation-modal-checksums        Hashes persistentes' \
+		'  leaf-segmentation-modal-download         Descargar resultados' \
+		'' \
 		'ENTRENAMIENTO / CONFIRMACIÓN OBLIGATORIA:' \
 		'  leaf-segmentation-cloud-smoke   CONFIRM_SEGMENTATION_SMOKE_TRAINING=1' \
 		'  leaf-segmentation-cloud-train   CONFIRM_SEGMENTATION_TRAINING=1' \
 		'  leaf-segmentation-cloud-resume  CONFIRM_SEGMENTATION_TRAINING=1' \
+		'  leaf-segmentation-modal-smoke   CONFIRM_SEGMENTATION_SMOKE_TRAINING=1' \
+		'  leaf-segmentation-modal-train   CONFIRM_SEGMENTATION_TRAINING=1' \
+		'  leaf-segmentation-modal-resume  CONFIRM_SEGMENTATION_TRAINING=1' \
 		'  leaf-segmentation-pilot-evaluate CONFIRM_PILOT_EVALUATION=1'
 
 install:
@@ -327,6 +357,75 @@ leaf-segmentation-cloud-prepare: leaf-segmentation-verify-locks \
 
 leaf-segmentation-cloud-check: leaf-segmentation-status \
 	leaf-segmentation-verify-locks leaf-segmentation-verify-splits
+
+leaf-segmentation-modal-volume-create:
+	$(MODAL) volume create "$(MODAL_SEGMENTATION_VOLUME)"
+
+leaf-segmentation-modal-upload:
+	@test -f "$(MODAL_SEGMENTATION_PACKAGE)" || { \
+		printf '%s\n' "ERROR: falta $(MODAL_SEGMENTATION_PACKAGE)" >&2; \
+		exit 1; \
+	}
+	@test -f "$(MODAL_SEGMENTATION_PACKAGE).sha256" || { \
+		printf '%s\n' "ERROR: falta $(MODAL_SEGMENTATION_PACKAGE).sha256" >&2; \
+		exit 1; \
+	}
+	@set -- $$(sha256sum "$(MODAL_SEGMENTATION_PACKAGE)"); \
+		test "$$1" = "$(MODAL_SEGMENTATION_PACKAGE_SHA256)" || { \
+			printf '%s\n' "ERROR: SHA-256 local inesperado: $$1" >&2; \
+			exit 1; \
+		}
+	@set -- $$(sed -n '1p' "$(MODAL_SEGMENTATION_PACKAGE).sha256"); \
+		test "$$1" = "$(MODAL_SEGMENTATION_PACKAGE_SHA256)" || { \
+			printf '%s\n' "ERROR: sidecar SHA-256 inesperado: $$1" >&2; \
+			exit 1; \
+		}
+	$(MODAL) volume put "$(MODAL_SEGMENTATION_VOLUME)" \
+		"$(MODAL_SEGMENTATION_PACKAGE)" "/incoming/"
+	$(MODAL) volume put "$(MODAL_SEGMENTATION_VOLUME)" \
+		"$(MODAL_SEGMENTATION_PACKAGE).sha256" "/incoming/"
+
+leaf-segmentation-modal-prepare:
+	$(MODAL) run $(MODAL_SEGMENTATION_APP)::prepare
+
+leaf-segmentation-modal-preflight:
+	$(REQUIRE_MODAL_SEGMENTATION_GPU)
+	DOCTOR_MAIZ_MODAL_GPU="$(MODAL_SEGMENTATION_GPU)" \
+		$(MODAL) run $(MODAL_SEGMENTATION_APP)::preflight
+
+leaf-segmentation-modal-smoke:
+	$(REQUIRE_SEGMENTATION_SMOKE_CONFIRMATION)
+	$(REQUIRE_MODAL_SEGMENTATION_GPU)
+	DOCTOR_MAIZ_MODAL_GPU="$(MODAL_SEGMENTATION_GPU)" \
+		$(MODAL) run $(MODAL_SEGMENTATION_APP)::smoke --confirm true
+
+leaf-segmentation-modal-train:
+	$(REQUIRE_SEGMENTATION_TRAINING_CONFIRMATION)
+	$(REQUIRE_MODAL_SEGMENTATION_GPU)
+	DOCTOR_MAIZ_MODAL_GPU="$(MODAL_SEGMENTATION_GPU)" \
+		$(MODAL) run --detach $(MODAL_SEGMENTATION_APP)::train --confirm true
+
+leaf-segmentation-modal-resume:
+	$(REQUIRE_SEGMENTATION_TRAINING_CONFIRMATION)
+	$(REQUIRE_MODAL_SEGMENTATION_GPU)
+	DOCTOR_MAIZ_MODAL_GPU="$(MODAL_SEGMENTATION_GPU)" \
+		$(MODAL) run --detach $(MODAL_SEGMENTATION_APP)::resume --confirm true
+
+leaf-segmentation-modal-validate:
+	$(REQUIRE_MODAL_SEGMENTATION_GPU)
+	DOCTOR_MAIZ_MODAL_GPU="$(MODAL_SEGMENTATION_GPU)" \
+		$(MODAL) run $(MODAL_SEGMENTATION_APP)::validate
+
+leaf-segmentation-modal-results:
+	$(MODAL) run $(MODAL_SEGMENTATION_APP)::results
+
+leaf-segmentation-modal-checksums:
+	$(MODAL) run $(MODAL_SEGMENTATION_APP)::checksums
+
+leaf-segmentation-modal-download:
+	mkdir -p "$(MODAL_SEGMENTATION_DOWNLOAD_DIR)"
+	$(MODAL) volume get --force "$(MODAL_SEGMENTATION_VOLUME)" \
+		"/project/outputs/leaf_detection/" "$(MODAL_SEGMENTATION_DOWNLOAD_DIR)"
 
 training-package-manifest:
 	$(PYTHON) scripts/checks/build_training_package_manifest.py --output outputs/training_package_manifest.json
