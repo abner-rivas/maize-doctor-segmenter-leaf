@@ -19,6 +19,7 @@ from src.data.segmentation_split import (
     SplitGroup,
     SplitRecord,
     SplitValidationError,
+    apply_preserved_split_assignments,
     assign_groups_to_splits,
     build_split_groups,
     compute_split_fingerprint,
@@ -138,6 +139,38 @@ def test_assignment_is_deterministic_and_conserves_totals(tmp_path: Path) -> Non
     assert counts == {"train": 42, "val": 9, "test": 9}
 
 
+def test_preserved_assignment_keeps_every_filename_in_its_previous_split(
+    tmp_path: Path,
+) -> None:
+    records = [_record(index, tmp_path) for index in range(6)]
+    groups = [_group(record) for record in records]
+    assignments = {
+        record.filename: SPLITS[index % len(SPLITS)]
+        for index, record in enumerate(records)
+    }
+
+    apply_preserved_split_assignments(groups, assignments)
+
+    assert {record.filename: record.split for record in records} == assignments
+
+
+def test_preserved_assignment_blocks_a_group_crossing_splits(tmp_path: Path) -> None:
+    first = _record(1, tmp_path)
+    second = _record(2, tmp_path)
+    group = SplitGroup(
+        group_id="shared",
+        records=[first, second],
+        perceptual_cluster="shared",
+        features=split_module._group_features([first, second]),
+    )
+
+    with pytest.raises(SplitValidationError, match="cruza splits preservados"):
+        apply_preserved_split_assignments(
+            [group],
+            {first.filename: "train", second.filename: "val"},
+        )
+
+
 def test_assignment_balances_rare_source_and_mask_areas(tmp_path: Path) -> None:
     records = [
         _record(
@@ -209,7 +242,7 @@ def test_dataset_yaml_is_portable_and_has_three_existing_paths(tmp_path: Path) -
             (tmp_path / kind / split).mkdir(parents=True)
     write_dataset_yaml(tmp_path)
     content = (tmp_path / "dataset.yaml").read_text(encoding="utf-8")
-    assert "path: ." in content
+    assert "\npath:" not in f"\n{content}"
     assert all(f"{split}: images/{split}" in content for split in SPLITS)
     assert "0: maize_leaf" in content
     assert "pilot" not in content

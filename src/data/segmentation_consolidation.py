@@ -18,6 +18,10 @@ import pandas as pd
 import yaml
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
+from src.data.jpeg_normalization import (
+    IMAGE_NORMALIZATION_COLUMNS,
+    normalize_jpeg_copy,
+)
 from src.data.segmentation_audit import (
     BBOX_MATCH_TOLERANCE,
     IMAGE_EXTENSIONS,
@@ -57,6 +61,7 @@ CONSOLIDATION_ARTIFACTS = (
     "manual_review.csv",
     "mandatory_visual_review.csv",
     "duplicate_groups.csv",
+    "image_normalization_manifest.csv",
 )
 REPORT_ARTIFACTS = (
     "summary.json",
@@ -1137,6 +1142,7 @@ def build_segmentation_consolidation(
 
         manifest_rows: list[dict[str, object]] = []
         included_images: list[dict[str, object]] = []
+        image_normalization_rows: list[dict[str, object]] = []
         topology_review: list[dict[str, object]] = []
         polygons_by_image = {
             key: group.sort_values("line_number")
@@ -1462,18 +1468,27 @@ def build_segmentation_consolidation(
                     output_stem + original_image.suffix.lower()
                 )
                 label_target = all_root / "labels" / f"{output_stem}.txt"
-                shutil.copy2(original_image, image_target)
-                if sha256_file(image_target) != image_row["image_sha256"]:
-                    raise RuntimeError(f"Hash distinto después de copiar {image_target}")
+                normalization = normalize_jpeg_copy(
+                    original_image,
+                    image_target,
+                    source_path=str(original_image.resolve()),
+                    derived_path=str(
+                        dataset_root / "all" / "images" / image_target.name
+                    ),
+                )
+                normalized_sha256 = str(normalization["normalized_sha256"])
+                image_normalization_rows.append(normalization)
                 label_target.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
                 final_image = dataset_root / "all/images" / image_target.name
                 final_label = dataset_root / "all/labels" / label_target.name
                 for row in annotation_rows:
+                    row["image_sha256"] = normalized_sha256
                     row["consolidated_image_path"] = str(final_image)
                     row["consolidated_label_path"] = str(final_label)
                 included_images.append(
                     {
                         **image_row,
+                        "image_sha256": normalized_sha256,
                         "output_stem": output_stem,
                         "polygons": output_points,
                         "has_recovered": has_recovered,
@@ -1670,6 +1685,11 @@ def build_segmentation_consolidation(
             duplicate_rows,
             DUPLICATE_COLUMNS,
         )
+        write_csv(
+            manifests_root / "image_normalization_manifest.csv",
+            image_normalization_rows,
+            IMAGE_NORMALIZATION_COLUMNS,
+        )
 
         preview_paths = _generate_previews(
             included_images,
@@ -1818,6 +1838,19 @@ def build_segmentation_consolidation(
                 count > 1 for count in variant_counts.values()
             ),
             "previews": len(preview_paths),
+            "jpeg_images": len(image_normalization_rows),
+            "jpeg_images_normalized": sum(
+                row["status"] == "normalized"
+                for row in image_normalization_rows
+            ),
+            "jpeg_lossless_eoi_repairs": sum(
+                row["normalization_method"] == "append_ffd9"
+                for row in image_normalization_rows
+            ),
+            "jpeg_reencodes": sum(
+                str(row["normalization_method"]).startswith("reencode_")
+                for row in image_normalization_rows
+            ),
         }
         summary = {
             "schema_version": 2,

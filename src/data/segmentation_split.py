@@ -32,7 +32,7 @@ SPLIT_READY_STATUS = "ready_for_training_preflight"
 SPLIT_BLOCKED_STATUS = "blocked_by_split_validation"
 DEFAULT_PERCEPTUAL_THRESHOLD = 4
 EXPECTED_PARENT_FINGERPRINT = (
-    "c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c"
+    "7a4a5c083fc64b067df12bcc95ec976d5a7e3b8a585d0a090b6b3940af4d7d5c"
 )
 PARENT_DATASET_YAML = (
     "# Candidate pool only: train/val/test splits are intentionally absent.\n"
@@ -676,6 +676,37 @@ def assign_groups_to_splits(
     return sorted(groups, key=lambda group: group.group_id)
 
 
+def apply_preserved_split_assignments(
+    groups: Sequence[SplitGroup],
+    assignments: Mapping[str, str],
+) -> list[SplitGroup]:
+    """Apply a complete prior filename-to-split mapping without rebalancing it."""
+    records = [record for group in groups for record in group.records]
+    filenames = {record.filename for record in records}
+    missing = sorted(filenames - set(assignments))
+    extra = sorted(set(assignments) - filenames)
+    invalid = sorted(
+        (filename, split)
+        for filename, split in assignments.items()
+        if split not in SPLITS
+    )
+    if missing or extra or invalid:
+        raise SplitValidationError(
+            "La asignación preservada no coincide con el dataset: "
+            f"missing={missing[:5]}, extra={extra[:5]}, invalid={invalid[:5]}"
+        )
+    for group in groups:
+        assigned = {assignments[record.filename] for record in group.records}
+        if len(assigned) != 1:
+            raise SplitValidationError(
+                f"El grupo {group.group_id} cruza splits preservados: {sorted(assigned)}"
+            )
+        group.split = assigned.pop()
+        for record in group.records:
+            record.split = group.split
+    return sorted(groups, key=lambda group: group.group_id)
+
+
 def _clear_materialized_directories(dataset_root: Path) -> None:
     for kind in ("images", "labels"):
         for split in SPLITS:
@@ -945,7 +976,6 @@ def validate_split_integrity(
         )
     yaml_path = materialized_root / "dataset.yaml"
     expected_yaml = (
-        "path: .\n"
         "train: images/train\n"
         "val: images/val\n"
         "test: images/test\n\n"
@@ -1233,9 +1263,8 @@ def _render_previews(records: Sequence[SplitRecord], output: Path, seed: int) ->
 
 
 def write_dataset_yaml(dataset_root: Path) -> None:
-    """Write the portable train/val/test segmentation configuration."""
+    """Write paths relative to the YAML location for Ultralytics portability."""
     (dataset_root / "dataset.yaml").write_text(
-        "path: .\n"
         "train: images/train\n"
         "val: images/val\n"
         "test: images/test\n\n"

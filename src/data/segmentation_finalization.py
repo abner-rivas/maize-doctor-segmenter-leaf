@@ -11,6 +11,10 @@ from collections import Counter
 from pathlib import Path
 from typing import Sequence
 
+from src.data.jpeg_normalization import (
+    IMAGE_NORMALIZATION_COLUMNS,
+    write_auxiliary_jpeg_audit,
+)
 from src.data.segmentation_audit import IMAGE_EXTENSIONS, sha256_file
 from src.data.segmentation_consolidation import (
     DUPLICATE_COLUMNS,
@@ -47,6 +51,8 @@ FINAL_MANIFESTS = (
     "reannotation_queue.csv",
     "selection_summary.json",
     "dataset_lock.json",
+    "image_normalization_manifest.csv",
+    "auxiliary_jpeg_audit.csv",
 )
 
 
@@ -264,6 +270,50 @@ def _validate_copy_hashes(
             raise RuntimeError(f"Hash de copia incorrecto: {path}")
 
 
+def _filter_image_normalization_manifest(
+    candidate_root: Path,
+    final_dataset_root: Path,
+) -> dict[str, int]:
+    """Retain normalization provenance only for images surviving human review."""
+    path = candidate_root / "manifests" / "image_normalization_manifest.csv"
+    rows = _read_csv(path)
+    final_names = {
+        image.name
+        for image in (candidate_root / "all" / "images").iterdir()
+        if image.is_file() and image.suffix.lower() in IMAGE_EXTENSIONS
+    }
+    filtered = [
+        row for row in rows if Path(row["derived_path"]).name in final_names
+    ]
+    if len(filtered) != len(final_names):
+        raise RuntimeError(
+            "El manifiesto de normalización no corresponde al pool final: "
+            f"rows={len(filtered)}, images={len(final_names)}"
+        )
+    for row in filtered:
+        row["derived_path"] = str(
+            final_dataset_root
+            / "all"
+            / "images"
+            / Path(row["derived_path"]).name
+        )
+    write_csv(path, filtered, IMAGE_NORMALIZATION_COLUMNS)
+    return {
+        "jpeg_images": len(filtered),
+        "jpeg_images_normalized": sum(
+            row["status"] == "normalized" for row in filtered
+        ),
+        "jpeg_lossless_eoi_repairs": sum(
+            row["normalization_method"] == "append_ffd9"
+            for row in filtered
+        ),
+        "jpeg_reencodes": sum(
+            row["normalization_method"].startswith("reencode_")
+            for row in filtered
+        ),
+    }
+
+
 def _rewrite_report_paths(root: Path, old: Path, new: Path) -> None:
     for path in root.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in {".csv", ".json", ".md"}:
@@ -376,6 +426,16 @@ def _materialize_final_candidate(
         candidate_root,
         final_dataset_root,
         reviews,
+    )
+    base_summary["counts"].update(
+        _filter_image_normalization_manifest(
+            candidate_root,
+            final_dataset_root,
+        )
+    )
+    base_summary["auxiliary_jpeg_audit"] = write_auxiliary_jpeg_audit(
+        final_dataset_root,
+        candidate_root / "manifests" / "auxiliary_jpeg_audit.csv",
     )
     shutil.copy2(
         human_manifest_root / "manual_review.csv",

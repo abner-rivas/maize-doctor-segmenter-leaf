@@ -222,6 +222,11 @@ maize-doctor-classifier/
 Documentación completa construida con VitePress (`npm install && npm run docs:dev`, disponible
 en `http://localhost:5173`).
 
+Los datasets, muestras de prueba, pesos descargados, resultados locales o de
+Modal y entornos virtuales no forman parte del repositorio. Las reglas
+correspondientes están centralizadas en `.gitignore`; los checkpoints
+persistentes viven bajo `outputs/` o en el Volume remoto.
+
 ---
 
 ## Estado del Proyecto

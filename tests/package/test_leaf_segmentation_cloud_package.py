@@ -59,11 +59,17 @@ def test_internal_test_has_a_single_use_gate() -> None:
     assert "exit 2" in source[guard:invocation]
 
 
-def test_validation_has_no_single_use_gate() -> None:
-    """val es el nivel de desarrollo y debe poder reejecutarse sin límite."""
+def test_validation_is_single_use_and_explicitly_requests_retained_test() -> None:
+    """La evaluación final no puede caer en el split predeterminado de YOLO."""
     source = (CLOUD / "validate.sh").read_text(encoding="utf-8")
     assert "FORCE_INTERNAL_TEST_RERUN" not in source
     assert "val_summary.json" not in source
+    assert "--split test" in source
+    assert "--split val" not in source
+    guard = source.index("test_summary.json")
+    invocation = source.index("run_ultralytics.py")
+    assert guard < invocation
+    assert "exit 2" in source[guard:invocation]
 
 
 def test_cloud_scripts_reuse_the_bootstrap_environment() -> None:
@@ -83,15 +89,28 @@ def test_cloud_yaml_configs_are_deterministic_and_safe() -> None:
     assert train["epochs"] == 150 and train["batch"] == -1
     assert train["seed"] == smoke["seed"] == validate["seed"] == 42
     assert train["task"] == smoke["task"] == validate["task"] == "segment"
+    assert validate["split"] == "test"
+    assert validate["name"] == "yolo26n_seg_test"
     assert "pilot" not in str(smoke) + str(train) + str(validate)
 
 
 def test_bootstrap_uses_one_version_source_and_checks_cuda_before_and_after() -> None:
     source = (CLOUD / "bootstrap_cloud.sh").read_text(encoding="utf-8")
-    requirement = (CLOUD / "requirements/ultralytics.in").read_text(encoding="utf-8")
-    assert requirement.strip().endswith("ultralytics==8.4.104")
+    requirements = {
+        line.strip()
+        for line in (CLOUD / "requirements/ultralytics.in")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+    assert requirements == {
+        "ultralytics==8.4.104",
+        "faster-coco-eval==1.7.2",
+    }
     assert 'ULTRALYTICS_VERSION="8.4.104"' not in source
     assert "requirements/ultralytics.in" in source
+    assert "FASTER_COCO_EVAL_SPEC" in source
+    assert "metadata.version(\"faster-coco-eval\")" in source
     assert source.count("import torchvision") >= 2
     assert source.count("torch.cuda.is_available()") >= 2
     assert "pip install --dry-run" in source

@@ -227,11 +227,7 @@ class MakefileSafetyTests(TestCase):
         upload = self._dry_run("leaf-segmentation-modal-upload")
         self.assertEqual(upload.returncode, 0, upload.stderr)
         self.assertIn(
-            "doctor_maiz_leaf_segmentation_cloud_v2-c087af60-seed42.tar.gz",
-            upload.stdout,
-        )
-        self.assertIn(
-            "4886ef3a11edb5d4819b9e980981a3f697f85129238a0b25e78eb9b0bc82805c",
+            "doctor_maiz_leaf_segmentation_cloud_v5-test-7a4a5c08-seed42.tar.gz",
             upload.stdout,
         )
         self.assertEqual(upload.stdout.count("modal volume put"), 2)
@@ -248,7 +244,10 @@ class MakefileSafetyTests(TestCase):
         download = self._dry_run("leaf-segmentation-modal-download")
         self.assertEqual(download.returncode, 0, download.stderr)
         self.assertIn("modal volume get --force", download.stdout)
-        self.assertIn("/project/outputs/leaf_detection/", download.stdout)
+        self.assertIn(
+            "/project_v4-7a4a5c08-seed42/outputs/leaf_detection/",
+            download.stdout,
+        )
 
     def test_safe_prepare_has_no_accidental_cloud_or_training_dependencies(self) -> None:
         result = self._dry_run("leaf-segmentation-cloud-prepare")

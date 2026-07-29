@@ -1,2 +1,3 @@
 # Single audited candidate; bootstrap records the installed result.
 ultralytics==8.4.104
+faster-coco-eval==1.7.2

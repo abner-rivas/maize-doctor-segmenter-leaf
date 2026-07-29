@@ -7,5 +7,5 @@ device: 0
 seed: 42
 deterministic: true
 project: outputs/leaf_detection/segmenter_evaluation
-name: yolo26n_seg_validation
-split: val
+name: yolo26n_seg_test
+split: test

@@ -17,9 +17,15 @@ parte de train, val ni test interno.
 7. Revisar `outputs/leaf_detection/segmenter/smoke_summary.json` y el batch.
 8. Autorizar el entrenamiento:
    `CONFIRM_SEGMENTATION_TRAINING=1 CONFIG=outputs/leaf_detection/segmenter/configs/train_yolo26n_seg.final.yaml bash cloud_training/train.sh`.
-9. Ejecutar `bash cloud_training/validate.sh`.
-10. Ejecutar `bash cloud_training/evaluate_test.sh`.
-11. Descargar `outputs/leaf_detection/` antes de apagar la máquina.
+9. Ejecutar una sola vez `bash cloud_training/validate.sh`; evalúa
+   explícitamente el test retenido y bloquea si Ultralytics reporta otro split.
+10. Descargar `outputs/leaf_detection/` antes de apagar la máquina.
+
+Estado al 2026-07-29: no ejecutar todavía el paso 9. Ultralytics 8.4.104
+interpreta las 183 líneas canónicas de test como 182 instancias efectivas
+porque dos polígonos diferentes comparten clase y bbox. El intento quedó
+bloqueado, no produjo `test_summary.json` aprobado y sus salidas fueron
+eliminadas del Volume.
 
 Para reanudar de forma manual:
 
@@ -64,7 +70,6 @@ make leaf-segmentation-cloud-train \
 CONFIG=outputs/leaf_detection/segmenter/configs/train_yolo26n_seg.final.yaml
 
 make leaf-segmentation-cloud-validate
-make leaf-segmentation-cloud-test
 make leaf-segmentation-cloud-results
 ```
 

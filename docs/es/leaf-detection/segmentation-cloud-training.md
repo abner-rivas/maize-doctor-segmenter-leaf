@@ -17,7 +17,8 @@ instala Ultralytics, no descarga pesos y no ejecuta forward ni épocas.
   `CONFIRM_SEGMENTATION_SMOKE_TRAINING=1`;
 - entrenamiento y reanudación protegidos por
   `CONFIRM_SEGMENTATION_TRAINING=1`;
-- validación sobre val y evaluación separada sobre test interno;
+- evaluación final de un solo uso sobre el test retenido, con comprobación del
+  split efectivo reportado por Ultralytics;
 - configs YAML, manifiesto del paquete y checksums.
 
 El payload incluye únicamente `images/{train,val,test}`,
@@ -43,13 +44,20 @@ CONFIRM_SEGMENTATION_TRAINING=1 \
   CONFIG=outputs/leaf_detection/segmenter/configs/train_yolo26n_seg.final.yaml
 
 make leaf-segmentation-cloud-validate
-make leaf-segmentation-cloud-test
 ```
 
-El test interno tiene un gate de un solo uso: `evaluate_test.sh` aborta si
-`test_summary.json` ya existe. Sólo una decisión formal registrada justifica
-`FORCE_INTERNAL_TEST_RERUN=1`. La validación sobre `val` no tiene ese gate
-porque es el nivel de desarrollo y debe poder repetirse.
+La evaluación final tiene un gate de un solo uso: `validate.sh` aborta si
+`test_summary.json` ya existe. Envía `split=test` explícitamente y el runner
+bloquea si el validador de Ultralytics reporta cualquier otro split. Antes de
+evaluar también exige 173 imágenes, 183 instancias, el fingerprint de test
+congelado y el SHA-256 exacto de `best.pt`.
+
+La evaluación está temporalmente bloqueada: Ultralytics 8.4.104 conserva 182
+instancias efectivas de las 183 anotaciones canónicas porque dos polígonos
+distintos de `cldc_ec40ec2d7da5243e.txt` comparten bbox. No se publicó un
+resumen aprobado y se eliminaron todas las carpetas de evaluación `val/test`
+generadas durante el diagnóstico. No se debe reintentar hasta resolver ese
+contrato sin modificar el fingerprint test.
 
 Cada reanudación escribe su propio `resume_manifest_<timestamp>.json` además de
 la copia con nombre estable, de modo que una corrida interrumpida varias veces

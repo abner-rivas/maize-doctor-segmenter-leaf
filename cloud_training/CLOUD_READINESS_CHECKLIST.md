@@ -7,11 +7,15 @@ Ninguna casilla de una etapa posterior debe marcarse antes que las anteriores.
 
 - [x] `dataset_lock.status = ready_for_split_generation`
 - [x] `split_lock.status = ready_for_training_preflight`
-- [x] Fingerprint padre `c087af60…9e38c` recalculado y coincidente
+- [x] Fingerprint padre `7a4a5c08…d7d5c` recalculado y coincidente
 - [x] Los cuatro fingerprints de split coinciden (`make leaf-segmentation-verify-locks`)
 - [x] 809/173/173 imágenes y 858/183/183 máscaras verificadas en disco
 - [x] Clase única `{0: 1224}`, cero bbox mezclados, cero TXT vacíos
 - [x] Cero fugas entre splits y cero fugas contra el piloto
+- [x] Los 2 310 JPEG canónicos (`all/images` y los tres splits) son válidos y
+      el escaneo Ultralytics temporal produjo cero mutaciones
+- [x] Los 38 JPEG sin EOI de directorios auxiliares están documentados fuera
+      del gate de entrenamiento
 - [x] Piloto intacto: 100 imágenes, sin participación en train/val/test
 - [x] `processing_profile=baseline_full` y `leaf_detection.enabled=false`
 - [x] `pytest` en verde y `ruff check src/ scripts/ tests/` limpio
@@ -27,6 +31,7 @@ Ninguna casilla de una etapa posterior debe marcarse antes que las anteriores.
 - [ ] `bash cloud_training/bootstrap_cloud.sh` termina sin error
 - [ ] El dry-run **no** intentó reemplazar `torch` ni `torchvision`
 - [ ] `pip check` sin conflictos
+- [ ] `faster-coco-eval==1.7.2` presente en la Image antes de evaluar
 - [ ] `pip_freeze.txt` y `runtime_environment.lock` guardados
 - [ ] `torch.cuda.is_available()` sigue en `true` tras instalar Ultralytics
 - [ ] `bash cloud_training/preflight_cloud.sh` → `ready_for_smoke_training`
@@ -108,11 +113,21 @@ make leaf-segmentation-downstream-metrics PREDICTIONS=<dir> SPLIT=val
 
 ## Gate 5 — Internal test completed
 
+- [x] El intento que evaluaba `val` fue invalidado y sus resultados se eliminaron
+- [x] El runner solicita `test` y observa el split efectivo del dataloader
+- [ ] Resolver 183 anotaciones canónicas frente a 182 instancias efectivas
+      (`cldc_ec40ec2d7da5243e.txt`) sin cambiar el fingerprint congelado
 - [ ] Configuración congelada antes de mirar el test
-- [ ] `make leaf-segmentation-cloud-test` ejecutado **una sola vez**
+- [ ] `make leaf-segmentation-cloud-validate` ejecutado **una sola vez**
       (el script aborta si `test_summary.json` ya existe)
+- [ ] El resumen declara `requested_split=test` y `evaluated_split=test`
+- [ ] Verificados 173 imágenes, 183 instancias y el SHA exacto de `best.pt`
 - [ ] Métricas y análisis de errores registrados
 - [ ] **Ningún hiperparámetro ajustado después**
+
+Estado actual: bloqueado antes de emitir métricas oficiales. El Volume no
+conserva `segmenter_evaluation/`, `val_summary.json`, predicciones de val/test
+ni `labels/test.cache`. `best.pt` permanece intacto.
 
 ## Gate 6 — External pilot completed
 

@@ -24,13 +24,20 @@ Se verificaron:
 - `dataset_lock.status=ready_for_split_generation`;
 - `split_lock.status=ready_for_training_preflight`;
 - padre:
-  `c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c`;
+  `7a4a5c083fc64b067df12bcc95ec976d5a7e3b8a585d0a090b6b3940af4d7d5c`;
 - train:
-  `6aa0bd03098137999f0ee9753a9128939ac123004513b1f7c5655d34c0fdd9df`;
+  `06035eed94b920b9c7ad600d76eec132b93ade78ace1edb7d6a48340085d29ba`;
 - val:
   `3c7bf7aba8a9f29b409c61bad4d9e9d59a3387915592f181ad3950ac8374e720`;
 - test:
   `046545351ce79431bb1a995dfbc7dfa44c642a18a046860ed5edb9fc0ed89c51`.
+
+Antes de empaquetar se exige que los JPEG canónicos de `all/images`,
+`images/train`, `images/val` e `images/test` terminen en `FF D9`, que Pillow
+los cargue por completo y que un escaneo de Ultralytics 8.4.104 sobre una
+copia temporal no cambie ningún hash. Los 38 JPEG sin EOI conservados en
+`annotation_batches/` y el histórico `test/images/` se registran en
+`auxiliary_jpeg_audit.csv`, pero no forman parte de este gate.
 
 La revisión completa encontró 809/173/173 imágenes, 858/183/183 máscaras,
 1 224 polígonos de clase única `0 = maize_leaf`, cero bbox mezclados, cero

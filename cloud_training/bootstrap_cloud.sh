@@ -46,6 +46,22 @@ ULTRALYTICS_SPEC="$(
   exit 2
 }
 ULTRALYTICS_VERSION="${ULTRALYTICS_SPEC#ultralytics==}"
+FASTER_COCO_EVAL_SPEC="$(
+  while IFS= read -r line; do
+    case "${line}" in
+      faster-coco-eval==*) printf '%s\n' "${line}" ;;
+    esac
+  done < "${REQUIREMENT_FILE}"
+)"
+[[ "${FASTER_COCO_EVAL_SPEC}" == faster-coco-eval==* ]] || {
+  echo "${REQUIREMENT_FILE} debe fijar faster-coco-eval" >&2
+  exit 2
+}
+[[ "$(printf '%s\n' "${FASTER_COCO_EVAL_SPEC}" | wc -l)" -eq 1 ]] || {
+  echo "${REQUIREMENT_FILE} contiene más de una versión de faster-coco-eval" >&2
+  exit 2
+}
+FASTER_COCO_EVAL_VERSION="${FASTER_COCO_EVAL_SPEC#faster-coco-eval==}"
 
 uname -a
 "${HOST_PYTHON}" --version
@@ -122,6 +138,7 @@ PY
   --report "${BOOTSTRAP_OUT}/pip_dry_run_report.json" \
   --constraint "${CLOUD_DIR}/requirements/runtime_constraints.txt" \
   "${ULTRALYTICS_SPEC}" \
+  "${FASTER_COCO_EVAL_SPEC}" \
   2>&1 | tee "${BOOTSTRAP_OUT}/pip_dry_run.txt"
 
 "${CLOUD_PYTHON}" - "${BOOTSTRAP_OUT}/pip_dry_run_report.json" <<'PY'
@@ -143,11 +160,12 @@ PY
 
 "${CLOUD_PYTHON}" -m pip install \
   --constraint "${CLOUD_DIR}/requirements/runtime_constraints.txt" \
-  "${ULTRALYTICS_SPEC}"
+  "${ULTRALYTICS_SPEC}" \
+  "${FASTER_COCO_EVAL_SPEC}"
 "${CLOUD_PYTHON}" -m pip check
 "${CLOUD_PYTHON}" -m pip freeze > "${BOOTSTRAP_OUT}/pip_freeze.txt"
 
-"${CLOUD_PYTHON}" - "${ULTRALYTICS_VERSION}" <<'PY' \
+"${CLOUD_PYTHON}" - "${ULTRALYTICS_VERSION}" "${FASTER_COCO_EVAL_VERSION}" <<'PY' \
   > "${CLOUD_DIR}/runtime_environment.lock"
 import os
 import platform
@@ -159,11 +177,18 @@ import torchvision
 import ultralytics
 
 expected = sys.argv[1]
+expected_faster_coco_eval = sys.argv[2]
 actual = metadata.version("ultralytics")
 if actual != expected or ultralytics.__version__ != expected:
     raise SystemExit(f"Ultralytics inesperado: {actual}/{ultralytics.__version__} != {expected}")
 if not torch.cuda.is_available():
     raise SystemExit("CUDA dejó de estar disponible después de instalar Ultralytics")
+actual_faster_coco_eval = metadata.version("faster-coco-eval")
+if actual_faster_coco_eval != expected_faster_coco_eval:
+    raise SystemExit(
+        "faster-coco-eval inesperado: "
+        f"{actual_faster_coco_eval} != {expected_faster_coco_eval}"
+    )
 device = int(os.getenv("SEGMENTATION_DEVICE", "0"))
 free, total = torch.cuda.mem_get_info(device)
 print(f"python={platform.python_version()}")
@@ -172,6 +197,7 @@ print(f"torch={metadata.version('torch')}")
 print(f"torchvision={metadata.version('torchvision')}")
 print(f"torchvision_import={torchvision.__version__}")
 print(f"ultralytics={actual}")
+print(f"faster_coco_eval={actual_faster_coco_eval}")
 print(f"torch_cuda={torch.version.cuda}")
 print(f"cuda_available={torch.cuda.is_available()}")
 print(f"gpu={torch.cuda.get_device_name(device)}")

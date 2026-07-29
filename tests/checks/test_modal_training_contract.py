@@ -82,6 +82,9 @@ def _project_environment_function(project_root: Path):
     )
     namespace = {
         "PROJECT_ROOT": project_root,
+        "SEGMENTATION_OUTPUT_ROOT": project_root
+        / "outputs"
+        / "leaf_detection",
         "os": os,
         "sys": sys,
     }
@@ -111,9 +114,14 @@ class ModalTrainingContractTests(TestCase):
             SOURCE,
         )
         self.assertIn(
-            'PACKAGE_SHA256 = "4886ef3a11edb5d4819b9e980981a3f697f85129238a0b25e78eb9b0bc82805c"',
+            'PACKAGE_VERSION = "v5-test-7a4a5c08-seed42"',
             SOURCE,
         )
+        self.assertIn(
+            'PACKAGE_SHA256 = "1ff54bbf56d0a5724bc472d56c5ea71192b9005b88b2dec89494ccb3dce59a79"',
+            SOURCE,
+        )
+        self.assertIn('PROJECT_ROOT = VOLUME_MOUNT / f"project_{PACKAGE_VERSION}"', SOURCE)
 
     def test_image_is_reproducible_and_never_embeds_local_data(self) -> None:
         self.assertIn(
@@ -128,6 +136,7 @@ class ModalTrainingContractTests(TestCase):
             'EXPECTED_TORCH = "2.6.0"',
             'EXPECTED_TORCHVISION = "0.21.0"',
             'EXPECTED_ULTRALYTICS = "8.4.104"',
+            'EXPECTED_FASTER_COCO_EVAL = "1.7.2"',
             'EXPECTED_CUDA = "12.4"',
             'EXPECTED_CUDA_LOCAL = "cu124"',
         ):
@@ -152,6 +161,7 @@ class ModalTrainingContractTests(TestCase):
                 "torchvision": "0.21.0+cu124",
                 "torchvision_import": "0.21.0+cu124",
                 "ultralytics": "8.4.104",
+                "faster-coco-eval": "1.7.2",
                 "torch_cuda": "12.4",
             },
             (3, 11, 13),
@@ -185,6 +195,12 @@ class ModalTrainingContractTests(TestCase):
         actual = self._valid_image_versions()
         actual["ultralytics"] = "8.4.105"
         with self.assertRaisesRegex(RuntimeError, r"ultralytics='8\.4\.105'"):
+            VALIDATE_IMAGE_VERSIONS(actual, (3, 11, 13))
+
+    def test_different_faster_coco_eval_is_rejected(self) -> None:
+        actual = self._valid_image_versions()
+        actual["faster-coco-eval"] = "1.7.1"
+        with self.assertRaisesRegex(RuntimeError, r"faster-coco-eval='1\.7\.1'"):
             VALIDATE_IMAGE_VERSIONS(actual, (3, 11, 13))
 
     def test_build_validation_does_not_require_a_gpu(self) -> None:
@@ -223,7 +239,7 @@ class ModalTrainingContractTests(TestCase):
         self.assertIn("torch.cuda.is_available()", runtime_source)
 
     def test_project_root_is_first_without_duplicate_in_pythonpath(self) -> None:
-        project_root = Path("/workspace/project")
+        project_root = Path("/workspace/project_v4-7a4a5c08-seed42")
         project_environment = _project_environment_function(project_root)
         previous = os.pathsep.join(
             (
@@ -375,6 +391,7 @@ class ModalTrainingContractTests(TestCase):
             "torchvision": "0.21.0+cu124",
             "torchvision_import": "0.21.0+cu124",
             "ultralytics": "8.4.104",
+            "faster-coco-eval": "1.7.2",
             "torch_cuda": "12.4",
         }
 
@@ -421,9 +438,25 @@ class ModalTrainingContractTests(TestCase):
         self.assertIn('if value != "true":', SOURCE)
         self.assertIn("use --confirm true exactamente", SOURCE)
 
+    def test_validate_enforces_retained_test_contract(self) -> None:
+        validate_source = _function_source("validate")
+        for contract in (
+            '"requested_split") != "test"',
+            '"evaluated_split") != "test"',
+            '"split") != "test"',
+            '"image_count") != 173',
+            '"instance_count") != 183',
+            "EXPECTED_TEST_FINGERPRINT",
+            "EXPECTED_BEST_CHECKPOINT_SHA256",
+            '"pilot_used") is not False',
+            "yolo26n_seg_test",
+        ):
+            self.assertIn(contract, validate_source)
+        self.assertNotIn("val_summary.json", validate_source)
+
     def test_prepare_and_runtime_guards_are_persistent(self) -> None:
         for contract in (
-            'PROJECT_ROOT = VOLUME_MOUNT / "project"',
+            'PROJECT_ROOT = VOLUME_MOUNT / f"project_{PACKAGE_VERSION}"',
             'INCOMING_ROOT = VOLUME_MOUNT / "incoming"',
             'PREPARED_MARKER = PROJECT_ROOT / ".modal_package_prepared.json"',
             "workspace.reload()",

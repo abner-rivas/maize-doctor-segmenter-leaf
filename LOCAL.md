@@ -5,6 +5,7 @@ Guía paso a paso para dejar el proyecto corriendo en tu máquina: entorno virtu
 ## Requisitos previos
 
 - Python >= 3.11
+- Node.js >= 20.19.0 para construir la documentación VitePress
 - `make` disponible en el PATH (en Windows: Git Bash, WSL, o `choco install make`)
 
 ## 1. Clonar el repo
@@ -119,6 +120,20 @@ make summary   # Conteo de imágenes por clase/entorno (valida que clean/ esté 
 make lint      # ruff check
 make fmt       # ruff format
 ```
+
+## Artefactos locales no versionados
+
+El repositorio no versiona datasets derivados, resultados, pesos descargados
+ni entornos. `.gitignore` cubre explícitamente:
+
+- `data/`, `outputs/`, `outputs-remote*/`, `results-remote/` y
+  `modal_results/`;
+- `test_images/` y pesos `yolo*.pt` descargados en la raíz;
+- `.venv/`, `.venv-modal/`, cachés de pytest/Ruff/Python y estado local de
+  `.agents/`/`.codex/`.
+
+Los checkpoints que deban conservarse pertenecen al almacenamiento de
+artefactos (`outputs/` local o el Volume remoto), nunca al árbol versionado.
 
 ## 8. Entrenar
 

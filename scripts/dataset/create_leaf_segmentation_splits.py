@@ -14,6 +14,7 @@ from src.config import get_output_root, get_project_data_root
 from src.data.segmentation_split import (
     DEFAULT_PERCEPTUAL_THRESHOLD,
     SPLITS,
+    apply_preserved_split_assignments,
     assign_groups_to_splits,
     build_split_groups,
     clone_records,
@@ -80,6 +81,38 @@ def _deterministic_files(root: Path) -> dict[str, str]:
     return result
 
 
+def _preserved_assignments(dataset_root: Path) -> dict[str, str] | None:
+    manifest = dataset_root / "manifests" / "split_manifest.csv"
+    if not manifest.is_file():
+        return None
+    import csv
+
+    with manifest.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    if len(rows) != 1155 or any(
+        not row.get("filename") or row.get("split") not in SPLITS
+        for row in rows
+    ):
+        raise RuntimeError(f"No se puede preservar una asignación inválida: {manifest}")
+    assignments = {row["filename"]: row["split"] for row in rows}
+    if len(assignments) != len(rows):
+        raise RuntimeError(f"Hay filenames repetidos en {manifest}")
+    return assignments
+
+
+def _assign(
+    groups,
+    *,
+    assignments: dict[str, str] | None,
+    seed: int,
+    ratios: dict[str, float],
+) -> None:
+    if assignments is None:
+        assign_groups_to_splits(groups, seed=seed, ratios=ratios)
+    else:
+        apply_preserved_split_assignments(groups, assignments)
+
+
 def _run_once(
     source_records,
     parent_lock,
@@ -91,10 +124,16 @@ def _run_once(
     materialization: str,
     perceptual_threshold: int,
     pilot_root: Path,
+    preserved_assignments: dict[str, str] | None,
 ) -> dict[str, str]:
     records = clone_records(source_records)
     groups = build_split_groups(records, perceptual_threshold=perceptual_threshold)
-    assign_groups_to_splits(groups, seed=seed, ratios=ratios)
+    _assign(
+        groups,
+        assignments=preserved_assignments,
+        seed=seed,
+        ratios=ratios,
+    )
     materialize_split(records, dataset_root, materialization=materialization)
     write_dataset_yaml(dataset_root)
     write_split_artifacts(
@@ -123,6 +162,7 @@ def main() -> None:
     }
     parent_lock = verify_parent_dataset(args.dataset_root)
     source_records = load_split_records(args.dataset_root)
+    preserved_assignments = _preserved_assignments(args.dataset_root)
     temporary_runs: list[dict[str, str]] = []
     # Las dos corridas de reproducibilidad sólo comparan asignaciones y
     # manifiestos: materializan por hardlink (con fallback a copia si el
@@ -150,6 +190,7 @@ def main() -> None:
                     materialization="hardlink",
                     perceptual_threshold=args.perceptual_threshold,
                     pilot_root=args.dataset_root.parent / "pilot",
+                    preserved_assignments=preserved_assignments,
                 )
             )
         reproducibility = {
@@ -170,6 +211,11 @@ def main() -> None:
                 temporary_runs[0]["manifests/split_fingerprints.json"]
                 == temporary_runs[1]["manifests/split_fingerprints.json"]
             ),
+            "assignment_mode": (
+                "preserved_previous_manifest"
+                if preserved_assignments is not None
+                else "deterministic_group_balance"
+            ),
             "file_sha256_run_1": temporary_runs[0],
             "file_sha256_run_2": temporary_runs[1],
         }
@@ -187,7 +233,12 @@ def main() -> None:
     groups = build_split_groups(
         records, perceptual_threshold=args.perceptual_threshold
     )
-    assign_groups_to_splits(groups, seed=args.seed, ratios=ratios)
+    _assign(
+        groups,
+        assignments=preserved_assignments,
+        seed=args.seed,
+        ratios=ratios,
+    )
     materialize_split(records, args.dataset_root, materialization=args.materialization)
     write_dataset_yaml(args.dataset_root)
     if args.output_root.exists():

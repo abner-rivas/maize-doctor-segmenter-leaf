@@ -23,6 +23,7 @@ LOCK_MANIFESTS = (
     "manual_review.csv",
     "mandatory_visual_review.csv",
     "duplicate_groups.csv",
+    "image_normalization_manifest.csv",
 )
 REVIEW_QUEUE_COLUMNS = (
     "review_case_id",

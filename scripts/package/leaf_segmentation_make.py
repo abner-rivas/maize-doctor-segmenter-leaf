@@ -148,25 +148,30 @@ def clean_temp(args: argparse.Namespace) -> None:
 
 def results(args: argparse.Namespace) -> None:
     experiment = args.output / "segmenter" / "yolo26n_seg_baseline"
+    evaluation_root = args.output / "segmenter_evaluation"
+    evaluation = evaluation_root / "yolo26n_seg_test"
     expected = [
         experiment / "weights" / "best.pt",
         experiment / "weights" / "last.pt",
         experiment / "results.csv",
         experiment / "args.yaml",
+        evaluation_root / "test_summary.json",
+        evaluation / "args.yaml",
+        evaluation / "predictions.json",
     ]
-    discovered = (
-        [
+    discovered = []
+    for root in (experiment, evaluation):
+        if not root.is_dir():
+            continue
+        discovered.extend(
             path
-            for path in experiment.rglob("*")
+            for path in root.rglob("*")
             if path.is_file()
             and (
                 path.suffix.lower() in {".csv", ".json", ".log", ".png", ".yaml"}
                 or path.name in {"best.pt", "last.pt"}
             )
-        ]
-        if experiment.is_dir()
-        else []
-    )
+        )
     selected = []
     for path in sorted(set(expected + discovered)):
         selected.append(
@@ -177,18 +182,33 @@ def results(args: argparse.Namespace) -> None:
                 "sha256": sha256(path) if path.is_file() else None,
             }
         )
-    print(json.dumps({"experiment": str(experiment), "files": selected}, indent=2))
+    print(
+        json.dumps(
+            {
+                "experiment": str(experiment),
+                "evaluation": str(evaluation),
+                "files": selected,
+            },
+            indent=2,
+        )
+    )
 
 
 def result_checksums(args: argparse.Namespace) -> None:
     experiment = args.output / "segmenter" / "yolo26n_seg_baseline"
+    evaluation_root = args.output / "segmenter_evaluation"
+    evaluation = evaluation_root / "yolo26n_seg_test"
     candidates = [
         experiment / "weights" / "best.pt",
         experiment / "weights" / "last.pt",
         experiment / "args.yaml",
         experiment / "results.csv",
+        evaluation_root / "test_summary.json",
+        evaluation / "args.yaml",
+        evaluation / "predictions.json",
         args.cloud_dir / "runtime_environment.lock",
         *sorted(experiment.glob("*metrics*.json")),
+        *sorted(evaluation.glob("*metrics*.json")),
     ]
     existing = sorted({path for path in candidates if path.is_file()})
     if not existing:

@@ -35,13 +35,22 @@ import modal
 APP_NAME = "doctor-maiz-leaf-segmentation"
 VOLUME_NAME = "doctor-maiz-leaf-segmentation"
 VOLUME_MOUNT = Path("/workspace")
-PROJECT_ROOT = VOLUME_MOUNT / "project"
 INCOMING_ROOT = VOLUME_MOUNT / "incoming"
-PACKAGE_VERSION = "v2-c087af60-seed42"
+PACKAGE_VERSION = "v5-test-7a4a5c08-seed42"
 PACKAGE_NAME = f"doctor_maiz_leaf_segmentation_cloud_{PACKAGE_VERSION}.tar.gz"
 PACKAGE_ROOT_NAME = f"doctor_maiz_leaf_segmentation_cloud_{PACKAGE_VERSION}"
-PACKAGE_SHA256 = "4886ef3a11edb5d4819b9e980981a3f697f85129238a0b25e78eb9b0bc82805c"
-EXPECTED_PARENT_FINGERPRINT = "c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c"
+PACKAGE_SHA256 = "1ff54bbf56d0a5724bc472d56c5ea71192b9005b88b2dec89494ccb3dce59a79"
+PROJECT_ROOT = VOLUME_MOUNT / f"project_{PACKAGE_VERSION}"
+ARTIFACT_PROJECT_VERSION = "v4-7a4a5c08-seed42"
+ARTIFACT_PROJECT_ROOT = VOLUME_MOUNT / f"project_{ARTIFACT_PROJECT_VERSION}"
+SEGMENTATION_OUTPUT_ROOT = (
+    ARTIFACT_PROJECT_ROOT / "outputs" / "leaf_detection"
+)
+EXPECTED_PARENT_FINGERPRINT = "7a4a5c083fc64b067df12bcc95ec976d5a7e3b8a585d0a090b6b3940af4d7d5c"
+EXPECTED_TEST_FINGERPRINT = "046545351ce79431bb1a995dfbc7dfa44c642a18a046860ed5edb9fc0ed89c51"
+EXPECTED_BEST_CHECKPOINT_SHA256 = (
+    "4f66456d05d87f9e7080155eb5cd80c583f34849415ec820c950bd97f9c5ec6f"
+)
 PREPARED_MARKER = PROJECT_ROOT / ".modal_package_prepared.json"
 PREPARE_STAGING = VOLUME_MOUNT / f".project_extracting_{PACKAGE_SHA256}"
 
@@ -52,6 +61,7 @@ EXPECTED_PYTHON = "3.11"
 EXPECTED_TORCH = "2.6.0"
 EXPECTED_TORCHVISION = "0.21.0"
 EXPECTED_ULTRALYTICS = "8.4.104"
+EXPECTED_FASTER_COCO_EVAL = "1.7.2"
 EXPECTED_CUDA = "12.4"
 EXPECTED_CUDA_LOCAL = "cu124"
 IMAGE_SYSTEM_PACKAGES = (
@@ -66,6 +76,7 @@ IMAGE_SYSTEM_PACKAGES = (
 )
 IMAGE_PYTHON_PACKAGES = (
     "filelock==3.18.0",
+    f"faster-coco-eval=={EXPECTED_FASTER_COCO_EVAL}",
     "matplotlib==3.10.3",
     "numpy==1.26.4",
     "nvidia-ml-py==12.575.51",
@@ -122,6 +133,7 @@ def _validate_image_versions(
         )
 
     expected_distributions = {
+        "faster-coco-eval": EXPECTED_FASTER_COCO_EVAL,
         "torch": EXPECTED_TORCH,
         "torchvision": EXPECTED_TORCHVISION,
         "ultralytics": EXPECTED_ULTRALYTICS,
@@ -176,6 +188,7 @@ def _validate_modal_image_versions() -> None:
         "torchvision": metadata.version("torchvision"),
         "torchvision_import": str(torchvision.__version__),
         "ultralytics": metadata.version("ultralytics"),
+        "faster-coco-eval": metadata.version("faster-coco-eval"),
         "torch_cuda": torch.version.cuda,
     }
     print("Modal image version check:", flush=True)
@@ -278,6 +291,13 @@ def _verify_extracted_release(root: Path) -> dict[str, Any]:
         raise RuntimeError(f"Versión extraída inválida: {manifest.get('package_version')!r}")
     if manifest.get("parent_fingerprint") != EXPECTED_PARENT_FINGERPRINT:
         raise RuntimeError("El fingerprint padre del paquete no es el congelado")
+    jpeg_validation = manifest.get("jpeg_validation")
+    if (
+        not isinstance(jpeg_validation, dict)
+        or jpeg_validation.get("passed") is not True
+        or jpeg_validation.get("ultralytics_scan", {}).get("mutated_file_count") != 0
+    ):
+        raise RuntimeError("El paquete no declara un escaneo JPEG/Ultralytics limpio")
     _run(
         ["sha256sum", "--check", "--quiet", str(checksums_path)],
         cwd=root,
@@ -293,6 +313,10 @@ def _prepared_payload() -> dict[str, Any]:
         payload.get("status") != "ready"
         or payload.get("package_sha256") != PACKAGE_SHA256
         or payload.get("package_version") != PACKAGE_VERSION
+        or payload.get("jpeg_validation", {}).get("ultralytics_scan", {}).get(
+            "mutated_file_count"
+        )
+        != 0
     ):
         raise RuntimeError("La extracción preparada no corresponde al paquete esperado")
     return payload
@@ -319,7 +343,7 @@ def _project_environment() -> dict[str, str]:
             "LEAF_SEGMENTATION_DATASET": str(
                 PROJECT_ROOT / "data" / "leaf_detection" / "detector_dataset"
             ),
-            "LEAF_SEGMENTATION_OUTPUT": str(PROJECT_ROOT / "outputs" / "leaf_detection"),
+            "LEAF_SEGMENTATION_OUTPUT": str(SEGMENTATION_OUTPUT_ROOT),
             "SEGMENTATION_MODEL": "yolo26n-seg.pt",
             "SEGMENTATION_DEVICE": "0",
         }
@@ -365,6 +389,7 @@ def _runtime_report(operation: str, *, require_gpu: bool) -> dict[str, Any]:
         "torchvision": metadata.version("torchvision"),
         "torchvision_import": str(torchvision.__version__),
         "ultralytics": metadata.version("ultralytics"),
+        "faster-coco-eval": metadata.version("faster-coco-eval"),
         "torch_cuda": torch.version.cuda,
     }
     report: dict[str, Any] = {
@@ -397,6 +422,7 @@ def _runtime_report(operation: str, *, require_gpu: bool) -> dict[str, Any]:
         "cuda_compiled": actual_versions["torch_cuda"],
         "cudnn": torch.backends.cudnn.version(),
         "ultralytics": actual_versions["ultralytics"],
+        "faster_coco_eval": actual_versions["faster-coco-eval"],
         "cuda_available": torch.cuda.is_available(),
         "gpu": None,
     }
@@ -442,6 +468,7 @@ def _runtime_report(operation: str, *, require_gpu: bool) -> dict[str, Any]:
         "cuda": report["cuda_compiled"],
         "cudnn": report["cudnn"],
         "ultralytics": report["ultralytics"],
+        "faster_coco_eval": report["faster_coco_eval"],
         "requested_gpu": REQUESTED_GPU,
     }
     serialized_lock = "".join(f"{key}={value}\n" for key, value in lock_lines.items())
@@ -481,7 +508,7 @@ def _make(target: str, *variables: str) -> None:
         f"PYTHON={sys.executable}",
         "CLOUD_TRAINING_DIR=cloud_training",
         "LEAF_SEGMENTATION_DATASET=data/leaf_detection/detector_dataset",
-        "LEAF_SEGMENTATION_OUTPUT=outputs/leaf_detection",
+        f"LEAF_SEGMENTATION_OUTPUT={SEGMENTATION_OUTPUT_ROOT}",
         "SEGMENTATION_MODEL=yolo26n-seg.pt",
         "SEGMENTATION_DEVICE=0",
         *variables,
@@ -521,7 +548,7 @@ def _require_summary(
     expected_status: str,
     *required_fields: str,
 ) -> dict[str, Any]:
-    path = PROJECT_ROOT / relative_path
+    path = ARTIFACT_PROJECT_ROOT / relative_path
     if not path.is_file():
         raise RuntimeError(f"Falta el resumen requerido: {path}")
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -537,7 +564,7 @@ def _require_summary(
 
 def _checkpoint_record(path: Path) -> dict[str, Any]:
     resolved = path.resolve()
-    if not resolved.is_relative_to(PROJECT_ROOT.resolve()):
+    if not resolved.is_relative_to(ARTIFACT_PROJECT_ROOT.resolve()):
         raise RuntimeError(f"Checkpoint fuera del proyecto persistente: {resolved}")
     if not resolved.is_file():
         raise FileNotFoundError(resolved)
@@ -552,7 +579,7 @@ def _require_final_training_config() -> Path:
     import yaml
 
     expected = (
-        PROJECT_ROOT / "outputs/leaf_detection/segmenter/configs/train_yolo26n_seg.final.yaml"
+        SEGMENTATION_OUTPUT_ROOT / "segmenter/configs/train_yolo26n_seg.final.yaml"
     ).resolve()
     smoke = _require_summary(
         "outputs/leaf_detection/segmenter/smoke_summary.json",
@@ -591,6 +618,7 @@ def _prepare_marker_payload(
     archive: Path,
     manifest: dict[str, Any],
     prepare_result: str,
+    jpeg_validation: dict[str, Any],
 ) -> dict[str, Any]:
     return {
         "schema_version": 1,
@@ -608,7 +636,50 @@ def _prepare_marker_payload(
         "parent_fingerprint": manifest["parent_fingerprint"],
         "payload_file_count": manifest["payload_file_count"],
         "image_recipe_sha256": IMAGE_RECIPE_SHA256,
+        "jpeg_validation": jpeg_validation,
     }
+
+
+def _validate_release_jpegs(root: Path) -> dict[str, Any]:
+    """Run the pinned Ultralytics checker against a temporary dataset copy."""
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(root)
+    environment["YOLO_CONFIG_DIR"] = "/tmp/doctor_maiz_ultralytics_config"
+    code = (
+        "import json;"
+        "from pathlib import Path;"
+        "from src.data.jpeg_normalization import validate_jpegs_before_packaging;"
+        f"report=validate_jpegs_before_packaging(Path({str(root)!r})/"
+        "'data/leaf_detection/detector_dataset');"
+        "print('__JPEG_REPORT__'+json.dumps(report, sort_keys=True))"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=root,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            "Falló el escaneo JPEG/Ultralytics de prepare: "
+            f"stdout={completed.stdout[-2000:]!r}; stderr={completed.stderr[-2000:]!r}"
+        )
+    lines = [
+        line.removeprefix("__JPEG_REPORT__")
+        for line in completed.stdout.splitlines()
+        if line.startswith("__JPEG_REPORT__")
+    ]
+    if len(lines) != 1:
+        raise RuntimeError("El escaneo JPEG/Ultralytics no produjo un reporte único")
+    report = json.loads(lines[0])
+    if (
+        report.get("passed") is not True
+        or report.get("ultralytics_scan", {}).get("mutated_file_count") != 0
+    ):
+        raise RuntimeError(f"El escaneo JPEG/Ultralytics no quedó limpio: {report}")
+    return report
 
 
 def _remove_prepare_staging() -> None:
@@ -655,14 +726,16 @@ def prepare() -> dict[str, Any]:
                 manifest = _verify_extracted_release(PROJECT_ROOT)
             except Exception as exc:
                 raise RuntimeError(
-                    "Existe /workspace/project sin marcador y su identidad no es "
+                    f"Existe {PROJECT_ROOT} sin marcador y su identidad no es "
                     "verificable; no se sobrescribe"
                 ) from exc
+            jpeg_validation = _validate_release_jpegs(PROJECT_ROOT)
             recovered = _prepare_marker_payload(
                 PROJECT_ROOT,
                 archive,
                 manifest,
                 "prepared_recovered",
+                jpeg_validation,
             )
             _write_json(PREPARED_MARKER, recovered)
             workspace.commit()
@@ -691,7 +764,14 @@ def prepare() -> dict[str, Any]:
             tar.extractall(PREPARE_STAGING, filter="data")
         extracted = PREPARE_STAGING / PACKAGE_ROOT_NAME
         manifest = _verify_extracted_release(extracted)
-        marker = _prepare_marker_payload(extracted, archive, manifest, "prepared")
+        jpeg_validation = _validate_release_jpegs(extracted)
+        marker = _prepare_marker_payload(
+            extracted,
+            archive,
+            manifest,
+            "prepared",
+            jpeg_validation,
+        )
         _write_json(extracted / PREPARED_MARKER.name, marker)
         extracted.rename(PROJECT_ROOT)
         PREPARE_STAGING.rmdir()
@@ -763,7 +843,7 @@ def smoke(confirm: str = "false") -> dict[str, Any]:
     manifest = {
         "schema_version": 1,
         "status": "passed",
-        "summary": str(PROJECT_ROOT / "outputs/leaf_detection/segmenter/smoke_summary.json"),
+        "summary": str(SEGMENTATION_OUTPUT_ROOT / "segmenter/smoke_summary.json"),
         "selected_batch": summary["selected_batch"],
         "peak_vram_bytes": summary["peak_vram_bytes"],
         "duration_seconds": summary["duration_seconds"],
@@ -776,7 +856,7 @@ def smoke(confirm: str = "false") -> dict[str, Any]:
         "runtime": runtime,
     }
     _write_json(
-        PROJECT_ROOT / "outputs/leaf_detection/segmenter/modal_smoke_manifest.json",
+        SEGMENTATION_OUTPUT_ROOT / "segmenter/modal_smoke_manifest.json",
         manifest,
     )
     workspace.commit()
@@ -802,7 +882,8 @@ def train(confirm: str = "false") -> dict[str, Any]:
         validate_final_config=True,
         variables=(
             "CONFIRM_SEGMENTATION_TRAINING=1",
-            ("CONFIG=outputs/leaf_detection/segmenter/configs/train_yolo26n_seg.final.yaml"),
+            f"CONFIG={SEGMENTATION_OUTPUT_ROOT}/segmenter/configs/"
+            "train_yolo26n_seg.final.yaml",
         ),
     )
     summary = _require_summary(
@@ -857,21 +938,45 @@ def resume(confirm: str = "false") -> dict[str, Any]:
     timeout=3 * 3600,
 )
 def validate() -> dict[str, Any]:
-    """Validate the exact baseline checkpoint on val; never run internal test."""
+    """Evaluate the exact baseline checkpoint exclusively on retained test."""
     _execute(
         "validate",
         "leaf-segmentation-cloud-validate",
         require_gpu=True,
     )
     summary = _require_summary(
-        "outputs/leaf_detection/segmenter_evaluation/val_summary.json",
+        "outputs/leaf_detection/segmenter_evaluation/test_summary.json",
         "passed",
+        "requested_split",
+        "evaluated_split",
+        "split",
+        "image_count",
+        "instance_count",
         "checkpoint",
         "checkpoint_sha256",
         "metrics",
+        "box_metrics",
+        "mask_metrics",
+        "save_dir",
     )
-    if summary.get("split") != "val" or summary.get("pilot_used") is not False:
-        raise RuntimeError("La validación Modal no corresponde exclusivamente a val")
+    if (
+        summary.get("requested_split") != "test"
+        or summary.get("evaluated_split") != "test"
+        or summary.get("split") != "test"
+        or summary.get("image_count") != 173
+        or summary.get("instance_count") != 183
+        or summary.get("test_fingerprint") != EXPECTED_TEST_FINGERPRINT
+        or summary.get("checkpoint_sha256") != EXPECTED_BEST_CHECKPOINT_SHA256
+        or summary.get("pilot_used") is not False
+        or summary.get("environment_modified") is not False
+        or summary.get("environment_before") != summary.get("environment_after")
+        or summary.get("faster_coco_eval") != EXPECTED_FASTER_COCO_EVAL
+        or Path(str(summary.get("save_dir", ""))).resolve()
+        != (SEGMENTATION_OUTPUT_ROOT / "segmenter_evaluation/yolo26n_seg_test").resolve()
+    ):
+        raise RuntimeError(
+            "La evaluación Modal no corresponde exclusivamente al test retenido"
+        )
     print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
     return summary
 

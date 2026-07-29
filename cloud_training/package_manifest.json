@@ -15,8 +15,8 @@
   "files": [
     {
       "path": "Makefile",
-      "sha256": "b3dab1aaace71108973c140568d86da534dd8680e281b1ce7bdb33eab2b9411e",
-      "size_bytes": 15098
+      "sha256": "2ca9767fd9d8b29ca91fc1ae3224124f96e62ad14e1fa8d029942a671af8feae",
+      "size_bytes": 19705
     },
     {
       "path": "README.md",
@@ -25,23 +25,23 @@
     },
     {
       "path": "cloud_training/CLOUD_READINESS_CHECKLIST.md",
-      "sha256": "0d1374dee86111ce351a6e7ad09dcc08d59087f8fcd57e9d9dc64bcd5f702528",
-      "size_bytes": 6527
+      "sha256": "6e26a2d28784f28c5584ac64dd775eb32511dcd4ff1bf6f0b3249eaa744e4b2f",
+      "size_bytes": 7003
     },
     {
       "path": "cloud_training/COMMIT_VERSION.txt",
-      "sha256": "2f67ac791d2a1d5080e5d35c096c3d566ec2ed7e8cb7fe4e121dfadc9810ee90",
-      "size_bytes": 83
+      "sha256": "b8af3dddf49a867cb03ba9f5a88285a6f2036b0967eb667d4bb8d353def7369a",
+      "size_bytes": 88
     },
     {
       "path": "cloud_training/README_CLOUD_TRAINING.md",
-      "sha256": "dae7e8cbfd57385c3565bfdc38feb4ea5a5113324be6c9cf03b58fe2fb1bca38",
-      "size_bytes": 2608
+      "sha256": "2ea8b71f42a7638d6b275da96811d33f872ebc775ae18dae7d343ba18abef681",
+      "size_bytes": 2623
     },
     {
       "path": "cloud_training/bootstrap_cloud.sh",
-      "sha256": "9817005bca531efc9cbfb4b67e499694a09ade84601c8546ad540f1e397ee2cf",
-      "size_bytes": 5895
+      "sha256": "762937c38f903b17fef5150806da86a853df87580e15fa4c5f4e75608d47710b",
+      "size_bytes": 6880
     },
     {
       "path": "cloud_training/configs/smoke_yolo26n_seg.yaml",
@@ -55,8 +55,8 @@
     },
     {
       "path": "cloud_training/configs/validate_yolo26n_seg.yaml",
-      "sha256": "5a6876b9d2c00f8b4fd2f56eed3d2ad009f7d1ae9d49596c3d484442c65138a4",
-      "size_bytes": 233
+      "sha256": "8e63b0f23048abe1010e690fcc7bde3f46496a15eabd135f99150ce2962aef9b",
+      "size_bytes": 228
     },
     {
       "path": "cloud_training/evaluate_test.sh",
@@ -85,8 +85,8 @@
     },
     {
       "path": "cloud_training/requirements/ultralytics.in",
-      "sha256": "0e70da6ef07d9e93248acc011edc12c91ddde6e82424ae29666dd56481810c02",
-      "size_bytes": 89
+      "sha256": "c58037851fe2358b2edd7614be1fea33ff6876f941cd2e67b63fba78f901231e",
+      "size_bytes": 113
     },
     {
       "path": "cloud_training/resume_train.sh",
@@ -95,8 +95,8 @@
     },
     {
       "path": "cloud_training/run_ultralytics.py",
-      "sha256": "061821e290b1ec11d824db4e201886863ffff3bd6e8e056665d880022c5383fa",
-      "size_bytes": 24399
+      "sha256": "32c2de9778215a28f777ce5fba499ffb5d46d921959f0ae5089714f8cafa36fb",
+      "size_bytes": 35281
     },
     {
       "path": "cloud_training/smoke_train.sh",
@@ -110,13 +110,13 @@
     },
     {
       "path": "cloud_training/validate.sh",
-      "sha256": "a46a0680c92bbe746623ffd902e6020224f3acd4a85a0b5eb8048cb690049bbb",
-      "size_bytes": 543
+      "sha256": "ff2d4e154faacf0a114cdf04750e1b5d10814894cd26e056088467bca5734cf2",
+      "size_bytes": 720
     },
     {
       "path": "data/leaf_detection/detector_dataset/dataset.yaml",
-      "sha256": "44164ea8a0e5b8f36d1d182715d4d8e9ba7a4e290d652c0e0a4d8a06bf9a5dbe",
-      "size_bytes": 86
+      "sha256": "77036541d386ea9685ea098698dd257344822b55f6c87e1ac95655ab81b25de9",
+      "size_bytes": 78
     },
     {
       "path": "data/leaf_detection/detector_dataset/images/test/cldc_00b4db6bb0df71a4.jpg",
@@ -3690,8 +3690,8 @@
     },
     {
       "path": "data/leaf_detection/detector_dataset/images/train/cldc_c6f46aaea98a271c.jpg",
-      "sha256": "c6f46aaea98a271c11478592bb16ba101201345d3f4d9ed2dde158f5e1551561",
-      "size_bytes": 3802373
+      "sha256": "0d4d3554fa1b0fbf2d02c2d083cb93d3f601b643419942a19bfaa579e7b30888",
+      "size_bytes": 3802375
     },
     {
       "path": "data/leaf_detection/detector_dataset/images/train/cldc_c6fb432f6940ad2c.jpg",
@@ -11669,39 +11669,49 @@
       "size_bytes": 258
     },
     {
+      "path": "data/leaf_detection/detector_dataset/manifests/auxiliary_jpeg_audit.csv",
+      "sha256": "d83548a2adb43722411d8cfc502689e0ca37575b40acad9d72cfbe86366797af",
+      "size_bytes": 7101
+    },
+    {
       "path": "data/leaf_detection/detector_dataset/manifests/dataset_lock.json",
-      "sha256": "2b6dae43fb8fd5f84f544bbff78d0068e836a83beefdafef58601da28ae81f05",
+      "sha256": "3fbbd1a472ad875546a647b3396c04fe9fdb4ffa71f220806fddbfd146b8f373",
       "size_bytes": 20486
     },
     {
+      "path": "data/leaf_detection/detector_dataset/manifests/image_normalization_manifest.csv",
+      "sha256": "0c30663def5615ab520ac436f9c9000ecc733249fcab30a227e94b272744af80",
+      "size_bytes": 750743
+    },
+    {
       "path": "data/leaf_detection/detector_dataset/manifests/split_fingerprints.json",
-      "sha256": "37f9f1e886f671ba081a0ddaf7cf309596574555a76c581b4643dd192e5855ff",
+      "sha256": "6c9e10fb48ef736f3ec8d3bb94117e0a93f8fabfe850f2380c18bc68ffb2e93b",
       "size_bytes": 529
     },
     {
       "path": "data/leaf_detection/detector_dataset/manifests/split_groups.csv",
-      "sha256": "7c013395e04e5f40c65387d816f204bbfc4fe348d9f5d276461476c5f0f6acea",
-      "size_bytes": 153513
+      "sha256": "e54159efd57c757ba820100dc8d52ca9a5c976cbd116f14ad3d46bec189f5bd5",
+      "size_bytes": 152973
     },
     {
       "path": "data/leaf_detection/detector_dataset/manifests/split_lock.json",
-      "sha256": "42fa5ce5ed8ef3a0a2a88991d5f7d92b04349ee3c9bb84b704e2119fc6c19b8d",
-      "size_bytes": 3608
+      "sha256": "eeecc60ad37448960c2bd5e984d57aa9b0fbaf0ba1672d62aab5516013f1c821",
+      "size_bytes": 3662
     },
     {
       "path": "data/leaf_detection/detector_dataset/manifests/split_manifest.csv",
-      "sha256": "2ad38c713759bbb77698ca5c8cd077a7e3b3219b733c9c589aabaab98ef9d6b8",
+      "sha256": "954d601ef7f4145c14f8b29ed85e6959e8d30d59f405f7d016458c7eea1034f0",
       "size_bytes": 621877
     },
     {
       "path": "docs/es/leaf-detection/segmentation-cloud-training.md",
-      "sha256": "a5f69af2013d801b488ced9d88851e6212f2ff2c4520cb3bf09ebbe17789b399",
-      "size_bytes": 3654
+      "sha256": "af70f089f6017042dc2b95339f8404a003d795fe414c91f44a05121187878ffc",
+      "size_bytes": 3744
     },
     {
       "path": "docs/es/leaf-detection/segmentation-dataset-splits.md",
-      "sha256": "2dfaf732ea29991cda5ca5357b49eadf5f09520f1cfc76b25fb2f8306ce24b3d",
-      "size_bytes": 4280
+      "sha256": "38c01c7177fc11f7bdb186cd41a23712576a39d6408564d526c9ba2f7dbf2a6b",
+      "size_bytes": 5693
     },
     {
       "path": "docs/es/leaf-detection/segmentation-training-optimization-plan.md",
@@ -11710,8 +11720,8 @@
     },
     {
       "path": "docs/es/leaf-detection/segmentation-training-preflight.md",
-      "sha256": "bc64ebc4136ddf908a0b86753c0078cb4901636e59de628d6ed8d33c0209205f",
-      "size_bytes": 5536
+      "sha256": "9d054fff2724793a9e6a803d899b8402c3fd6fff9b2c2d4ed569da6394854fa9",
+      "size_bytes": 5964
     },
     {
       "path": "pyproject.toml",
@@ -11720,13 +11730,13 @@
     },
     {
       "path": "scripts/package/build_leaf_segmentation_cloud_package.py",
-      "sha256": "71a5bf6ae4b8b1307434ee835aff3ca7126e347723fda4117b0bb0257e9d8039",
-      "size_bytes": 18171
+      "sha256": "aee9b0a7420e4e7fac4cc9d3dc38b72f13a475c1f1f4e5cd472f63d7c696c604",
+      "size_bytes": 19358
     },
     {
       "path": "scripts/package/leaf_segmentation_make.py",
-      "sha256": "0ebb5db948698a211a770ae227cc8d060f90f9e6da348f4d829833b1b55f54ed",
-      "size_bytes": 8829
+      "sha256": "2779ae0ca39ceb593ffdb8443a0157031cbd0c9e7f12bf98a48012a8d1529a23",
+      "size_bytes": 9546
     },
     {
       "path": "scripts/pipeline/leaf_segmentation_cloud_preflight.py",
@@ -11834,6 +11844,11 @@
       "size_bytes": 8439
     },
     {
+      "path": "src/data/jpeg_normalization.py",
+      "sha256": "a9f99f6e0fc8f2e65a178e16bee43e68746d20529a63cfce27dbffa17ec7b75d",
+      "size_bytes": 14929
+    },
+    {
       "path": "src/data/leaf_detector_dataset.py",
       "sha256": "fbe0e745165552a6011248fdbf817458e27d5c82403c4d97fa0f2c1a38c57383",
       "size_bytes": 29348
@@ -11855,18 +11870,18 @@
     },
     {
       "path": "src/data/segmentation_consolidation.py",
-      "sha256": "ff58a9248fb3ef529e6e18d4cf871c7732798d95bd640bb96f96ef55ad44ff98",
-      "size_bytes": 73100
+      "sha256": "5085dc58763aa5fb4297cff1f5a59fd246e5ac6cc7c7f7ecc98b6c807a294095",
+      "size_bytes": 74415
     },
     {
       "path": "src/data/segmentation_finalization.py",
-      "sha256": "b3a391b5c5709bfacfc9b7b2987b68822197d066769cb90bfae3c4d7f7bab3ec",
-      "size_bytes": 24147
+      "sha256": "981989e8b8e226364195053080848062f29d38d55f14a7f3629a41ea424c5d5b",
+      "size_bytes": 26165
     },
     {
       "path": "src/data/segmentation_review.py",
-      "sha256": "62cdf9bb2c61a7fed16ac670b088747c1df73f6afba93691746a309684bd7bb2",
-      "size_bytes": 14087
+      "sha256": "5b78fe986249a3c835342c5dc56d8e3bec8a0616d9089a13894967d20161a0e2",
+      "size_bytes": 14127
     },
     {
       "path": "src/data/segmentation_review_preview.py",
@@ -11875,8 +11890,8 @@
     },
     {
       "path": "src/data/segmentation_split.py",
-      "sha256": "d3b4518c401e81a6ac40a2b02fbae3f955a7e904917cdcc8c4ae888a6b48c52b",
-      "size_bytes": 54378
+      "sha256": "7a44818c8691e64148b7dc10c0b6b3962c2ef10c22ebb89549ea30e5b69cf362",
+      "size_bytes": 55608
     },
     {
       "path": "src/data/split_audit.py",
@@ -12015,7 +12030,7 @@
     },
     {
       "path": "src/training/segmentation_preflight.py",
-      "sha256": "81fb31543d569d560c3757b5ab1aef77bfb6792da3a951b94cbfeac47f459fa3",
+      "sha256": "356cd2b30449b1305144c91c7b8166c9eca1f6cb6f79d213224169b1633c1d17",
       "size_bytes": 32934
     }
   ],
@@ -12024,46 +12039,81 @@
     "cloud_training/checksums.sha256"
   ],
   "git": {
-    "commit": "a86a2ddf1d0d1d23c93a19059cb5fc9bdb0f557f",
+    "commit": "b1e4899c01679d500583a19602adab2776ad464c",
     "dirty_paths": [
       " M Makefile",
       " M cloud_training/CLOUD_READINESS_CHECKLIST.md",
       " M cloud_training/README_CLOUD_TRAINING.md",
       " M cloud_training/bootstrap_cloud.sh",
-      " M cloud_training/configs/smoke_yolo26n_seg.yaml",
-      " M cloud_training/evaluate_test.sh",
-      " M cloud_training/lib.sh",
-      " M cloud_training/resume_train.sh",
+      " M cloud_training/configs/validate_yolo26n_seg.yaml",
+      " M cloud_training/requirements/ultralytics.in",
       " M cloud_training/run_ultralytics.py",
-      " M cloud_training/train.sh",
+      " M cloud_training/validate.sh",
+      " M docs/es/deployment/modal.md",
       " M docs/es/leaf-detection/segmentation-cloud-training.md",
-      " M docs/es/leaf-detection/segmentation-requirement-review.md",
-      " M docs/es/leaf-detection/segmentation-training-optimization-plan.md",
+      " M docs/es/leaf-detection/segmentation-current-flow.md",
+      " M docs/es/leaf-detection/segmentation-dataset-splits.md",
+      " M docs/es/leaf-detection/segmentation-training-preflight.md",
+      " M modal_training.py",
       " M scripts/dataset/create_leaf_segmentation_splits.py",
       " M scripts/package/build_leaf_segmentation_cloud_package.py",
       " M scripts/package/leaf_segmentation_make.py",
-      " M scripts/pipeline/leaf_segmentation_cloud_preflight.py",
       " M src/data/segmentation_consolidation.py",
+      " M src/data/segmentation_finalization.py",
+      " M src/data/segmentation_review.py",
+      " M src/data/segmentation_split.py",
       " M src/training/segmentation_preflight.py",
       " M tests/checks/test_makefile_safety.py",
+      " M tests/checks/test_modal_training_contract.py",
+      " M tests/dataset/test_segmentation_finalization.py",
+      " M tests/dataset/test_segmentation_split.py",
       " M tests/package/test_leaf_segmentation_cloud_package.py",
       " M tests/package/test_run_ultralytics_summary.py",
-      " M tests/training/test_segmentation_preflight.py",
-      "?? scripts/pipeline/leaf_segmentation_downstream_metrics.py",
-      "?? src/evaluation/",
-      "?? tests/evaluation/"
+      "?? src/data/jpeg_normalization.py",
+      "?? test_images/",
+      "?? tests/dataset/test_jpeg_normalization.py",
+      "?? yolo26n-seg.pt"
     ]
   },
+  "jpeg_validation": {
+    "audit": {
+      "jpeg_count": 2310,
+      "load_error_count": 0,
+      "missing_eoi_count": 0,
+      "missing_soi_count": 0,
+      "problem_count": 0,
+      "problems": [],
+      "ultralytics_repair_count": 0,
+      "verify_error_count": 0
+    },
+    "canonical_roots": [
+      "all/images",
+      "images/train",
+      "images/val",
+      "images/test"
+    ],
+    "passed": true,
+    "ultralytics_scan": {
+      "message_count": 0,
+      "messages": [],
+      "mutated_file_count": 0,
+      "mutations": [],
+      "passed": true,
+      "scanned_file_count": 2310,
+      "scanner": "ultralytics.data.utils.check_image",
+      "ultralytics_version": "8.4.104"
+    }
+  },
   "model_candidate": "yolo26n-seg.pt",
-  "package_version": "v2-c087af60-seed42",
-  "parent_fingerprint": "c087af60c2bad1c133c4ea8b14cee945405bfe4976aa80c4faf089d7a4b9e38c",
-  "payload_file_count": 2401,
-  "payload_total_bytes": 2338324035,
+  "package_version": "v5-test-7a4a5c08-seed42",
+  "parent_fingerprint": "7a4a5c083fc64b067df12bcc95ec976d5a7e3b8a585d0a090b6b3940af4d7d5c",
+  "payload_file_count": 2404,
+  "payload_total_bytes": 2339121920,
   "pilot_included": false,
   "schema_version": 1,
   "split_fingerprints": {
     "test": "046545351ce79431bb1a995dfbc7dfa44c642a18a046860ed5edb9fc0ed89c51",
-    "train": "6aa0bd03098137999f0ee9753a9128939ac123004513b1f7c5655d34c0fdd9df",
+    "train": "06035eed94b920b9c7ad600d76eec132b93ade78ace1edb7d6a48340085d29ba",
     "val": "3c7bf7aba8a9f29b409c61bad4d9e9d59a3387915592f181ad3950ac8374e720"
   }
 }

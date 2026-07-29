@@ -14,9 +14,14 @@ from pathlib import Path
 from typing import Iterable
 
 from src.config import PROJECT_ROOT, get_output_root
+from src.data.jpeg_normalization import (
+    JpegNormalizationError,
+    audit_jpegs,
+    validate_jpegs_before_packaging,
+)
 from src.training.segmentation_preflight import verify_cloud_training_payload
 
-PACKAGE_VERSION = "v2-c087af60-seed42"
+PACKAGE_VERSION = "v5-test-7a4a5c08-seed42"
 METADATA_PATHS = {
     Path("cloud_training/package_manifest.json"),
     Path("cloud_training/checksums.sha256"),
@@ -90,6 +95,8 @@ def dataset_paths(dataset: Path) -> list[Path]:
         "split_manifest.csv",
         "split_groups.csv",
         "split_fingerprints.json",
+        "image_normalization_manifest.csv",
+        "auxiliary_jpeg_audit.csv",
     ):
         paths.append(dataset / "manifests" / name)
     return paths
@@ -202,6 +209,7 @@ def build_archive(
     except ValueError as exc:
         raise ValueError("El dataset debe estar dentro del proyecto") from exc
     locks = verify_cloud_training_payload(dataset_root)
+    jpeg_validation = validate_jpegs_before_packaging(dataset_root)
     commit = git_state(root)
     (root / "cloud_training" / "COMMIT_VERSION.txt").write_text(
         f"commit={commit['commit']}\npackage_version={version}\n",
@@ -231,6 +239,7 @@ def build_archive(
         ],
         "excluded": sorted(EXCLUDED_PARTS),
         "pilot_included": False,
+        "jpeg_validation": jpeg_validation,
     }
     manifest_path = root / "cloud_training" / "package_manifest.json"
     write_json(manifest_path, manifest)
@@ -420,6 +429,25 @@ def verify_extracted(
         if missing:
             raise RuntimeError(f"Archivos esperados ausentes: {missing}")
         dataset = extracted / manifest["dataset_relative_path"]
+        jpeg_audit = audit_jpegs(
+            path
+            for path in (dataset / "images").rglob("*")
+            if path.is_file() and path.suffix.lower() in {".jpg", ".jpeg"}
+        )
+        if jpeg_audit["problem_count"]:
+            raise JpegNormalizationError(
+                f"El paquete extraído contiene JPEG inválidos: {jpeg_audit['problems']}"
+            )
+        declared_jpeg_validation = manifest.get("jpeg_validation")
+        if (
+            not isinstance(declared_jpeg_validation, dict)
+            or declared_jpeg_validation.get("passed") is not True
+            or declared_jpeg_validation.get("ultralytics_scan", {}).get(
+                "mutated_file_count"
+            )
+            != 0
+        ):
+            raise RuntimeError("Falta la validación JPEG/Ultralytics previa al paquete")
         for split, expected_count in expected.items():
             images = len(list((dataset / "images" / split).iterdir()))
             labels = len(list((dataset / "labels" / split).glob("*.txt")))
@@ -434,6 +462,7 @@ def verify_extracted(
             "checksums_verified": checked,
             "forbidden_paths_found": forbidden,
             "dataset_counts": counts,
+            "jpeg_audit": jpeg_audit,
             "source_files_verified": source_checked,
         }
 

@@ -1,7 +1,8 @@
 # Flujo actual del requerimiento de segmentación
 
-Reconstruido desde el repositorio el 2026-07-28. Cada etapa se verificó contra
-locks, manifiestos, código y artefactos, no contra la documentación previa.
+Reconstruido desde el repositorio y el Volume de Modal el 2026-07-29. Cada
+etapa se verificó contra locks, manifiestos, código y artefactos, no contra la
+documentación previa.
 
 La evidencia estructurada equivalente está en
 `outputs/leaf_detection/requirement_review/current_flow.json`.
@@ -14,36 +15,35 @@ flowchart TD
     S02["S02 EDA<br/>notebook + segmentation_audit<br/>completado"]
     S03["S03 Consolidación<br/>all/ 1155 img + 1224 máscaras<br/>completado"]
     S04["S04 Revisión humana<br/>16 approved / 16 exclude / 3 reanotar<br/>completado"]
-    S05["S05 Cierre del padre<br/>dataset_lock c087af60<br/>ready_for_split_generation"]
+    S05["S05 Cierre del padre<br/>dataset_lock 7a4a5c08<br/>ready_for_split_generation"]
     S06["S06 Splits por grupos<br/>809/173/173 · 1035 grupos<br/>ready_for_training_preflight"]
     S07["S07 Preflight local<br/>sin GPU ni Ultralytics<br/>blocked_by_missing_dependency"]
-    S08["S08 Paquete cloud<br/>2.13 GB · sha 5d4d2bb6<br/>DESACTUALIZADO"]
-    S09["S09 Bootstrap cloud<br/>ultralytics==8.4.104<br/>no ejecutado"]
-    S10["S10 Preflight cloud<br/>GPU · pesos · forward<br/>no ejecutado"]
-    S11["S11 Smoke 1 época<br/>batch 2 · mide AutoBatch<br/>no ejecutado"]
-    S12["S12 Baseline<br/>150 epochs · patience 30<br/>no ejecutado"]
-    S13["S13 Validación val<br/>reejecutable<br/>no ejecutado"]
-    S14["S14 Test interno<br/>UNA sola vez<br/>no ejecutado"]
-    S15["S15 Piloto externo<br/>cualitativo<br/>no ejecutado"]
-    S16["S16 ROI congelados<br/>NO IMPLEMENTADO"]
-    S17["S17 Clasificadores comparativos<br/>NO IMPLEMENTADO"]
-    S18["S18 Integración<br/>baseline_full sin cambios"]
+    S08["S08 Paquetes cloud<br/>v4 entrenamiento + v5 validación<br/>verificados"]
+    S09["S09 Prepare Modal<br/>ultralytics==8.4.104<br/>completado"]
+    S10["S10 Preflight cloud<br/>GPU · pesos · forward<br/>aprobado"]
+    S11["S11 Smoke 1 época<br/>batch 26<br/>aprobado"]
+    S12["S12 Baseline<br/>150 épocas · batch 26<br/>completado"]
+    S13["S13 Test final<br/>173 img · 183 raw / 182 efectivas<br/>BLOQUEADO"]
+    S14["S14 Piloto externo<br/>retenido por S13<br/>no ejecutado"]
+    S15["S15 ROI congelados<br/>NO IMPLEMENTADO"]
+    S16["S16 Clasificadores comparativos<br/>NO IMPLEMENTADO"]
+    S17["S17 Integración<br/>baseline_full sin cambios"]
     PILOT[("Piloto retenido<br/>100 imágenes<br/>cero fugas verificadas")]
 
     S01 --> S02 --> S03 --> S04 --> S05 --> S06 --> S07 --> S08
-    S08 --> S09 --> S10 --> S11 --> S12 --> S13 --> S14 --> S15
-    S15 --> S16 --> S17 --> S18
+    S08 --> S09 --> S10 --> S11 --> S12 --> S13 --> S14
+    S14 --> S15 --> S16 --> S17
     PILOT -.->|"nunca entra en train/val/test"| S06
-    PILOT -.->|"sólo tras aprobar S14"| S15
+    PILOT -.->|"sólo tras aprobar S13"| S14
     S12 -.->|"resume con last.pt"| S12
 
     classDef done fill:#DCFCE7,stroke:#16A34A,color:#14532D
     classDef todo fill:#FEF3C7,stroke:#D97706,color:#78350F
     classDef missing fill:#FEE2E2,stroke:#DC2626,color:#7F1D1D
     classDef held fill:#E0E7FF,stroke:#4F46E5,color:#312E81
-    class S01,S02,S03,S04,S05,S06,S07 done
-    class S09,S10,S11,S12,S13,S14,S15 todo
-    class S08,S16,S17,S18 missing
+    class S01,S02,S03,S04,S05,S06,S07,S08,S09,S10,S11,S12 done
+    class S14 todo
+    class S13,S15,S16,S17 missing
     class PILOT held
 ```
 
@@ -57,29 +57,28 @@ retenido.
 |---|---|---|---|---|---|---|---|---|
 | S01 Fuentes | descargas originales | `external_sources/` | `scripts/download_datasets.sh` | — | ninguno | `3f065cdd…b913d7` | `sources_unchanged=true` | n/a |
 | S02 EDA | `external_sources/` | inventario y decisión por fuente | notebook 02 + `segmentation_audit.py` | — | ninguno | `033db15c…a95ef` (2 428 archivos) | 11 bbox mezclados, 8 autointersecciones, 1 vértice repetido | sí |
-| S03 Consolidación | fuentes + decisión EDA | `all/` 1 155 img + 1 155 TXT | `consolidate_leaf_segmentation_dataset.py` | — | ninguno | `c087af60…9e38c` | 13 392 lesiones excluidas, 0 duplicados, 0 fugas | sí |
+| S03 Consolidación | fuentes + decisión EDA | `all/` 1 155 img + 1 155 TXT | `consolidate_leaf_segmentation_dataset.py` | — | ninguno | `7a4a5c08…d7d5c` | 1 reparación EOI sin pérdida, 0 duplicados, 0 fugas | sí |
 | S04 Revisión humana | 35 casos con preview | 16 approved / 16 exclude / 3 reanotar | `generate_…_review_previews.py`, `lock_…_dataset.py` | — | ninguno | `d6a9898d…cddab2` | 0 pendientes, 0 contradicciones | **no** |
-| S05 Cierre del padre | pool + decisiones | `dataset_lock.json` | `finalize_leaf_segmentation_dataset.py` | — | ninguno | `c087af60…9e38c` (2 318 archivos) | 1 224 anotaciones, clase única, 0 errores | no sin decisión |
-| S06 Splits | `all/` congelado | `images/`+`labels/` por split | `create_leaf_segmentation_splits.py` | — | `ready_for_split_generation` | train/val/test + combinado `874b217b…1f51a` | 1 035 grupos, 0 fugas, doble reconstrucción idéntica | sí, con decisión |
+| S05 Cierre del padre | pool + decisiones | `dataset_lock.json` | `finalize_leaf_segmentation_dataset.py` | — | ninguno | `7a4a5c08…d7d5c` (2 319 archivos) | 1 224 anotaciones, clase única, 0 errores JPEG canónicos | no sin decisión |
+| S06 Splits | `all/` congelado | `images/`+`labels/` por split | `create_leaf_segmentation_splits.py` | — | `ready_for_split_generation` | train/val/test + combinado `96833e43…c0e1` | 1 035 grupos, 0 fugas, 0 cambios de asignación | sí, con decisión |
 | S07 Preflight local | splits | 8 JSON + config + comando | `leaf_segmentation_preflight.py` | `make leaf-segmentation-preflight` | ambos locks | recalcula los cuatro | batch 4/2/2 finito, 0 forward | sí |
 
-## Etapas implementadas pero no ejecutadas
+## Etapas cloud
 
 | Etapa | Make | Guard | Lock exigido | Artefactos previstos |
 |---|---|---|---|---|
-| S08 Paquete | `make leaf-segmentation-cloud-package` | ninguno (es seguro) | `verify_cloud_training_payload` | `.tar.gz` + `.sha256` + manifiesto |
-| S09 Bootstrap | `make leaf-segmentation-cloud-bootstrap` | exige CUDA antes de instalar | — | `cloud_bootstrap/` |
-| S10 Preflight cloud | `make leaf-segmentation-cloud-preflight` | — | payload verificado | `cloud_preflight/` |
-| S11 Smoke | `make leaf-segmentation-cloud-smoke` | `CONFIRM_SEGMENTATION_SMOKE_TRAINING=1` | preflight `ready_for_smoke_training` | `smoke_summary.json`, config final |
-| S12 Baseline | `make leaf-segmentation-cloud-train` | `CONFIRM_SEGMENTATION_TRAINING=1` | preflight ready + smoke passed | `yolo26n_seg_baseline/` |
-| S13 Val | `make leaf-segmentation-cloud-validate` | — | `base_gate` | `val_summary.json` |
-| S14 Test interno | `make leaf-segmentation-cloud-test` | — | `base_gate` | `test_summary.json` |
-| S15 Piloto | `make leaf-segmentation-pilot-evaluate` | `CONFIRM_PILOT_EVALUATION=1` | test aprobado + pilot-gate | `pilot_external_evaluation/` |
+| S08 Paquete | `make leaf-segmentation-cloud-package` | v4 de entrenamiento y v5 de validación verificados | `verify_cloud_training_payload` | `.tar.gz` + `.sha256` + manifiesto |
+| S09 Prepare | `modal run modal_training.py::prepare` | completado | paquete y SHA verificados | proyectos v4/v5 versionados en Volume |
+| S10 Preflight cloud | `modal run modal_training.py::preflight` | aprobado antes y después del smoke | payload verificado | `cloud_preflight/` |
+| S11 Smoke | `modal run modal_training.py::smoke --confirm true` | aprobado | preflight `ready_for_smoke_training` | `smoke_summary.json`, config final |
+| S12 Baseline | `make leaf-segmentation-cloud-train` | completado; no repetir | preflight ready + smoke passed | `yolo26n_seg_baseline/`, `training_summary.json` |
+| S13 Test final | `make leaf-segmentation-cloud-validate` | bloqueado por 183 raw/182 efectivas | fingerprint test + SHA de `best.pt` + split efectivo | `test_summary.json` sólo si todos los gates pasan |
+| S14 Piloto | `make leaf-segmentation-pilot-evaluate` | no autorizado | test aprobado + pilot-gate | `pilot_external_evaluation/` |
 
 ## Etapas no implementadas
 
-S16 (generación congelada de ROI), S17 (clasificadores `baseline_bbox_roi` y
-`baseline_masked_roi`) y S18 (integración) no tienen código. `processing_profile`
+S15 (generación congelada de ROI), S16 (clasificadores `baseline_bbox_roi` y
+`baseline_masked_roi`) y S17 (integración) no tienen código. `processing_profile`
 sigue en `baseline_full` y `leaf_detection.enabled` en `false`.
 
 ## Redundancias detectadas
@@ -118,3 +117,15 @@ sigue en `baseline_full` y `leaf_detection.enabled` en `false`.
 - Cuatro scripts del pipeline de datos no tienen objetivo `make`:
   consolidación, finalización, creación de splits y generación de previews. Son
   reproducibles pero requieren recordar la invocación exacta.
+- Ultralytics 8.4.104 deduplica etiquetas de segmentación por clase+bbox. En
+  test, dos polígonos diferentes que ocupan todo el marco comparten bbox y el
+  conteo efectivo cae de 183 a 182. El runner bloquea el resumen en vez de
+  ocultar esa diferencia.
+
+## Limpieza de resultados no oficiales
+
+Se retiraron del Volume las dos evaluaciones `val`, sus predicciones, el
+`test` incompleto, `val_summary.json`, el checksum derivado y el cache
+`labels/test.cache`. Los checkpoints y artefactos del baseline no fueron
+modificados. Localmente, `outputs/`, pesos descargados, muestras de test,
+entornos y resultados remotos están excluidos por `.gitignore`.

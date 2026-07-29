@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import inspect
 import json
 import math
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
+import torch
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -147,3 +152,226 @@ def test_direct_training_modes_require_exact_confirmation(monkeypatch) -> None:
             raise AssertionError(f"{mode} aceptó una confirmación no exacta")
         monkeypatch.setenv(variable, "1")
         runner.require_confirmation(mode)
+
+
+def test_cuda_initialization_selects_and_initializes_before_reset(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(
+        runner.torch.cuda,
+        "is_available",
+        lambda: calls.append("is_available") or True,
+    )
+    monkeypatch.setattr(
+        runner.torch.cuda,
+        "device_count",
+        lambda: calls.append("device_count") or 1,
+    )
+    monkeypatch.setattr(
+        runner.torch.cuda,
+        "set_device",
+        lambda index: calls.append(("set_device", index)),
+    )
+    monkeypatch.setattr(
+        runner.torch.cuda,
+        "init",
+        lambda: calls.append("init"),
+    )
+    monkeypatch.setattr(
+        runner.torch.cuda,
+        "is_initialized",
+        lambda: calls.append("is_initialized") or True,
+    )
+    monkeypatch.setattr(
+        runner.torch.cuda,
+        "current_device",
+        lambda: calls.append("current_device") or 0,
+    )
+    monkeypatch.setattr(
+        runner.torch.cuda,
+        "reset_peak_memory_stats",
+        lambda device: calls.append(("reset_peak_memory_stats", device)),
+    )
+
+    device = runner.initialize_cuda_and_reset_peak_memory_stats(0)
+
+    assert device == torch.device("cuda:0")
+    assert calls == [
+        "is_available",
+        "device_count",
+        ("set_device", 0),
+        "init",
+        "is_initialized",
+        "current_device",
+        ("reset_peak_memory_stats", torch.device("cuda:0")),
+    ]
+
+
+@pytest.mark.parametrize("device_index,device_count", [(-1, 1), (1, 1), (0, 0)])
+def test_cuda_initialization_rejects_out_of_range_device(
+    monkeypatch,
+    device_index: int,
+    device_count: int,
+) -> None:
+    monkeypatch.setattr(runner.torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(runner.torch.cuda, "device_count", lambda: device_count)
+    monkeypatch.setattr(
+        runner.torch.cuda,
+        "set_device",
+        lambda index: pytest.fail(f"set_device no debía recibir {index}"),
+    )
+
+    with pytest.raises(RuntimeError, match="Índice CUDA fuera de rango"):
+        runner.initialize_cuda_and_reset_peak_memory_stats(device_index)
+
+
+def test_cuda_initialization_requires_available_and_active_device(monkeypatch) -> None:
+    monkeypatch.setattr(runner.torch.cuda, "is_available", lambda: False)
+    with pytest.raises(RuntimeError, match="CUDA dejó de estar disponible"):
+        runner.initialize_cuda_and_reset_peak_memory_stats(0)
+
+    monkeypatch.setattr(runner.torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(runner.torch.cuda, "device_count", lambda: 1)
+    monkeypatch.setattr(runner.torch.cuda, "set_device", lambda _index: None)
+    monkeypatch.setattr(runner.torch.cuda, "init", lambda: None)
+    monkeypatch.setattr(runner.torch.cuda, "is_initialized", lambda: False)
+    with pytest.raises(RuntimeError, match="PyTorch no inicializó CUDA"):
+        runner.initialize_cuda_and_reset_peak_memory_stats(0)
+
+    monkeypatch.setattr(runner.torch.cuda, "is_initialized", lambda: True)
+    monkeypatch.setattr(runner.torch.cuda, "current_device", lambda: 1)
+    monkeypatch.setattr(
+        runner.torch.cuda,
+        "reset_peak_memory_stats",
+        lambda _device: pytest.fail("reset no debía ejecutarse"),
+    )
+
+    with pytest.raises(RuntimeError, match="Dispositivo CUDA activo inesperado"):
+        runner.initialize_cuda_and_reset_peak_memory_stats(0)
+
+
+def test_smoke_full_train_and_resume_use_safe_cuda_initialization() -> None:
+    train_source = inspect.getsource(runner.train_mode)
+    resume_source = inspect.getsource(runner.resume_mode)
+    initialization = "initialize_cuda_and_reset_peak_memory_stats(DEVICE_INDEX)"
+    assert initialization in train_source
+    assert train_source.index(initialization) < train_source.index("model.train(**config)")
+    assert initialization in resume_source
+    assert resume_source.index(initialization) < resume_source.index(
+        "model.train(resume=True)"
+    )
+
+
+def test_evaluated_split_mismatch_blocks_summary() -> None:
+    runner.require_evaluated_split("test", "test")
+    with pytest.raises(
+        RuntimeError,
+        match="requested_split='test', evaluated_split='val'",
+    ):
+        runner.require_evaluated_split("test", "val")
+
+
+def test_validation_observation_uses_effective_ultralytics_loader() -> None:
+    observation = {}
+    validator = SimpleNamespace(
+        args=SimpleNamespace(split="test"),
+        data={"test": "/dataset/images/test"},
+        dataloader=SimpleNamespace(
+            dataset=SimpleNamespace(
+                labels=[
+                    {"cls": [[0], [0]]},
+                    {"cls": [[0]]},
+                ],
+                __len__=lambda: 2,
+            )
+        ),
+    )
+    validator.dataloader.dataset = type(
+        "FakeDataset",
+        (),
+        {
+            "labels": validator.dataloader.dataset.labels,
+            "__len__": lambda self: 2,
+        },
+    )()
+
+    runner.capture_validation_observation(validator, observation)
+
+    assert observation == {
+        "evaluated_split": "test",
+        "resolved_split_path": "/dataset/images/test",
+        "image_count": 2,
+        "instance_count": 3,
+    }
+
+
+def test_retained_test_contract_counts_fingerprint_pilot_and_best(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    dataset = tmp_path / "detector_dataset"
+    image_dir = dataset / "images" / "test"
+    label_dir = dataset / "labels" / "test"
+    image_dir.mkdir(parents=True)
+    label_dir.mkdir(parents=True)
+    (dataset / "dataset.yaml").write_text(
+        "path: .\n"
+        "train: images/train\n"
+        "val: images/val\n"
+        "test: images/test\n"
+        "names:\n"
+        "  0: maize_leaf\n",
+        encoding="utf-8",
+    )
+    label_line = "0 0.1 0.1 0.2 0.1 0.2 0.2\n"
+    for index in range(runner.EXPECTED_TEST_IMAGE_COUNT):
+        stem = f"leaf_{index:03d}"
+        (image_dir / f"{stem}.jpg").write_bytes(b"jpeg")
+        instance_total = 2 if index < 10 else 1
+        (label_dir / f"{stem}.txt").write_text(
+            label_line * instance_total,
+            encoding="utf-8",
+        )
+
+    output = tmp_path / "outputs" / "leaf_detection"
+    checkpoint = (
+        output / "segmenter/yolo26n_seg_baseline/weights/best.pt"
+    )
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_bytes(b"immutable-best-checkpoint")
+    checkpoint_sha256 = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+
+    monkeypatch.setattr(runner, "DATASET", dataset)
+    monkeypatch.setattr(runner, "OUTPUTS", output)
+    monkeypatch.setattr(
+        runner,
+        "EXPECTED_BEST_CHECKPOINT_SHA256",
+        checkpoint_sha256,
+    )
+    contract = runner.validate_test_evaluation_inputs(
+        checkpoint,
+        {
+            "split_fingerprints": {
+                "test": runner.EXPECTED_TEST_FINGERPRINT,
+            }
+        },
+    )
+
+    assert contract["requested_split"] == "test"
+    assert contract["resolved_split_path"].endswith("images/test")
+    assert contract["image_count"] == 173
+    assert contract["instance_count"] == 183
+    assert contract["test_fingerprint"] == runner.EXPECTED_TEST_FINGERPRINT
+    assert contract["pilot_used"] is False
+    assert contract["checkpoint"]["path"] == str(checkpoint.resolve())
+    assert contract["checkpoint"]["sha256"] == checkpoint_sha256
+
+
+def test_evaluate_mode_forces_test_and_gates_effective_split_before_summary() -> None:
+    source = inspect.getsource(runner.evaluate_mode)
+    assert 'config["split"] = REQUESTED_EVALUATION_SPLIT' in source
+    assert 'config["name"] = "yolo26n_seg_test"' in source
+    assert "require_evaluated_split(" in source
+    assert source.index("require_evaluated_split(") < source.index(
+        'Path(str(contract["summary_path"]))'
+    )
+    assert '"pilot_used": False' in source

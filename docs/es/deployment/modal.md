@@ -65,136 +65,89 @@ modal run scripts/modal/explain.py::explain_report --models "efficientnet_b0" --
 modal run scripts/modal/train.py::clean_outputs
 ```
 
-## Segmentación foliar con el paquete congelado v2
+## Estado actual de la segmentación foliar
 
-La segmentación usa un control plane separado en `modal_training.py`:
+La segmentación usa el control plane separado `modal_training.py`, la App
+`doctor-maiz-leaf-segmentation` y el Volume persistente del mismo nombre,
+montado en `/workspace`.
 
-- App `doctor-maiz-leaf-segmentation`.
-- Volume persistente `doctor-maiz-leaf-segmentation`, montado en `/workspace`.
-- Paquete inmutable
-  `doctor_maiz_leaf_segmentation_cloud_v2-c087af60-seed42.tar.gz`, con SHA-256
-  `4886ef3a11edb5d4819b9e980981a3f697f85129238a0b25e78eb9b0bc82805c`.
-- Proyecto extraído en `/workspace/project` y paquete de entrada en
-  `/workspace/incoming`.
+Hay dos identidades que no deben confundirse:
 
-El archivo de 2.13 GB no forma parte de la Image y no se monta con
-`add_local_dir`. Se sube una sola vez al Volume. El adaptador local tampoco altera ni
-reconstruye el paquete: el SHA anterior continúa siendo la identidad del release.
+- `/workspace/project_v4-7a4a5c08-seed42` conserva el entrenamiento aprobado y
+  sus checkpoints;
+- `/workspace/project_v5-test-7a4a5c08-seed42` contiene el código y dataset
+  preparados para corregir la evaluación final.
 
-La Image de segmentación se construye una vez con Python 3.11, PyTorch 2.6.0,
-torchvision 0.21.0 y `ultralytics==8.4.104`. La base está fijada por tag y por el
-[digest publicado en Docker Hub](https://hub.docker.com/layers/pytorch/pytorch/2.6.0-cuda12.4-cudnn9-runtime/images/sha256-77f17f843507062875ce8be2a6f76aa6aa3df7f9ef1e31d9d7432f4b0f563dee):
+El paquete v5 de validación es
+`doctor_maiz_leaf_segmentation_cloud_v5-test-7a4a5c08-seed42.tar.gz`, con
+SHA-256
+`1ff54bbf56d0a5724bc472d56c5ea71192b9005b88b2dec89494ccb3dce59a79`.
+Dos construcciones independientes produjeron exactamente ese mismo hash y
+tamaño de 2 133 026 210 bytes.
 
-```text
-pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime@
-sha256:77f17f843507062875ce8be2a6f76aa6aa3df7f9ef1e31d9d7432f4b0f563dee
-```
+La Image remota fija Python 3.11, PyTorch 2.6.0+cu124, torchvision
+0.21.0+cu124, Ultralytics 8.4.104 y `faster-coco-eval==1.7.2`. Las
+dependencias se instalan al construir la Image; ninguna función de evaluación
+ejecuta `pip install`.
 
-Las dependencias, `make`, Git, Bash, `sha256sum`, `tar` y las utilidades de
-monitorización se instalan al construir la Image. Las funciones remotas no crean
-`.venv-cloud`, no ejecutan el bootstrap y no reinstalan dependencias.
+### Baseline congelado
 
-### Crear y cargar el Volume
+El entrenamiento completo terminó el 2026-07-29:
 
-Estos comandos presuponen que el cliente Modal ya está instalado y autenticado. El
-adaptador se verificó contra Modal 1.5.3; este cambio no instala ni actualiza el
-cliente.
+- `status=passed`;
+- 150 épocas, batch efectivo 26;
+- duración 1 461,08 segundos;
+- `best.pt` de 6 546 902 bytes, SHA-256
+  `4f66456d05d87f9e7080155eb5cd80c583f34849415ec820c950bd97f9c5ec6f`;
+- `last.pt` de 6 546 902 bytes, SHA-256
+  `b355074c7fb9afccf05db7e97535188f37ad5b5b5bbcc27ccf1a7d3e2f79a197`.
 
-```bash
-modal volume create doctor-maiz-leaf-segmentation
-modal volume put doctor-maiz-leaf-segmentation \
-  outputs/leaf_detection/packages/doctor_maiz_leaf_segmentation_cloud_v2-c087af60-seed42.tar.gz \
-  /incoming/
-modal volume put doctor-maiz-leaf-segmentation \
-  outputs/leaf_detection/packages/doctor_maiz_leaf_segmentation_cloud_v2-c087af60-seed42.tar.gz.sha256 \
-  /incoming/
-```
+`best.pt`, `last.pt`, `training_summary.json`, `active_run_manifest.json`,
+la configuración final y `results.csv` permanecen bajo
+`project_v4-7a4a5c08-seed42/outputs/leaf_detection/segmenter/`.
 
-No se usa `--force` al subir: una colisión debe revisarse, no sobrescribirse
-silenciosamente. `prepare` verifica el SHA-256, inspecciona el tar y extrae
-atómicamente en `/workspace/project`. Una extracción existente sólo se reutiliza si
-su marcador `.modal_package_prepared.json`, versión, fingerprint y checksums
-coinciden.
+### Estado de la evaluación final
 
-### Orden de ejecución
+`validate` solicita `split=test` de forma explícita y comprueba el split
+efectivo después de que Ultralytics construye el dataloader. El intento
+auditado sí escaneó `labels/test`, usó 173 imágenes y no usó `val` ni el
+piloto.
 
-Los comandos directos son:
+La evaluación no está aprobada. Ultralytics redujo las 183 anotaciones
+canónicas a 182 instancias porque los dos polígonos distintos de
+`cldc_ec40ec2d7da5243e.txt` comparten el mismo bbox `float32` y su checker los
+clasifica como duplicados. No existe `test_summary.json` con
+`status=passed`, y las métricas del intento no son oficiales.
 
-```bash
-modal run modal_training.py::prepare
-modal run modal_training.py::preflight
-modal run modal_training.py::smoke --confirm true
-modal run --detach modal_training.py::train --confirm true
-modal run --detach modal_training.py::resume --confirm true
-modal run modal_training.py::validate
-modal run modal_training.py::results
-modal run modal_training.py::checksums
-```
+El 2026-07-29 se eliminaron del Volume todas las salidas no oficiales:
 
-`train` y `resume` usan
-[`--detach`](https://modal.com/docs/reference/cli/run) para que la ejecución no dependa
-de la terminal local. No son intercambiables: `train` inicia un run nuevo con la
-configuración final de 150 épocas y bloquea cualquier directorio existente; `resume`
-sólo acepta el `last.pt` exacto identificado por `active_run_manifest.json` y deja un
-manifiesto histórico de reanudación.
+- `yolo26n_seg_val` y `yolo26n_seg_val-2`;
+- sus dos directorios de predicciones;
+- `val_summary.json`;
+- el directorio `yolo26n_seg_test` incompleto;
+- el checksum derivado del intento y `labels/test.cache`.
 
-La GPU predeterminada es A10. Sólo se aceptan A10, L4 y A100, sin fallback automático
-a una GPU más cara:
+Por tanto, `segmenter_evaluation/` no existe actualmente. No debe volver a
+ejecutarse `validate` hasta resolver formalmente la diferencia entre 183
+anotaciones canónicas y 182 instancias efectivas sin alterar el fingerprint
+test
+`046545351ce79431bb1a995dfbc7dfa44c642a18a046860ed5edb9fc0ed89c51`.
+
+### Comandos administrativos
+
+El cliente Modal se usa desde `.venv`; `.venv-modal/` quedó retirado por ser
+un entorno duplicado. Los comandos que no entrenan son:
 
 ```bash
-DOCTOR_MAIZ_MODAL_GPU=L4 modal run modal_training.py::preflight
-DOCTOR_MAIZ_MODAL_GPU=A100 modal run --detach modal_training.py::train --confirm true
-```
-
-El preflight registra GPU solicitada y recibida, VRAM libre/total, uso inicial,
-driver, CUDA, cuDNN, versiones de Python/PyTorch/torchvision/Ultralytics, digest base,
-ID de Image cuando Modal lo expone, hash de receta y locks de dependencias. Bloquea
-una GPU con menos de 12 GiB y sólo termina con
-`ready_for_smoke_training`.
-
-El smoke exige el literal `--confirm true`. Persiste `smoke_summary.json`,
-`modal_smoke_manifest.json`, `best.pt`, `last.pt`, batch seleccionado, pico de VRAM,
-duración y `train_yolo26n_seg.final.yaml`. El entrenamiento completo y la reanudación
-también exigen `--confirm true`.
-
-Cada función hace `reload()` al entrar y `commit()` al salir. Además, los Volumes
-[sincronizan cambios en segundo plano](https://modal.com/docs/guide/volumes), por lo
-que los checkpoints escritos durante un entrenamiento largo quedan en el
-almacenamiento persistente antes del commit final.
-
-No existe función Modal de test interno ni de piloto. `validate` evalúa
-exclusivamente `best.pt` sobre `val`.
-
-### Los mismos pasos con Make
-
-El Makefile invoca `$(PYTHON) -m modal`. En este repositorio el cliente 1.5.3 está en
-`.venv`, por lo que se puede seleccionar explícitamente con
-`PYTHON=.venv/bin/python`:
-
-```bash
-make leaf-segmentation-modal-volume-create PYTHON=.venv/bin/python
-make leaf-segmentation-modal-upload PYTHON=.venv/bin/python
 make leaf-segmentation-modal-prepare PYTHON=.venv/bin/python
 make leaf-segmentation-modal-preflight PYTHON=.venv/bin/python
-
-CONFIRM_SEGMENTATION_SMOKE_TRAINING=1 \
-  make leaf-segmentation-modal-smoke PYTHON=.venv/bin/python
-CONFIRM_SEGMENTATION_TRAINING=1 \
-  make leaf-segmentation-modal-train PYTHON=.venv/bin/python
-CONFIRM_SEGMENTATION_TRAINING=1 \
-  make leaf-segmentation-modal-resume PYTHON=.venv/bin/python
-
-make leaf-segmentation-modal-validate PYTHON=.venv/bin/python
 make leaf-segmentation-modal-results PYTHON=.venv/bin/python
 make leaf-segmentation-modal-checksums PYTHON=.venv/bin/python
 make leaf-segmentation-modal-download PYTHON=.venv/bin/python
 ```
 
-Para L4 o A100 se agrega `MODAL_SEGMENTATION_GPU=L4` o
-`MODAL_SEGMENTATION_GPU=A100`. Los guards locales aceptan exactamente
-`CONFIRM_SEGMENTATION_SMOKE_TRAINING=1` para smoke y
-`CONFIRM_SEGMENTATION_TRAINING=1` para train/resume; después el adaptador remoto vuelve
-a validar el literal `true`.
+No se debe ejecutar `train`, `resume`, piloto ni una nueva evaluación final
+mientras el gate de 183/182 permanezca abierto.
 
 ## Cómo se traen los resultados
 

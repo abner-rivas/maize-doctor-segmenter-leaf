@@ -8,8 +8,15 @@ from unittest import TestCase
 
 from PIL import Image
 
+from src.data.jpeg_normalization import IMAGE_NORMALIZATION_COLUMNS
 from src.data.segmentation_consolidation import MANIFEST_COLUMNS, write_csv
-from src.data.segmentation_finalization import _apply_reviews, decisions_fingerprint
+from src.data.segmentation_finalization import (
+    FINAL_MANIFESTS,
+    _apply_reviews,
+    _filter_image_normalization_manifest,
+    _publish,
+    decisions_fingerprint,
+)
 
 
 def _manifest_row(root: Path, line_number: int) -> dict[str, str]:
@@ -87,3 +94,76 @@ class SegmentationFinalizationTests(TestCase):
             decisions_fingerprint([first, second]),
             decisions_fingerprint([second, first]),
         )
+
+    def test_normalization_manifest_keeps_only_final_images(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "all/images").mkdir(parents=True)
+            (root / "manifests").mkdir()
+            Image.new("RGB", (8, 8), "green").save(root / "all/images/kept.jpg")
+            rows = [
+                {
+                    column: (
+                        f"/derived/{name}.jpg"
+                        if column == "derived_path"
+                        else "unchanged"
+                        if column == "status"
+                        else "copy_unchanged"
+                        if column == "normalization_method"
+                        else ""
+                    )
+                    for column in IMAGE_NORMALIZATION_COLUMNS
+                }
+                for name in ("kept", "removed")
+            ]
+            write_csv(
+                root / "manifests/image_normalization_manifest.csv",
+                rows,
+                IMAGE_NORMALIZATION_COLUMNS,
+            )
+
+            final_root = Path("/final/detector_dataset")
+            summary = _filter_image_normalization_manifest(root, final_root)
+
+            self.assertEqual(summary["jpeg_images"], 1)
+            filtered = (
+                root / "manifests/image_normalization_manifest.csv"
+            ).read_text(encoding="utf-8")
+            self.assertIn(
+                "/final/detector_dataset/all/images/kept.jpg",
+                filtered,
+            )
+            self.assertNotIn("/derived/removed.jpg", filtered)
+
+    def test_publish_preserves_historical_auxiliary_directories(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate = root / "candidate"
+            dataset = root / "dataset"
+            report_candidate = root / "report_candidate"
+            report_target = root / "report"
+            for relative in ("all", "previews", "manifests"):
+                (candidate / relative).mkdir(parents=True)
+            (candidate / "dataset.yaml").write_text("train: images/train\n")
+            (candidate / "README.md").write_text("# final\n")
+            for name in FINAL_MANIFESTS:
+                (candidate / "manifests" / name).write_text(f"{name}\n")
+            report_candidate.mkdir()
+            (report_candidate / "summary.json").write_text("{}\n")
+            historical = {
+                dataset / "annotation_batches/train/images/history.jpg": b"batch",
+                dataset / "test/images/legacy.jpg": b"legacy",
+            }
+            for path, content in historical.items():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+
+            _publish(
+                candidate,
+                report_candidate,
+                dataset,
+                report_target,
+            )
+
+            for path, content in historical.items():
+                self.assertEqual(path.read_bytes(), content)

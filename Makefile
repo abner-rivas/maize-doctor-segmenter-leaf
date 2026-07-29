@@ -39,8 +39,9 @@ SPLIT ?= val
 MODAL_SEGMENTATION_APP ?= modal_training.py
 MODAL_SEGMENTATION_VOLUME ?= doctor-maiz-leaf-segmentation
 MODAL_SEGMENTATION_GPU ?= A10
-MODAL_SEGMENTATION_PACKAGE ?= $(LEAF_SEGMENTATION_PACKAGE_DIR)/doctor_maiz_leaf_segmentation_cloud_v2-c087af60-seed42.tar.gz
-MODAL_SEGMENTATION_PACKAGE_SHA256 ?= 4886ef3a11edb5d4819b9e980981a3f697f85129238a0b25e78eb9b0bc82805c
+MODAL_SEGMENTATION_PACKAGE ?= $(LEAF_SEGMENTATION_PACKAGE_DIR)/doctor_maiz_leaf_segmentation_cloud_v5-test-7a4a5c08-seed42.tar.gz
+MODAL_SEGMENTATION_PACKAGE_SHA256 ?= $(shell sed -n '1s/[[:space:]].*//p' "$(MODAL_SEGMENTATION_PACKAGE).sha256" 2>/dev/null)
+MODAL_SEGMENTATION_PROJECT_ROOT ?= /project_v4-7a4a5c08-seed42
 MODAL_SEGMENTATION_DOWNLOAD_DIR ?= outputs-remote-leaf-segmentation
 
 .PHONY: help \
@@ -118,17 +119,17 @@ help:
 		'CLOUD / SIN ENTRENAR:' \
 		'  leaf-segmentation-cloud-bootstrap        Instalar en entorno cloud aislado' \
 		'  leaf-segmentation-cloud-preflight        GPU, modelo, pesos y forward' \
-		'  leaf-segmentation-cloud-validate         best.pt sobre val' \
+		'  leaf-segmentation-cloud-validate         best.pt sobre test retenido' \
 		'  leaf-segmentation-cloud-test             best.pt sobre test interno' \
 		'  leaf-segmentation-cloud-results          Mostrar resultados sin cambiarlos' \
 		'  leaf-segmentation-cloud-checksums        Hashes de resultados' \
 		'' \
 		'MODAL / SEGMENTACIÓN:' \
 		'  leaf-segmentation-modal-volume-create    Crear Volume persistente' \
-		'  leaf-segmentation-modal-upload           Subir paquete v2 una sola vez' \
-		'  leaf-segmentation-modal-prepare          Verificar y extraer paquete v2' \
+		'  leaf-segmentation-modal-upload           Subir paquete v5-test una sola vez' \
+		'  leaf-segmentation-modal-prepare          Verificar y extraer paquete v5-test' \
 		'  leaf-segmentation-modal-preflight        Validar entorno y GPU (A10)' \
-		'  leaf-segmentation-modal-validate         Validar best.pt sólo sobre val' \
+		'  leaf-segmentation-modal-validate         Evaluar best.pt sólo sobre test' \
 		'  leaf-segmentation-modal-results          Inventario persistente' \
 		'  leaf-segmentation-modal-checksums        Hashes persistentes' \
 		'  leaf-segmentation-modal-download         Descargar resultados' \
@@ -425,7 +426,8 @@ leaf-segmentation-modal-checksums:
 leaf-segmentation-modal-download:
 	mkdir -p "$(MODAL_SEGMENTATION_DOWNLOAD_DIR)"
 	$(MODAL) volume get --force "$(MODAL_SEGMENTATION_VOLUME)" \
-		"/project/outputs/leaf_detection/" "$(MODAL_SEGMENTATION_DOWNLOAD_DIR)"
+		"$(MODAL_SEGMENTATION_PROJECT_ROOT)/outputs/leaf_detection/" \
+		"$(MODAL_SEGMENTATION_DOWNLOAD_DIR)"
 
 training-package-manifest:
 	$(PYTHON) scripts/checks/build_training_package_manifest.py --output outputs/training_package_manifest.json
