@@ -34,6 +34,36 @@ leaf_detection:
   padding_value: 0
   save_debug_images: false
   cache_detections: true
+  dual_perspective:
+    enabled: false
+    segmented_profile: "mask_black"
+    # Experimental only: a multi-instance selection must also clear the score margin below.
+    reject_multiple_eligible: false
+    quality_gate:
+      # Preserves the observed valid near-full mask (0.9976) but rejects effectively-full leaks.
+      max_mask_area_ratio: 0.999
+      # A large, sparse and high-perimeter mask must satisfy all three conditions to be rejected.
+      large_mask_area_ratio: 0.50
+      min_large_mask_bbox_ratio: 0.70
+      max_large_mask_normalized_perimeter: 8.0
+      # Audit v1: min GOOD multi-leaf margin=0.369; max BAD/AMBIGUOUS=0.302.
+      min_multi_instance_score_margin: 0.33
+  segmentation:
+    checkpoint: "leaf_detection/models/doctor_maiz_leaf_segmenter_best.pt"
+    model: "yolo26n-seg"
+    ultralytics_version: "8.4.104"
+    image_size: 640
+    iou_threshold: 0.70
+    max_detections: 20
+    min_mask_area_ratio: 0.01
+    near_full_warning_ratio: 0.98
+    background_value: [0, 0, 0]
+    selection_weights:
+      area: 0.45
+      center: 0.35
+      confidence: 0.20
+    processing_profile: "mask_black"
+    fallback: "original"
 
 baseline:
   classes:
