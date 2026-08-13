@@ -71,24 +71,22 @@ class SegmentedLeafProcessorTests(TestCase):
         )
 
     def test_config_mapping_can_override_selection_confidence(self) -> None:
-        leaf_detection = {
+        segmentation = {
             "confidence_threshold": 0.5,
-            "segmentation": {
-                "processing_profile": "mask_black",
-                "min_mask_area_ratio": 0.01,
-                "near_full_warning_ratio": 0.98,
-                "background_value": [0, 0, 0],
-                "selection_weights": {
-                    "area": 0.45,
-                    "center": 0.35,
-                    "confidence": 0.20,
-                },
-                "fallback": "original",
+            "output_profile": "mask_black",
+            "min_mask_area_ratio": 0.01,
+            "near_full_warning_ratio": 0.98,
+            "background_value": [0, 0, 0],
+            "selection_weights": {
+                "area": 0.45,
+                "center": 0.35,
+                "confidence": 0.20,
             },
+            "fallback": "original",
         }
 
         config = mask_processor_config_from_mapping(
-            leaf_detection,
+            segmentation,
             confidence_threshold=0.125,
         )
 
@@ -211,7 +209,7 @@ class SegmentedLeafProcessorTests(TestCase):
         self.assertEqual(cropped.processed_image.size, (60, 60))  # type: ignore[union-attr]
         self.assertEqual(letterboxed.processed_image.size, (200, 120))  # type: ignore[union-attr]
 
-    def test_reject_fallback_returns_no_classifier_input(self) -> None:
+    def test_reject_fallback_returns_no_processed_image(self) -> None:
         result = self._processor((), fallback=FALLBACK_REJECT).process(self.image)
 
         self.assertTrue(result.fallback_used)

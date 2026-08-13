@@ -4,7 +4,7 @@
 
 Esta auditoría evalúa dos fuentes externas como candidatas para un futuro
 segmentador de hojas de maíz. No entrenó YOLO, no descargó pesos, no reparó
-etiquetas, no consolidó datasets y no modificó clasificadores ni checkpoints.
+etiquetas, no consolidó datasets y no modificó checkpoints.
 
 El notebook reproducible es
 [`notebooks/02_leaf_segmentation_external_sources_eda.ipynb`](../../../notebooks/02_leaf_segmentation_external_sources_eda.ipynb).
@@ -15,9 +15,8 @@ La motivación histórica está en [Historia del aislamiento de hojas](history.m
 y la decisión formal sobre estas fuentes en
 [ADR: datasets externos](../decisions/adr-external-leaf-segmentation-datasets.md).
 
-YOLO tendrá una sola responsabilidad: segmentar hojas. No clasificará
-enfermedades. Un clasificador posterior deberá entrenarse con el mismo
-preprocesamiento de segmentación usado en evaluación e inferencia.
+YOLO tiene una sola responsabilidad: segmentar hojas completas. Las etiquetas de
+lesión se excluyen de este dataset.
 
 ## Fuentes, trazabilidad y licencia
 
@@ -212,11 +211,8 @@ Ese paso ya se completó, como documenta la sección siguiente. Sólo después d
 aprobar el pool se crearán splits propios del segmentador, se confirmará la
 arquitectura y se evaluará contra el piloto retenido.
 
-Estos datos pueden ayudar a mejorar el aislamiento de la hoja, pero no prueban
-una mejora de precisión del clasificador. El segmentador deberá evaluarse y el
-clasificador deberá entrenarse después con las imágenes procesadas. No se debe
-activar segmentación sólo durante inferencia sobre checkpoints entrenados con
-imágenes completas.
+Estos datos pueden ayudar a mejorar el aislamiento de la hoja, pero el segmentador
+debe evaluarse contra el test y el piloto retenido antes de publicar sus máscaras.
 
 ## Resultado de la consolidación posterior
 
@@ -249,11 +245,9 @@ entrenamiento. Los reportes viven en
 - `manual_semantic_review.csv`, `decision_summary.md`;
 - `charts/` y `previews/`.
 
-La configuración activa se mantiene sin cambios:
+La configuración de salida activa es:
 
 ```yaml
-processing_profile: baseline_full
-
-leaf_detection:
-  enabled: false
+segmentation:
+  output_profile: mask_black
 ```

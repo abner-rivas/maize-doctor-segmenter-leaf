@@ -10,12 +10,10 @@
 
 Esta fase prepara imágenes y paquetes de anotación para un futuro detector de
 hojas. **No entrena YOLO, no instala Ultralytics y no descarga `yolo26n.pt`.**
-Tampoco modifica los clasificadores históricos ni activa la detección en el
-pipeline.
+Tampoco activa inferencia ni entrenamiento fuera del flujo de segmentación.
 
 El detector tendrá una sola clase, `maize_leaf`. Su función será localizar
-hojas; la clasificación de enfermedades, plagas y deficiencias continúa siendo
-responsabilidad separada de los clasificadores DoctorMaiz.
+hojas; cualquier otra tarea queda fuera del alcance de este repositorio.
 
 ## Decisión inicial
 
@@ -70,13 +68,9 @@ fase no hizo esa instalación.
 
 ## Origen y particiones
 
-La selección usa exclusivamente:
-
-```text
-train: data/splits/seed_42_baseline/train.csv
-val:   data/splits/seed_42_baseline/val.csv
-test:  data/leaf_detection/pilot/
-```
+La fuente activa es el dataset autocontenido
+`data/leaf_detection/detector_dataset/`. Sus manifiestos y locks conservan la
+procedencia de cada imagen sin depender de archivos de otro proyecto.
 
 | Partición del detector | Imágenes | Estado inicial | Origen |
 |---|---:|---|---|
@@ -224,24 +218,8 @@ También confirma que cada fila procede de su split declarado.
 
 ## Reproducción
 
-Con el paquete del proyecto instalado en modo editable:
-
-```bash
-python3 scripts/dataset/build_leaf_detector_annotation_set.py \
-  --train-csv data/splits/seed_42_baseline/train.csv \
-  --val-csv data/splits/seed_42_baseline/val.csv \
-  --dataset-root /home/desarrolloab/Documentos/ML/maize_dataset/data \
-  --pilot-root data/leaf_detection/pilot \
-  --imported-annotations data/leaf_detection/pilot/manifests/imported_annotations.csv \
-  --cvat-xml data/leaf_detection/pilot/annotations/cvat/annotations.xml \
-  --output data/leaf_detection/detector_dataset \
-  --train-count 350 \
-  --val-count 75 \
-  --seed 42 \
-  --real-fraction 0.8
-```
-
-La salida es protegida: el script falla si el directorio ya existe y no
+El dataset congelado se verifica mediante sus manifiestos y fingerprints; no
+se reconstruye a partir de insumos de otro proyecto. La salida es protegida y no
 sobrescribe una selección previa.
 
 ## Plantilla futura
@@ -259,5 +237,5 @@ names:
 ```
 
 El dataset final sólo se materializará después de anotar y validar train y val.
-Hasta entonces, `processing_profile: baseline_full` y
-`leaf_detection.enabled: false` permanecen sin cambios.
+Hasta entonces, sus manifiestos continúan como evidencia histórica y no como entrada
+activa de entrenamiento.

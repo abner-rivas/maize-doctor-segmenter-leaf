@@ -93,5 +93,5 @@ El empaquetador usa lista blanca, orden estable, UID/GID cero, permisos
 normalizados y mtime cero. Genera el `.tar.gz`, su `.sha256`, extrae en un
 temporal, valida cada checksum y confirma que ninguna ruta excluida aparezca.
 
-No se modifica `baseline_full` ni `leaf_detection.enabled=false`. No se usa el
+No se modifica ningún proyecto consumidor del segmentador. No se usa el
 piloto hasta una fase externa posterior.

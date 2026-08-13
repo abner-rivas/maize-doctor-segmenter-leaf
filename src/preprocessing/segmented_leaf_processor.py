@@ -27,14 +27,12 @@ from src.preprocessing.leaf_roi import (
 from src.preprocessing.letterbox import letterbox_image, validate_target_size
 from src.segmentation.leaf_segmenter import LeafInstance, LeafSegmenter
 
-BASELINE_FULL = "baseline_full"
 MASK_BLACK = "mask_black"
 BBOX_CROP = "bbox_crop"
 CROP_MASK_BLACK = "crop_mask_black"
 CROP_MASK_LETTERBOX = "crop_mask_letterbox"
 SUPPORTED_MASK_PROFILES = frozenset(
     {
-        BASELINE_FULL,
         MASK_BLACK,
         BBOX_CROP,
         CROP_MASK_BLACK,
@@ -124,20 +122,17 @@ class LeafMaskProcessorConfig:
 
 
 def mask_processor_config_from_mapping(
-    leaf_detection: Mapping[str, object],
+    segmentation: Mapping[str, object],
     *,
     processing_profile: str | None = None,
     confidence_threshold: float | None = None,
     target_size: tuple[int, int] | None = None,
 ) -> LeafMaskProcessorConfig:
-    """Build the mask config from ``config/dataset.yaml`` without hidden defaults."""
-    raw_segmentation = leaf_detection.get("segmentation")
-    if not isinstance(raw_segmentation, Mapping):
-        raise ValueError("leaf_detection.segmentation debe ser un mapping")
-    raw_weights = raw_segmentation.get("selection_weights")
+    """Build mask-output settings from ``config/segmentation.yaml``."""
+    raw_weights = segmentation.get("selection_weights")
     if not isinstance(raw_weights, Mapping):
         raise ValueError("selection_weights debe ser un mapping")
-    raw_background = raw_segmentation.get("background_value")
+    raw_background = segmentation.get("background_value")
     if not isinstance(raw_background, (list, tuple)) or len(raw_background) != 3:
         raise ValueError("background_value debe contener tres canales")
     background = tuple(_background_channel(channel) for channel in raw_background)
@@ -146,21 +141,21 @@ def mask_processor_config_from_mapping(
         processing_profile=(
             processing_profile
             if processing_profile is not None
-            else str(raw_segmentation["processing_profile"])
+            else str(segmentation["output_profile"])
         ),
         confidence_threshold=_finite_number(
             (
                 confidence_threshold
                 if confidence_threshold is not None
-                else leaf_detection["confidence_threshold"]
+                else segmentation["confidence_threshold"]
             ),
             "confidence_threshold",
         ),
         min_mask_area_ratio=_finite_number(
-            raw_segmentation["min_mask_area_ratio"], "min_mask_area_ratio"
+            segmentation["min_mask_area_ratio"], "min_mask_area_ratio"
         ),
         near_full_warning_ratio=_finite_number(
-            raw_segmentation["near_full_warning_ratio"], "near_full_warning_ratio"
+            segmentation["near_full_warning_ratio"], "near_full_warning_ratio"
         ),
         area_weight=_finite_number(raw_weights["area"], "selection_weights.area"),
         center_weight=_finite_number(raw_weights["center"], "selection_weights.center"),
@@ -169,7 +164,7 @@ def mask_processor_config_from_mapping(
         ),
         background_value=(background[0], background[1], background[2]),
         target_size=configured_target,
-        fallback=str(raw_segmentation["fallback"]),
+        fallback=str(segmentation["fallback"]),
     )
 
 
@@ -562,29 +557,6 @@ class SegmentedLeafProcessor:
             raise TypeError("image debe ser una instancia de PIL.Image.Image")
         original = image_to_rgb(image, self.config.background_value)
         source = str(Path(source_image).resolve()) if source_image is not None else None
-
-        if self.config.processing_profile == BASELINE_FULL:
-            result = SegmentedLeafProcessingResult(
-                original_image=original,
-                mask=None,
-                masked_image=None,
-                processed_image=original.copy(),
-                crop_image=None,
-                bbox=None,
-                confidence=None,
-                number_of_instances=0,
-                selected_instance=None,
-                selection_traces=(),
-                preprocessing_strategy=BASELINE_FULL,
-                fallback_used=False,
-                fallback_reason=None,
-                warnings=(),
-                source_image=source,
-                segmenter_metadata=self._metadata(),
-            )
-            if debug_dir is not None:
-                save_debug_artifacts(result, debug_dir)
-            return result
 
         instances = tuple(self.segmenter.segment(original))
         selection = select_target_leaf(instances, original.size, self.config)

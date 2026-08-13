@@ -38,11 +38,11 @@ ANNOTATION_GUIDE = """# Guía de anotación manual de la hoja principal
 
 `0 = maize_leaf`
 
-La enfermedad no se anota en esta fase: ya está conservada como etiqueta del clasificador.
+Las etiquetas ajenas a la geometría de hoja no se anotan en esta fase.
 
 ## Regla principal
 
-> Marcar solamente la hoja principal que debería analizar el clasificador.
+> Marcar solamente la hoja principal objetivo del segmentador.
 
 ## Cómo elegir la hoja principal
 
@@ -81,7 +81,7 @@ cada imagen. Coloque las etiquetas YOLO manuales en `labels/` usando `<pilot_id>
 un CSV con `pilot_id,x1,y1,x2,y2,status,notes`.
 
 Revise `annotation_guide.md` antes de anotar. Esta fase no entrena ni integra un detector o el
-clasificador.
+otro modelo.
 """
 
 

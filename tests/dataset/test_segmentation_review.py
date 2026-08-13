@@ -59,7 +59,7 @@ class ReviewValidationTests(TestCase):
         self.assertIn("completed requiere reviewer_decision", summary["invalid"][0]["problems"])
         self.assertIn("completed requiere review_reason", summary["invalid"][0]["problems"])
 
-    def test_completed_decisions_are_classified(self) -> None:
+    def test_completed_decisions_are_grouped(self) -> None:
         rows = [
             _review(
                 filename="approved.jpg",

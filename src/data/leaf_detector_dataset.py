@@ -25,7 +25,7 @@ SELECTION_COLUMNS = (
     "original_image_path",
     "copied_image_path",
     "image_sha256",
-    "classification_label",
+    "source_label",
     "source_split",
     "environment",
     "source_dataset",
@@ -69,8 +69,8 @@ requiera una elección arbitraria y como `rejected` las imágenes imposibles de
 anotar.
 
 Esta regla sustituye, únicamente para el detector, la regla del piloto anterior
-que anotaba sólo la hoja principal. La etiqueta de enfermedad pertenece al
-clasificador y no se anota aquí.
+que anotaba sólo la hoja principal. Las etiquetas semánticas de la fuente no se
+anotan aquí.
 
 Las imágenes de este paquete no incluyen etiquetas: su estado inicial es
 `pending` hasta completar y validar la anotación en CVAT.
@@ -404,7 +404,7 @@ def _selection_row(
     seed: int,
 ) -> dict[str, object]:
     reason = (
-        f"class_environment_balance;orientation={candidate.orientation};"
+        f"source_label_environment_balance;orientation={candidate.orientation};"
         f"resolution={candidate.resolution_bucket};"
         f"aspect={candidate.aspect_ratio_bucket};manual_visual_review=pending"
     )
@@ -413,7 +413,7 @@ def _selection_row(
         "original_image_path": candidate.image_path,
         "copied_image_path": copied_path.as_posix(),
         "image_sha256": candidate.image_sha256,
-        "classification_label": candidate.label,
+        "source_label": candidate.label,
         "source_split": split,
         "environment": candidate.environment,
         "source_dataset": candidate.source_dataset,
@@ -514,7 +514,7 @@ def _materialize_test(
                 "original_image_path": row["original_image_path"],
                 "copied_image_path": relative.as_posix(),
                 "image_sha256": digest,
-                "classification_label": row["label"],
+                "source_label": row["label"],
                 "source_split": "test",
                 "environment": row["environment"],
                 "source_dataset": row.get("source_dataset", "") or "unknown",
@@ -748,15 +748,15 @@ def build_detector_annotation_set(
                 ),
             },
             "train_distribution": {
-                "classification_label": _distribution(
-                    train_rows, "classification_label"
+                "source_label": _distribution(
+                    train_rows, "source_label"
                 ),
                 "environment": _distribution(train_rows, "environment"),
                 "orientation": _distribution(train_rows, "orientation"),
                 "resolution_bucket": _distribution(train_rows, "resolution_bucket"),
             },
             "val_distribution": {
-                "classification_label": _distribution(val_rows, "classification_label"),
+                "source_label": _distribution(val_rows, "source_label"),
                 "environment": _distribution(val_rows, "environment"),
                 "orientation": _distribution(val_rows, "orientation"),
                 "resolution_bucket": _distribution(val_rows, "resolution_bucket"),

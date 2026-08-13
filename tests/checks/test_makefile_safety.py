@@ -60,7 +60,7 @@ class MakefileSafetyTests(TestCase):
     def _dry_run(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return self._make("-n", *arguments)
 
-    def test_help_works_and_classifies_targets(self) -> None:
+    def test_help_works_and_lists_targets(self) -> None:
         result = self._make("help")
         self.assertEqual(result.returncode, 0, result.stderr)
         for heading in (
@@ -125,12 +125,6 @@ class MakefileSafetyTests(TestCase):
             '--config "cloud_training/configs/train_yolo26n_seg.yaml"',
             result.stdout,
         )
-
-    def test_general_training_keeps_its_existing_guards(self) -> None:
-        for target in ("train", "train-baselines"):
-            result = self._dry_run(target)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("CONFIRM_TRAINING=1", result.stderr)
 
     def test_protected_segmentation_targets_fail_before_rendering_scripts(self) -> None:
         cases = {
@@ -227,7 +221,7 @@ class MakefileSafetyTests(TestCase):
         upload = self._dry_run("leaf-segmentation-modal-upload")
         self.assertEqual(upload.returncode, 0, upload.stderr)
         self.assertIn(
-            "doctor_maiz_leaf_segmentation_cloud_v5-test-7a4a5c08-seed42.tar.gz",
+            "doctor_maiz_leaf_segmentation_cloud_v6-segmenter-only-7a4a5c08-seed42.tar.gz",
             upload.stdout,
         )
         self.assertEqual(upload.stdout.count("modal volume put"), 2)

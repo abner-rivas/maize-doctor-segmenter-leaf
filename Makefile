@@ -6,20 +6,6 @@ RUFF ?= $(PYTHON) -m ruff
 PYRIGHT ?= $(PYTHON) -m pyright
 MODAL ?= $(PYTHON) -m modal
 
-MODELS ?= efficientnet_b0 shufflenet_v2_x1_0 efficientnet_lite0
-EPOCHS ?= 30
-NO_CAP ?=
-MAX_PER_CLASS ?=
-REGEN_SPLITS ?=
-BATCH_SIZE ?=
-IMAGE_SIZE ?=
-LEARNING_RATE ?=
-WEIGHT_DECAY ?=
-NUM_WORKERS ?=
-NO_PRETRAINED ?=
-LIME ?=
-NUM_SAMPLES ?=
-CONFIRM_TRAINING ?=
 CONFIRM_SEGMENTATION_TRAINING ?=
 CONFIRM_SEGMENTATION_SMOKE_TRAINING ?=
 CONFIRM_PILOT_EVALUATION ?=
@@ -39,7 +25,7 @@ SPLIT ?= val
 MODAL_SEGMENTATION_APP ?= modal_training.py
 MODAL_SEGMENTATION_VOLUME ?= doctor-maiz-leaf-segmentation
 MODAL_SEGMENTATION_GPU ?= A10
-MODAL_SEGMENTATION_PACKAGE ?= $(LEAF_SEGMENTATION_PACKAGE_DIR)/doctor_maiz_leaf_segmentation_cloud_v5-test-7a4a5c08-seed42.tar.gz
+MODAL_SEGMENTATION_PACKAGE ?= $(LEAF_SEGMENTATION_PACKAGE_DIR)/doctor_maiz_leaf_segmentation_cloud_v6-segmenter-only-7a4a5c08-seed42.tar.gz
 MODAL_SEGMENTATION_PACKAGE_SHA256 ?= $(shell sed -n '1s/[[:space:]].*//p' "$(MODAL_SEGMENTATION_PACKAGE).sha256" 2>/dev/null)
 MODAL_SEGMENTATION_PROJECT_ROOT ?= /project_v4-7a4a5c08-seed42
 MODAL_SEGMENTATION_DOWNLOAD_DIR ?= outputs-remote-leaf-segmentation
@@ -55,19 +41,14 @@ MODAL_SEGMENTATION_DOWNLOAD_DIR ?= outputs-remote-leaf-segmentation
 	leaf-segmentation-cloud-test leaf-segmentation-cloud-results \
 	leaf-segmentation-cloud-checksums leaf-segmentation-pilot-evaluate \
 	leaf-segmentation-cloud-prepare leaf-segmentation-cloud-check \
-	leaf-segmentation-downstream-metrics \
+	leaf-segmentation-downstream-metrics leaf-segmentation-reliability-audit \
 	leaf-segmentation-modal-volume-create \
 	leaf-segmentation-modal-upload leaf-segmentation-modal-prepare \
 	leaf-segmentation-modal-preflight leaf-segmentation-modal-smoke \
 	leaf-segmentation-modal-train leaf-segmentation-modal-resume \
 	leaf-segmentation-modal-validate leaf-segmentation-modal-results \
 	leaf-segmentation-modal-checksums leaf-segmentation-modal-download \
-	compile-pdf install download-dataset splits splits-baseline train \
-	train-baselines explain-lime explain-report explain-errors test-loader \
-	smoke-loader audit-dataset validate-splits training-preflight \
-	training-package-manifest summary docs-eda lint lint-fix fmt check \
-	clean-outputs modal-seed modal-train-baselines modal-clean-outputs \
-	modal-explain-lime modal-explain-report modal-explain-errors modal-pull
+	install lint lint-fix fmt check clean-outputs
 
 LEAF_SEGMENTATION_MAKE_HELPER = $(PYTHON) scripts/package/leaf_segmentation_make.py \
 	--dataset "$(LEAF_SEGMENTATION_DATASET)" \
@@ -77,10 +58,6 @@ LEAF_SEGMENTATION_MAKE_HELPER = $(PYTHON) scripts/package/leaf_segmentation_make
 	--model "$(SEGMENTATION_MODEL)" \
 	--device "$(SEGMENTATION_DEVICE)" \
 	$(if $(PACKAGE),--package "$(PACKAGE)",)
-
-define REQUIRE_TRAINING_CONFIRMATION
-$(if $(filter 1,$(CONFIRM_TRAINING)),,$(error Entrenamiento no iniciado. Use CONFIRM_TRAINING=1 para confirmar explícitamente.))
-endef
 
 define REQUIRE_SEGMENTATION_TRAINING_CONFIRMATION
 $(if $(and $(filter 1,$(strip $(CONFIRM_SEGMENTATION_TRAINING))),$(filter 1,$(words $(strip $(CONFIRM_SEGMENTATION_TRAINING))))),,$(error ERROR: entrenamiento completo no autorizado. Ejecute: CONFIRM_SEGMENTATION_TRAINING=1 make leaf-segmentation-cloud-train))
@@ -115,6 +92,7 @@ help:
 		'  leaf-segmentation-cloud-check            Status + locks + splits' \
 		'  leaf-segmentation-downstream-metrics     IoU/Dice/recall por fuente' \
 		'                                           PREDICTIONS=<dir> [SPLIT=val]' \
+		'  leaf-segmentation-reliability-audit      Gate visual reproducible' \
 		'' \
 		'CLOUD / SIN ENTRENAR:' \
 		'  leaf-segmentation-cloud-bootstrap        Instalar en entorno cloud aislado' \
@@ -126,8 +104,8 @@ help:
 		'' \
 		'MODAL / SEGMENTACIÓN:' \
 		'  leaf-segmentation-modal-volume-create    Crear Volume persistente' \
-		'  leaf-segmentation-modal-upload           Subir paquete v5-test una sola vez' \
-		'  leaf-segmentation-modal-prepare          Verificar y extraer paquete v5-test' \
+		'  leaf-segmentation-modal-upload           Subir paquete del segmentador una vez' \
+		'  leaf-segmentation-modal-prepare          Verificar y extraer el paquete' \
 		'  leaf-segmentation-modal-preflight        Validar entorno y GPU (A10)' \
 		'  leaf-segmentation-modal-validate         Evaluar best.pt sólo sobre test' \
 		'  leaf-segmentation-modal-results          Inventario persistente' \
@@ -144,101 +122,13 @@ help:
 		'  leaf-segmentation-pilot-evaluate CONFIRM_PILOT_EVALUATION=1'
 
 install:
-	$(PIP) install -e ".[dev,analysis,xai,cloud]"
-
-download-dataset:
-	$(PYTHON) scripts/dataset/download_dataset.py
-
-splits:
-	$(PYTHON) scripts/pipeline/create_splits.py
-
-splits-baseline:
-	$(PYTHON) scripts/pipeline/create_splits.py --baseline $(if $(NO_CAP),--no-cap,) $(if $(MAX_PER_CLASS),--max-per-class $(MAX_PER_CLASS),)
-
-train:
-	$(REQUIRE_TRAINING_CONFIRMATION)
-	$(PYTHON) scripts/pipeline/train.py
-
-train-baselines:
-	$(REQUIRE_TRAINING_CONFIRMATION)
-	$(PYTHON) scripts/pipeline/train_baselines.py --models $(MODELS) --baseline \
-		$(if $(NO_CAP),--no-cap,) $(if $(MAX_PER_CLASS),--max-per-class $(MAX_PER_CLASS),) \
-		$(if $(REGEN_SPLITS),--regenerate-splits,) \
-		--epochs $(EPOCHS) \
-		$(if $(BATCH_SIZE),--batch-size $(BATCH_SIZE),) \
-		$(if $(IMAGE_SIZE),--image-size $(IMAGE_SIZE),) \
-		$(if $(LEARNING_RATE),--learning-rate $(LEARNING_RATE),) \
-		$(if $(WEIGHT_DECAY),--weight-decay $(WEIGHT_DECAY),) \
-		$(if $(NUM_WORKERS),--num-workers $(NUM_WORKERS),) \
-		$(if $(NO_PRETRAINED),--no-pretrained,) \
-		$(if $(LIME),--lime,)
+	$(PIP) install -e ".[dev,segmentation,cloud]"
 
 # Protegido: outputs/ contiene evidencia de auditoría, paquetes cloud (~2 GiB)
 # y, en el futuro, checkpoints entrenados que no deben borrarse por accidente.
 clean-outputs:
 	$(if $(filter 1,$(strip $(CONFIRM_CLEAN_OUTPUTS))),,$(error ERROR: borrado de outputs/ no autorizado. Ejecute: CONFIRM_CLEAN_OUTPUTS=1 make clean-outputs))
 	rm -rf outputs/
-
-modal-seed:
-	$(MODAL) run scripts/modal/train.py::seed_dataset
-
-modal-train-baselines:
-	$(REQUIRE_TRAINING_CONFIRMATION)
-	$(MODAL) run scripts/modal/train.py --models "$(MODELS)" --epochs "$(EPOCHS)" \
-		$(if $(NO_CAP),--no-cap,) $(if $(MAX_PER_CLASS),--max-per-class "$(MAX_PER_CLASS)",) \
-		$(if $(REGEN_SPLITS),--regenerate-splits,) \
-		$(if $(BATCH_SIZE),--batch-size "$(BATCH_SIZE)",) \
-		$(if $(IMAGE_SIZE),--image-size "$(IMAGE_SIZE)",) \
-		$(if $(LEARNING_RATE),--learning-rate "$(LEARNING_RATE)",) \
-		$(if $(WEIGHT_DECAY),--weight-decay "$(WEIGHT_DECAY)",) \
-		$(if $(NUM_WORKERS),--num-workers "$(NUM_WORKERS)",) \
-		$(if $(NO_PRETRAINED),--no-pretrained,) \
-		$(if $(LIME),--lime,)
-
-modal-clean-outputs:
-	$(MODAL) run scripts/modal/train.py::clean_outputs
-
-modal-explain-lime:
-	$(MODAL) run scripts/modal/explain.py::explain_lime --models "$(MODELS)" \
-		$(if $(RUN),--run $(RUN),) $(if $(IMAGE),--image $(IMAGE),) $(if $(OUTPUT),--output $(OUTPUT),)
-
-modal-explain-report:
-	$(MODAL) run scripts/modal/explain.py::explain_report --models "$(MODELS)" \
-		$(if $(RUN),--run $(RUN),) $(if $(SAMPLE_SIZE),--sample-size $(SAMPLE_SIZE),) \
-		$(if $(NUM_SAMPLES),--num-samples $(NUM_SAMPLES),)
-
-modal-explain-errors:
-	$(MODAL) run scripts/modal/explain.py::explain_errors --models "$(MODELS)" \
-		$(if $(RUN),--run $(RUN),) $(if $(NUM_SAMPLES),--num-samples $(NUM_SAMPLES),)
-
-modal-pull:
-	$(MODAL) volume get --force corn-outputs / ./outputs-remote
-
-explain-lime:
-	$(PYTHON) scripts/pipeline/explain_lime.py --models $(MODELS) $(if $(IMAGE),--image $(IMAGE),) $(if $(OUTPUT),--output $(OUTPUT),)
-
-explain-report:
-	$(PYTHON) scripts/pipeline/explain_report.py --models $(MODELS) \
-		$(if $(RUN),--run $(RUN),) $(if $(SAMPLE_SIZE),--sample-size $(SAMPLE_SIZE),) \
-		$(if $(NUM_SAMPLES),--num-samples $(NUM_SAMPLES),)
-
-explain-errors:
-	$(PYTHON) scripts/pipeline/explain_report.py --models $(MODELS) --errors-only \
-		$(if $(RUN),--run $(RUN),) $(if $(NUM_SAMPLES),--num-samples $(NUM_SAMPLES),)
-
-test-loader:
-	$(PYTHON) scripts/checks/smoke_loader.py
-
-smoke-loader: test-loader
-
-audit-dataset:
-	$(PYTHON) scripts/checks/audit_dataset_classes.py --fail-on-mismatch
-
-validate-splits:
-	$(PYTHON) scripts/checks/validate_splits.py --fail-on-error
-
-training-preflight:
-	$(PYTHON) scripts/checks/training_preflight.py --device cpu --check-dataset --output outputs/preflight
 
 leaf-segmentation-preflight:
 	$(PYTHON) scripts/pipeline/leaf_segmentation_preflight.py \
@@ -252,6 +142,9 @@ leaf-segmentation-downstream-metrics:
 		--prediction-root "$(PREDICTIONS)" \
 		--split "$(SPLIT)" \
 		--output-root "$(LEAF_SEGMENTATION_OUTPUT)/downstream_metrics"
+
+leaf-segmentation-reliability-audit:
+	$(PYTHON) scripts/experiments/audit_segmentation_reliability.py
 
 leaf-segmentation-status:
 	$(LEAF_SEGMENTATION_MAKE_HELPER) status
@@ -429,16 +322,6 @@ leaf-segmentation-modal-download:
 		"$(MODAL_SEGMENTATION_PROJECT_ROOT)/outputs/leaf_detection/" \
 		"$(MODAL_SEGMENTATION_DOWNLOAD_DIR)"
 
-training-package-manifest:
-	$(PYTHON) scripts/checks/build_training_package_manifest.py --output outputs/training_package_manifest.json
-
-summary:
-	$(PYTHON) src/analysis/dataset_summary.py
-
-# Requiere shell POSIX (Powershell/Git Bash/WSL en Windows) y que existan outputs/eda/eda_*.png
-docs-eda:
-	cp outputs/eda/eda_*.png public/eda/
-
 lint:
 	$(RUFF) check src/ scripts/
 
@@ -450,7 +333,3 @@ fmt:
 
 check:
 	$(PYRIGHT) src/ scripts/
-
-compile-pdf:
-	cd reports/firts-phase && pdflatex -interaction=nonstopmode documentation_first_phase.tex
-	cd reports/firts-phase && pdflatex -interaction=nonstopmode documentation_first_phase.tex

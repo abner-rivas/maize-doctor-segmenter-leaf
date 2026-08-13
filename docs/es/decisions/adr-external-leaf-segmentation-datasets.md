@@ -66,7 +66,7 @@ Ambas fuentes quedan como `accepted_with_filtering`, no como datasets listos:
 - mantener el piloto fuera del entrenamiento.
 
 El total provisional corregido es 1,156 imágenes candidatas sin duplicados exactos entre
-fuentes. No se afirma que aumentarán la precisión del clasificador.
+fuentes. No se afirma que mejorarán por sí solas una tarea ajena a segmentación.
 
 ## Resultado de la consolidación
 

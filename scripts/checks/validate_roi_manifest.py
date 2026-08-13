@@ -8,8 +8,9 @@ from typing import Sequence
 
 import yaml
 
-from src.preprocessing.leaf_processor import LeafProcessorConfig
+from src.data.leaf_pilot import read_csv_rows
 from src.preprocessing.roi_manifest import validate_roi_manifest
+from src.preprocessing.roi_processor import LeafProcessorConfig
 
 
 def _parse_padding(values: Sequence[int]) -> int | tuple[int, int, int]:
@@ -25,7 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--roi-manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--config", type=Path, default=Path("config/dataset.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("config/segmentation.yaml"))
     parser.add_argument("--image-root", type=Path, default=None)
     parser.add_argument("--min-area-ratio", type=float, default=None)
     parser.add_argument("--preview-samples", type=int, default=0)
@@ -40,6 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar=("HEIGHT", "WIDTH"),
     )
     parser.add_argument("--padding-value", type=int, nargs="+", default=None)
+    parser.add_argument("--valid-label", action="append", default=[])
     return parser
 
 
@@ -51,22 +53,23 @@ def main() -> None:
         if not args.config.is_file():
             raise FileNotFoundError(f"Configuración inexistente: {args.config}")
         config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
-        leaf_config = config.get("leaf_detection", {})
+        segmentation = config.get("segmentation", {})
         min_area_ratio = (
             args.min_area_ratio
             if args.min_area_ratio is not None
-            else float(leaf_config.get("min_area_ratio", 0.15))
+            else float(segmentation.get("min_mask_area_ratio", 0.15))
         )
         margin_ratio = (
             args.margin_ratio
             if args.margin_ratio is not None
-            else float(leaf_config.get("margin_ratio", 0.08))
+            else float(segmentation.get("margin_ratio", 0.08))
         )
-        target_size = tuple(args.target_size or config["dataset"]["target_size"])
+        image_size = int(segmentation.get("image_size", 640))
+        target_size = tuple(args.target_size or (image_size, image_size))
         padding = _parse_padding(
             args.padding_value
             if args.padding_value is not None
-            else [int(leaf_config.get("padding_value", 0))]
+            else [int(channel) for channel in segmentation.get("background_value", [0, 0, 0])]
         )
         if args.preview_samples < 0:
             raise ValueError("--preview-samples no puede ser negativo")
@@ -80,10 +83,12 @@ def main() -> None:
             fallback="reject",
             preserve_aspect_ratio=True,
         )
+        rows, _ = read_csv_rows(args.roi_manifest)
+        valid_labels = set(args.valid_label) or {row["label"] for row in rows if row.get("label")}
         summary = validate_roi_manifest(
             args.roi_manifest,
             args.output,
-            valid_classes=set(config["dataset"]["classes"]),
+            valid_classes=valid_labels,
             min_area_ratio=min_area_ratio,
             image_root=args.image_root,
             preview_samples=args.preview_samples,

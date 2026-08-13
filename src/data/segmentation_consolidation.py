@@ -843,9 +843,10 @@ def validate_consolidated_dataset(
 
 def _config_safety(config_path: Path) -> dict[str, object]:
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    segmentation = config.get("segmentation", {})
     return {
-        "processing_profile": config.get("processing_profile"),
-        "leaf_detection_enabled": bool(config.get("leaf_detection", {}).get("enabled")),
+        "model": segmentation.get("model"),
+        "output_profile": segmentation.get("output_profile"),
     }
 
 
@@ -890,8 +891,8 @@ como pendiente; ninguna puede entrar en futuros splits sin decisión explícita.
 
 No existen todavía splits `train/val/test` para estas máscaras. `dataset.yaml`
 describe únicamente el pool `all/`; primero deben aprobarse los previews y la
-cola de revisión manual. No se entrenó ningún modelo ni se activó
-`leaf_detection`.
+cola de revisión manual. Este conjunto todavía no se incorporó al entrenamiento
+del segmentador.
 """
     return prefix + "\n\n" + section
 
@@ -1804,10 +1805,7 @@ def build_segmentation_consolidation(
         if source_fingerprint_before != source_fingerprint_after:
             raise RuntimeError("Las fuentes originales cambiaron durante la consolidación")
         config_safety = _config_safety(config_path)
-        if (
-            config_safety["processing_profile"] != "baseline_full"
-            or config_safety["leaf_detection_enabled"]
-        ):
+        if config_safety != {"model": "yolo26n-seg", "output_profile": "mask_black"}:
             raise RuntimeError(f"Configuración de seguridad inesperada: {config_safety}")
 
         variant_counts = Counter(
@@ -1888,7 +1886,7 @@ def build_segmentation_consolidation(
             "training_performed": False,
             "ultralytics_installed_by_builder": False,
             "weights_downloaded": False,
-            "leaf_detection_activated": False,
+            "segmentation_configured": True,
         }
         (reports_root / "summary.json").write_text(
             json.dumps(summary, indent=2, ensure_ascii=False) + "\n",

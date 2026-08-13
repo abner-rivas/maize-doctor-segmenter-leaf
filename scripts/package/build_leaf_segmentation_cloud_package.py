@@ -21,7 +21,7 @@ from src.data.jpeg_normalization import (
 )
 from src.training.segmentation_preflight import verify_cloud_training_payload
 
-PACKAGE_VERSION = "v5-test-7a4a5c08-seed42"
+PACKAGE_VERSION = "v6-segmenter-only-7a4a5c08-seed42"
 METADATA_PATHS = {
     Path("cloud_training/package_manifest.json"),
     Path("cloud_training/checksums.sha256"),
@@ -76,12 +76,20 @@ def git_state(root: Path) -> dict[str, object]:
         capture_output=True,
         check=False,
     ).stdout.splitlines()
-    stable_dirty = [
-        line
-        for line in dirty
-        if not any(line.endswith(path) for path in GENERATED_STATUS_PATHS)
-    ]
-    return {"commit": commit or "unavailable", "dirty_paths": sorted(stable_dirty)}
+    stable_dirty: list[str] = []
+    deleted_path_count = 0
+    for line in dirty:
+        if "D" in line[:2]:
+            deleted_path_count += 1
+            continue
+        if any(line.endswith(path) for path in GENERATED_STATUS_PATHS):
+            continue
+        stable_dirty.append(line)
+    return {
+        "commit": commit or "unavailable",
+        "dirty_paths": sorted(stable_dirty),
+        "deleted_path_count": deleted_path_count,
+    }
 
 
 def dataset_paths(dataset: Path) -> list[Path]:
@@ -107,6 +115,7 @@ def code_paths(root: Path) -> list[Path]:
         root / "Makefile",
         root / "pyproject.toml",
         root / "README.md",
+        root / "config" / "segmentation.yaml",
     ]
     for directory in ("src", "cloud_training"):
         paths.extend(
@@ -127,7 +136,6 @@ def code_paths(root: Path) -> list[Path]:
         "docs/es/leaf-detection/segmentation-cloud-training.md",
         "docs/es/leaf-detection/segmentation-training-preflight.md",
         "docs/es/leaf-detection/segmentation-dataset-splits.md",
-        "docs/es/leaf-detection/segmentation-training-optimization-plan.md",
     ):
         path = root / relative
         if path.is_file():

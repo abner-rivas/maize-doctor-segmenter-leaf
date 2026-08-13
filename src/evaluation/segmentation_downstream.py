@@ -1,9 +1,8 @@
-"""Métricas downstream del segmentador, alineadas con el clasificador.
+"""Métricas de conservación de hoja para el segmentador.
 
 mAP penaliza por igual el exceso y el defecto de máscara. Para DoctorMaiz no son
-equivalentes: recortar tejido elimina la lesión o la zona clorótica que define el
-diagnóstico y esa información no se recupera, mientras que una máscara algo
-amplia sólo deja pasar algo de fondo, que es lo que ``baseline_full`` ya maneja.
+equivalentes: recortar tejido elimina señal visual que no puede recuperarse, mientras
+que una máscara algo amplia deja pasar fondo; estas métricas hacen visible ese efecto.
 
 Por eso este módulo prioriza el recall de píxel de hoja y la sub-segmentación
 sobre la precisión, y desagrega por fuente para vigilar la brecha de dominio
@@ -129,7 +128,7 @@ def image_metrics(pair: MaskPair, *, minimum_area: float = DEFAULT_MIN_AREA) -> 
             if (truth_area + predicted_area)
             else 0.0
         ),
-        # Tejido perdido: el error costoso para el clasificador.
+        # Tejido perdido: el error que no puede recuperarse después.
         "under_segmentation_ratio": 1.0 - leaf_pixel_recall,
         # Fondo añadido, relativo al tamaño de la hoja: el error tolerable.
         "over_segmentation_ratio": max(0.0, predicted_area - intersection) / truth_area,

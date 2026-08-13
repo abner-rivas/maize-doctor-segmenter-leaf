@@ -2239,10 +2239,8 @@ def _decision_markdown(
             "",
             "Las clases de lesión deben excluirse del futuro segmentador de hoja. "
             "Toda clase de hoja aceptada deberá remapearse a `0 = maize_leaf` sólo "
-            "durante una fase posterior y trazable de consolidación. El clasificador "
-            "deberá entrenarse con el mismo preprocesamiento de segmentación; no es "
-            "seguro aplicar segmentación únicamente durante inferencia a checkpoints "
-            "entrenados con imágenes completas.",
+            "durante una fase posterior y trazable de consolidación. Cualquier "
+            "consumidor externo deberá respetar el mismo contrato de máscara y ROI.",
             "",
         ]
     )

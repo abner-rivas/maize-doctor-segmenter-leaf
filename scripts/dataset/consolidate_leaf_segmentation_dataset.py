@@ -44,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--config",
         type=Path,
-        default=PROJECT_ROOT / "config" / "dataset.yaml",
+        default=PROJECT_ROOT / "config" / "segmentation.yaml",
     )
     parser.add_argument("--seed", type=int, default=SEED)
     return parser

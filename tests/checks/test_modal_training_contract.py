@@ -114,11 +114,11 @@ class ModalTrainingContractTests(TestCase):
             SOURCE,
         )
         self.assertIn(
-            'PACKAGE_VERSION = "v5-test-7a4a5c08-seed42"',
+            'PACKAGE_VERSION = "v6-segmenter-only-7a4a5c08-seed42"',
             SOURCE,
         )
         self.assertIn(
-            'PACKAGE_SHA256 = "1ff54bbf56d0a5724bc472d56c5ea71192b9005b88b2dec89494ccb3dce59a79"',
+            'PACKAGE_SHA256 = "469b019489194929bcd32008afa5943d5f099dad4078f38dceb39f5f457d4144"',
             SOURCE,
         )
         self.assertIn('PROJECT_ROOT = VOLUME_MOUNT / f"project_{PACKAGE_VERSION}"', SOURCE)
@@ -239,7 +239,7 @@ class ModalTrainingContractTests(TestCase):
         self.assertIn("torch.cuda.is_available()", runtime_source)
 
     def test_project_root_is_first_without_duplicate_in_pythonpath(self) -> None:
-        project_root = Path("/workspace/project_v4-7a4a5c08-seed42")
+        project_root = Path("/workspace/project_v6-segmenter-only-7a4a5c08-seed42")
         project_environment = _project_environment_function(project_root)
         previous = os.pathsep.join(
             (

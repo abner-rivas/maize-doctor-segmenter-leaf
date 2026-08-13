@@ -1,2 +1,2 @@
-commit=b1e4899c01679d500583a19602adab2776ad464c
-package_version=v5-test-7a4a5c08-seed42
+commit=e63a8864387545b036e34811eab1764448d8ca1b
+package_version=v6-segmenter-only-7a4a5c08-seed42

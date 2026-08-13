@@ -9,11 +9,11 @@ from typing import Any
 
 import numpy as np
 
-from src.inference.dual_perspective import SegmentationStatus
+from src.segmentation.quality import SegmentationStatus
 
 
 class MaskQualityLabel(str, Enum):
-    """Visual suitability of a segmentation result for classification."""
+    """Visual quality of a leaf-segmentation result."""
 
     GOOD = "GOOD"
     AMBIGUOUS = "AMBIGUOUS"

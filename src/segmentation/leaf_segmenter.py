@@ -1,4 +1,4 @@
-"""YOLO leaf-segmentation adapter with no classifier coupling.
+"""YOLO leaf-segmentation adapter.
 
 The module imports Ultralytics only when real inference is requested. Tests and
 the rest of the project can therefore use :class:`LeafInstance` and the

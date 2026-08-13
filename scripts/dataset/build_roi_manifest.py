@@ -18,7 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    """Generate the final CSV without processing classifier images."""
+    """Generate the final CSV without transforming source images."""
     parser = build_parser()
     args = parser.parse_args()
     try:

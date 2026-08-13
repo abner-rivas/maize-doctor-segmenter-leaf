@@ -1,4 +1,4 @@
-"""Tests for aspect-ratio-preserving classifier adaptation."""
+"""Tests for aspect-ratio-preserving image output."""
 
 from unittest import TestCase
 

@@ -1,4 +1,4 @@
-image_id,relative_path,ground_truth,environment,quality_label,issue_type,multi_leaf,severe_fall_armyworm,blur,occlusion,partial_leaf,complex_background,small_leaf,large_leaf,rationale
+image_id,relative_path,source_label,environment,quality_label,issue_type,multi_leaf,severe_fall_armyworm,blur,occlusion,partial_leaf,complex_background,small_leaf,large_leaf,rationale
 multi_01_12375054,common_rust/real/common_rust_maize_field_real_12375054.jpg,common_rust,real,GOOD,correct,true,false,false,false,false,true,false,false,"La propuesta cubre la hoja diagnóstica principal."
 multi_02_20965795,common_rust/real/common_rust_maize_field_real_20965795.jpg,common_rust,real,GOOD,correct,true,false,false,false,false,true,false,false,"Conserva la hoja frontal lesionada y excluye el fondo."
 multi_03_73258109,common_rust/real/common_rust_maize_field_real_73258109.jpg,common_rust,real,GOOD,correct,true,false,false,false,false,true,false,false,"Cubre la hoja horizontal claramente dominante."

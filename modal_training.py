@@ -3,12 +3,11 @@
 The 2.13 GB release archive is never added to the Modal Image. Upload it once:
 
     modal volume put doctor-maiz-leaf-segmentation \
-      <ruta-al-paquete-v2.tar.gz> \
+      <ruta-al-paquete-del-segmentador.tar.gz> \
       /incoming/
 
-Then invoke the independent remote functions documented in
-``docs/es/deployment/modal.md``. Training functions require the literal CLI
-argument ``--confirm true``.
+Then invoke the independent remote functions through the segmenter Makefile.
+Training functions require the literal CLI argument ``--confirm true``.
 """
 
 # pyright: reportMissingImports=false, reportMissingModuleSource=false
@@ -36,10 +35,10 @@ APP_NAME = "doctor-maiz-leaf-segmentation"
 VOLUME_NAME = "doctor-maiz-leaf-segmentation"
 VOLUME_MOUNT = Path("/workspace")
 INCOMING_ROOT = VOLUME_MOUNT / "incoming"
-PACKAGE_VERSION = "v5-test-7a4a5c08-seed42"
+PACKAGE_VERSION = "v6-segmenter-only-7a4a5c08-seed42"
 PACKAGE_NAME = f"doctor_maiz_leaf_segmentation_cloud_{PACKAGE_VERSION}.tar.gz"
 PACKAGE_ROOT_NAME = f"doctor_maiz_leaf_segmentation_cloud_{PACKAGE_VERSION}"
-PACKAGE_SHA256 = "1ff54bbf56d0a5724bc472d56c5ea71192b9005b88b2dec89494ccb3dce59a79"
+PACKAGE_SHA256 = "469b019489194929bcd32008afa5943d5f099dad4078f38dceb39f5f457d4144"
 PROJECT_ROOT = VOLUME_MOUNT / f"project_{PACKAGE_VERSION}"
 ARTIFACT_PROJECT_VERSION = "v4-7a4a5c08-seed42"
 ARTIFACT_PROJECT_ROOT = VOLUME_MOUNT / f"project_{ARTIFACT_PROJECT_VERSION}"
@@ -88,8 +87,6 @@ IMAGE_PYTHON_PACKAGES = (
     "python-dotenv==1.1.1",
     "pyyaml==6.0.2",
     "requests==2.32.4",
-    "scikit-learn==1.7.1",
-    "timm==1.0.20",
     "tqdm==4.67.1",
     "ultralytics-thop==2.0.18",
     f"ultralytics=={EXPECTED_ULTRALYTICS}",

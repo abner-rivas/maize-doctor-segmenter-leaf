@@ -25,14 +25,12 @@ flowchart TD
     S12["S12 Baseline<br/>150 épocas · batch 26<br/>completado"]
     S13["S13 Test final<br/>173 img · 183 raw / 182 efectivas<br/>BLOQUEADO"]
     S14["S14 Piloto externo<br/>retenido por S13<br/>no ejecutado"]
-    S15["S15 ROI congelados<br/>NO IMPLEMENTADO"]
-    S16["S16 Clasificadores comparativos<br/>NO IMPLEMENTADO"]
-    S17["S17 Integración<br/>baseline_full sin cambios"]
+    S15["S15 Quality gate<br/>IMPLEMENTADO"]
     PILOT[("Piloto retenido<br/>100 imágenes<br/>cero fugas verificadas")]
 
     S01 --> S02 --> S03 --> S04 --> S05 --> S06 --> S07 --> S08
     S08 --> S09 --> S10 --> S11 --> S12 --> S13 --> S14
-    S14 --> S15 --> S16 --> S17
+    S14 --> S15
     PILOT -.->|"nunca entra en train/val/test"| S06
     PILOT -.->|"sólo tras aprobar S13"| S14
     S12 -.->|"resume con last.pt"| S12
@@ -43,7 +41,8 @@ flowchart TD
     classDef held fill:#E0E7FF,stroke:#4F46E5,color:#312E81
     class S01,S02,S03,S04,S05,S06,S07,S08,S09,S10,S11,S12 done
     class S14 todo
-    class S13,S15,S16,S17 missing
+    class S13 missing
+    class S15 done
     class PILOT held
 ```
 
@@ -55,7 +54,7 @@ retenido.
 
 | Etapa | Entrada | Salida | Script | Make | Lock exigido | Fingerprint | Validación | Reanudable |
 |---|---|---|---|---|---|---|---|---|
-| S01 Fuentes | descargas originales | `external_sources/` | `scripts/download_datasets.sh` | — | ninguno | `3f065cdd…b913d7` | `sources_unchanged=true` | n/a |
+| S01 Fuentes | descargas originales | `external_sources/` | paquetes originales retenidos | — | ninguno | `3f065cdd…b913d7` | `sources_unchanged=true` | n/a |
 | S02 EDA | `external_sources/` | inventario y decisión por fuente | notebook 02 + `segmentation_audit.py` | — | ninguno | `033db15c…a95ef` (2 428 archivos) | 11 bbox mezclados, 8 autointersecciones, 1 vértice repetido | sí |
 | S03 Consolidación | fuentes + decisión EDA | `all/` 1 155 img + 1 155 TXT | `consolidate_leaf_segmentation_dataset.py` | — | ninguno | `7a4a5c08…d7d5c` | 1 reparación EOI sin pérdida, 0 duplicados, 0 fugas | sí |
 | S04 Revisión humana | 35 casos con preview | 16 approved / 16 exclude / 3 reanotar | `generate_…_review_previews.py`, `lock_…_dataset.py` | — | ninguno | `d6a9898d…cddab2` | 0 pendientes, 0 contradicciones | **no** |
@@ -75,11 +74,10 @@ retenido.
 | S13 Test final | `make leaf-segmentation-cloud-validate` | bloqueado por 183 raw/182 efectivas | fingerprint test + SHA de `best.pt` + split efectivo | `test_summary.json` sólo si todos los gates pasan |
 | S14 Piloto | `make leaf-segmentation-pilot-evaluate` | no autorizado | test aprobado + pilot-gate | `pilot_external_evaluation/` |
 
-## Etapas no implementadas
+## Etapa posterior
 
-S15 (generación congelada de ROI), S16 (clasificadores `baseline_bbox_roi` y
-`baseline_masked_roi`) y S17 (integración) no tienen código. `processing_profile`
-sigue en `baseline_full` y `leaf_detection.enabled` en `false`.
+S15 conserva la selección de instancia, perfiles de máscara y quality gate en módulos
+propios del segmentador. La auditoría humana puede ejecutarse sin depender de otro modelo.
 
 ## Redundancias detectadas
 

@@ -1,41 +1,38 @@
-"""Run the reproducible human-labeled Reliability Gate audit and real smoke."""
+"""Run the reproducible, human-labeled leaf-segmentation reliability audit."""
 
 from __future__ import annotations
 
 import argparse
 import csv
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import yaml
 from PIL import Image, ImageDraw, ImageOps
 
-from scripts.experiments.compare_full_vs_manual_roi import (
-    load_compatible_checkpoint,
-    resolve_device,
-)
-from scripts.pipeline.predict import _build_leaf_processor
 from src.config import PROJECT_ROOT, get_dataset_root, get_output_root
 from src.data.leaf_pilot import sha256_file
 from src.data.loader import load_and_normalize_image
-from src.data.transforms import CornTransformFactory
 from src.evaluation.segmentation_reliability import (
     MaskQualityLabel,
     build_reliability_audit_summary,
 )
-from src.inference.classifier import ClassificationPrediction, classify_image
-from src.inference.dual_perspective import (
-    DualPerspectiveConfig,
+from src.preprocessing.leaf_roi import image_to_rgb
+from src.preprocessing.segmented_leaf_processor import (
+    SegmentedLeafProcessingResult,
+    SegmentedLeafProcessor,
+    mask_processor_config_from_mapping,
+)
+from src.segmentation.leaf_segmenter import UltralyticsLeafSegmenter
+from src.segmentation.quality import (
     SegmentationAssessment,
+    SegmentationQualityGateConfig,
     SegmentationStatus,
     assess_segmentation,
     assess_segmentation_legacy,
 )
-from src.models import list_models
-from src.preprocessing.leaf_roi import image_to_rgb
-from src.preprocessing.segmented_leaf_processor import SegmentedLeafProcessingResult
 
 DEFAULT_MANIFEST = (
     PROJECT_ROOT / "scripts" / "experiments" / "manifests" / "segmentation_reliability_audit_v1.csv"
@@ -56,7 +53,7 @@ BOOLEAN_COLUMNS = (
 REQUIRED_COLUMNS = (
     "image_id",
     "relative_path",
-    "ground_truth",
+    "source_label",
     "environment",
     "quality_label",
     "issue_type",
@@ -111,7 +108,7 @@ def read_audit_manifest(
                 "image_id": image_id,
                 "relative_path": relative_path,
                 "image_path": str(image_path.resolve()),
-                "ground_truth": raw["ground_truth"].strip(),
+                "source_label": raw["source_label"].strip(),
                 "environment": raw["environment"].strip(),
                 "quality_label": quality.value,
                 "issue_type": raw["issue_type"].strip(),
@@ -125,9 +122,7 @@ def read_audit_manifest(
     return rows
 
 
-def _eligible_trace(
-    processing: SegmentedLeafProcessingResult,
-) -> Mapping[str, object]:
+def _eligible_trace(processing: SegmentedLeafProcessingResult) -> Mapping[str, object]:
     for trace in processing.selection_traces:
         if trace.source_index == processing.selected_instance:
             return trace.to_metadata()
@@ -155,11 +150,7 @@ def _render_panel(
     labels = ("original", "overlay", "mask", "masked")
     tile_size = (300, 225)
     header_height = 42
-    canvas = Image.new(
-        "RGB",
-        (tile_size[0] * len(tiles), tile_size[1] + header_height),
-        "white",
-    )
+    canvas = Image.new("RGB", (tile_size[0] * len(tiles), tile_size[1] + header_height), "white")
     draw = ImageDraw.Draw(canvas)
     draw.text(
         (8, 4),
@@ -184,30 +175,10 @@ def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
-def _assessment_fields(
-    assessment: SegmentationAssessment,
-    prefix: str,
-) -> dict[str, object]:
+def _assessment_fields(assessment: SegmentationAssessment, prefix: str) -> dict[str, object]:
     return {
         f"{prefix}_status": assessment.status.value,
         f"{prefix}_reason": assessment.reason,
-    }
-
-
-def _prediction_fields(
-    full: ClassificationPrediction | None,
-    segmented: ClassificationPrediction | None,
-) -> dict[str, object]:
-    return {
-        "full_image_prediction": full.class_name if full is not None else None,
-        "full_image_confidence": full.confidence if full is not None else None,
-        "segmented_prediction": segmented.class_name if segmented is not None else None,
-        "segmented_confidence": segmented.confidence if segmented is not None else None,
-        "agreement": (
-            full.class_name == segmented.class_name
-            if full is not None and segmented is not None
-            else None
-        ),
     }
 
 
@@ -216,8 +187,6 @@ def _audit_row(
     processing: SegmentedLeafProcessingResult,
     legacy: SegmentationAssessment,
     proposed: SegmentationAssessment,
-    full: ClassificationPrediction | None,
-    segmented: ClassificationPrediction | None,
     panel_path: Path | None,
 ) -> dict[str, object]:
     selected = _eligible_trace(processing)
@@ -234,7 +203,6 @@ def _audit_row(
             "quality_gate_reasons": ";".join(proposed.quality_gate_reasons),
             "quality_gate_version": proposed.quality_gate_version,
             "proposal_confidence_threshold": segmenter.get("proposal_confidence_threshold"),
-            "proposal_confidence": selected.get("confidence"),
             "selected_proposal_confidence": selected.get("confidence"),
             "selection_confidence": processing.confidence,
             "mask_area_ratio": processing.mask_area_ratio,
@@ -264,71 +232,57 @@ def _audit_row(
             "visual_panel": str(panel_path) if panel_path is not None else None,
         }
     )
-    row.update(_prediction_fields(full, segmented))
     return row
 
 
-def _classifier(
-    args: argparse.Namespace,
-    cfg: dict[str, Any],
-) -> tuple[
-    Callable[[Image.Image], ClassificationPrediction] | None,
-    dict[str, object],
-    tuple[int, int],
-]:
-    if args.model is None and args.checkpoint is None:
-        target = tuple(int(value) for value in cfg["dataset"]["target_size"])
-        return None, {}, (target[0], target[1])
-    if args.model is None or args.checkpoint is None:
-        raise ValueError("--model y --checkpoint deben proporcionarse juntos")
-    device = resolve_device(args.device)
-    loaded = load_compatible_checkpoint(args.checkpoint, args.model, cfg, device)
-    transform = CornTransformFactory(
-        config_path=str(args.config),
-        target_size=loaded.target_size,
-    ).get_pipeline("inference")
-
-    def predict(image: Image.Image) -> ClassificationPrediction:
-        return classify_image(
-            loaded.model,
-            image,
-            transform=transform,
-            idx_to_class=loaded.idx_to_class,
-            device=device,
-            top_k=args.top_k,
-        )
-
-    return (
-        predict,
-        {
-            "classifier_model": args.model,
-            "classifier_checkpoint": str(args.checkpoint.resolve()),
-            "classifier_checkpoint_sha256": loaded.sha256,
-            "classifier_summary": loaded.summary_path,
-            "classifier_device": str(device),
-        },
-        loaded.target_size,
+def _build_processor(
+    config: Mapping[str, object],
+    *,
+    checkpoint_override: Path | None,
+    device: str | None,
+) -> tuple[SegmentedLeafProcessor, SegmentationQualityGateConfig, bool]:
+    segmentation = config.get("segmentation")
+    if not isinstance(segmentation, Mapping):
+        raise ValueError("segmentation debe ser un mapping")
+    quality = segmentation.get("quality_gate")
+    if not isinstance(quality, Mapping):
+        raise ValueError("segmentation.quality_gate debe ser un mapping")
+    reject_multiple = quality.get("reject_multiple_eligible")
+    if not isinstance(reject_multiple, bool):
+        raise ValueError("reject_multiple_eligible debe ser booleano")
+    checkpoint = checkpoint_override or get_output_root() / str(segmentation["checkpoint"])
+    segmenter = UltralyticsLeafSegmenter(
+        checkpoint,
+        image_size=int(segmentation["image_size"]),
+        confidence_threshold=float(segmentation["confidence_threshold"]),
+        iou_threshold=float(segmentation["iou_threshold"]),
+        max_detections=int(segmentation["max_detections"]),
+        device=device,
+        expected_version=str(segmentation["ultralytics_version"]),
     )
+    processor = SegmentedLeafProcessor(
+        segmenter,
+        mask_processor_config_from_mapping(segmentation),
+    )
+    return processor, SegmentationQualityGateConfig.from_mapping(quality), reject_multiple
 
 
 def run_audit(args: argparse.Namespace) -> dict[str, object]:
     if args.output_dir.exists():
         raise FileExistsError(f"No se sobrescribe la auditoría: {args.output_dir}")
-    cfg = _load_config(args.config)
+    config = _load_config(args.config)
+    paths = config.get("paths")
+    if not isinstance(paths, Mapping):
+        raise ValueError("paths debe ser un mapping")
     cases = read_audit_manifest(
         args.manifest,
         dataset_root=get_dataset_root(),
-        raw_dir=str(cfg["paths"]["raw_dir"]),
+        raw_dir=str(paths["raw_dir"]),
     )
-    predictor, classifier_metadata, target_size = _classifier(args, cfg)
-    policy = DualPerspectiveConfig.from_mapping(cfg["leaf_detection"])
-    processor = _build_leaf_processor(
-        cfg=cfg,
-        output_root=get_output_root(),
+    processor, quality_gate, reject_multiple = _build_processor(
+        config,
         checkpoint_override=args.segmenter_checkpoint,
-        segmenter_device=args.segmenter_device,
-        processing_profile=policy.segmented_profile,
-        target_size=target_size,
+        device=args.segmenter_device,
     )
 
     args.output_dir.mkdir(parents=True)
@@ -338,21 +292,15 @@ def run_audit(args: argparse.Namespace) -> dict[str, object]:
     rows: list[dict[str, object]] = []
     structured: list[dict[str, object]] = []
     for index, case in enumerate(cases, start=1):
-        image = load_and_normalize_image(str(case["image_path"]))
-        full = predictor(image) if predictor is not None else None
-        processing = processor.process(image, source_image=str(case["image_path"]))
+        processing = processor.process(
+            load_and_normalize_image(str(case["image_path"])),
+            source_image=str(case["image_path"]),
+        )
         legacy = assess_segmentation_legacy(processing)
         proposed = assess_segmentation(
             processing,
-            reject_multiple_eligible=policy.reject_multiple_eligible,
-            quality_gate=policy.quality_gate,
-        )
-        segmented = (
-            predictor(processing.processed_image)
-            if predictor is not None
-            and proposed.status is SegmentationStatus.RELIABLE
-            and processing.processed_image is not None
-            else None
+            reject_multiple_eligible=reject_multiple,
+            quality_gate=quality_gate,
         )
         panel_path = None
         if not args.no_visuals:
@@ -363,23 +311,13 @@ def run_audit(args: argparse.Namespace) -> dict[str, object]:
                 legacy_status=legacy.status.value,
                 proposed_status=proposed.status.value,
             ).save(panel_path, quality=92)
-        row = _audit_row(
-            case,
-            processing,
-            legacy,
-            proposed,
-            full,
-            segmented,
-            panel_path,
-        )
-        rows.append(row)
+        rows.append(_audit_row(case, processing, legacy, proposed, panel_path))
         structured.append(
             {
                 "case": case,
                 "processing": processing.to_metadata(),
                 "legacy_assessment": legacy.to_metadata(),
                 "proposed_assessment": proposed.to_metadata(),
-                "predictions": _prediction_fields(full, segmented),
             }
         )
 
@@ -398,10 +336,9 @@ def run_audit(args: argparse.Namespace) -> dict[str, object]:
         "config": str(args.config.resolve()),
         "config_sha256": sha256_file(args.config),
         "segmenter": processor.segmenter.to_metadata(),
-        "quality_gate_thresholds": policy.quality_gate.to_metadata(),
-        "reject_multiple_eligible": policy.reject_multiple_eligible,
+        "quality_gate_thresholds": quality_gate.to_metadata(),
+        "reject_multiple_eligible": reject_multiple,
         "visual_panels": not args.no_visuals,
-        **classifier_metadata,
     }
     (args.output_dir / "structured_results.json").write_text(
         json.dumps(structured, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
@@ -418,21 +355,15 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--model", choices=list_models(), default=None)
-    parser.add_argument("--checkpoint", type=Path, default=None)
-    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--segmenter-device", default=None)
     parser.add_argument("--segmenter-checkpoint", type=Path, default=None)
-    parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--no-visuals", action="store_true")
     parser.add_argument(
         "--config",
         type=Path,
-        default=PROJECT_ROOT / "config" / "dataset.yaml",
+        default=PROJECT_ROOT / "config" / "segmentation.yaml",
     )
     args = parser.parse_args()
-    if args.top_k <= 0:
-        parser.error("--top-k debe ser mayor que cero")
     args.manifest = args.manifest.resolve()
     args.output_dir = args.output_dir.resolve()
     args.config = args.config.resolve()

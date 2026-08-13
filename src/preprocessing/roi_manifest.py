@@ -24,7 +24,6 @@ from src.data.leaf_pilot import (
     write_csv_rows,
 )
 from src.data.loader import load_and_normalize_image
-from src.preprocessing.leaf_processor import LeafImageProcessor, LeafProcessorConfig
 from src.preprocessing.leaf_roi import (
     BoundingBox,
     bbox_area_ratio,
@@ -35,6 +34,7 @@ from src.preprocessing.leaf_roi import (
     image_to_rgb,
     validate_bbox,
 )
+from src.preprocessing.roi_processor import LeafImageProcessor, LeafProcessorConfig
 
 MANUAL_STATUSES = ("annotated", "ambiguous", "rejected")
 KNOWN_STATUSES = ("pending", *MANUAL_STATUSES)

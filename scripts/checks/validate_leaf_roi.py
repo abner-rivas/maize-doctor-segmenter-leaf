@@ -11,7 +11,8 @@ from typing import Sequence
 from PIL import Image, ImageDraw, ImageFont
 
 from src.data.loader import load_and_normalize_image
-from src.preprocessing.leaf_processor import (
+from src.preprocessing.leaf_roi import BoundingBox, crop_leaf_region, image_to_rgb
+from src.preprocessing.roi_processor import (
     FALLBACK_CENTER_CROP,
     FALLBACK_ORIGINAL,
     FALLBACK_REJECT,
@@ -19,7 +20,6 @@ from src.preprocessing.leaf_processor import (
     LeafProcessingResult,
     LeafProcessorConfig,
 )
-from src.preprocessing.leaf_roi import BoundingBox, crop_leaf_region, image_to_rgb
 
 OUTPUT_NAMES = (
     "01_original.jpg",
@@ -170,7 +170,7 @@ def run_validation(
     final_image = result.processed_image
     if final_image is None:
         target_height, target_width = config.target_size
-        final_image = _placeholder((target_width, target_height), "clasificación rechazada")
+        final_image = _placeholder((target_width, target_height), "salida rechazada")
     final_image.save(output_dir / "05_letterbox.jpg", quality=95)
 
     metadata = _build_metadata(image_path, bbox, result, config)
@@ -198,7 +198,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-size",
         type=int,
         nargs=2,
-        default=(224, 224),
+        default=(640, 640),
         metavar=("HEIGHT", "WIDTH"),
         help="Tamaño final con convención (alto, ancho)",
     )
