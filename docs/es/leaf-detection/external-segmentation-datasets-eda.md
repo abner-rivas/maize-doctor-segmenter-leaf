@@ -7,7 +7,7 @@ segmentador de hojas de maíz. No entrenó YOLO, no descargó pesos, no reparó
 etiquetas, no consolidó datasets y no modificó checkpoints.
 
 El notebook reproducible es
-[`notebooks/02_leaf_segmentation_external_sources_eda.ipynb`](../../../notebooks/02_leaf_segmentation_external_sources_eda.ipynb).
+[`notebooks/02_leaf_segmentation_external_sources_eda.ipynb`](https://github.com/abner-rivas/maize-doctor-segmenter-leaf/blob/master/notebooks/02_leaf_segmentation_external_sources_eda.ipynb).
 La lógica reutilizable está en `src/data/segmentation_audit.py` y los resultados
 completos en `outputs/leaf_detection/external_sources_eda/`.
 
