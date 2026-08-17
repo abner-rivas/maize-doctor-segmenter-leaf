@@ -1,0 +1,11 @@
+data: data/leaf_detection/detector_dataset/dataset.yaml
+task: segment
+imgsz: 640
+batch: 2
+workers: 2
+device: 0
+seed: 42
+deterministic: true
+project: outputs/leaf_detection/segmenter_evaluation
+name: yolo26n_seg_test
+split: test

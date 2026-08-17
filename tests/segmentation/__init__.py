@@ -1,0 +1,1 @@
+"""Segmentation adapter tests."""

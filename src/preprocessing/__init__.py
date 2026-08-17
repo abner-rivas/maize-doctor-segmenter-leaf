@@ -1,0 +1,66 @@
+"""Reusable geometry and mask-output components for leaf segmentation."""
+
+from src.preprocessing.leaf_roi import (
+    BoundingBox,
+    InvalidBoundingBoxError,
+    LeafDetectionResult,
+    bbox_area,
+    bbox_area_ratio,
+    bbox_height,
+    bbox_requires_clipping,
+    bbox_width,
+    clip_bbox,
+    crop_leaf_region,
+    expand_bbox,
+    validate_bbox,
+)
+from src.preprocessing.letterbox import LetterboxResult, letterbox_image
+from src.preprocessing.roi_processor import (
+    FALLBACK_CENTER_CROP,
+    LeafImageProcessor,
+    LeafProcessingResult,
+    LeafProcessorConfig,
+)
+from src.preprocessing.segmented_leaf_processor import (
+    BBOX_CROP,
+    CROP_MASK_BLACK,
+    CROP_MASK_LETTERBOX,
+    FALLBACK_ORIGINAL,
+    FALLBACK_REJECT,
+    MASK_BLACK,
+    LeafMaskProcessorConfig,
+    SegmentedLeafProcessingResult,
+    SegmentedLeafProcessor,
+    mask_processor_config_from_mapping,
+)
+
+__all__ = [
+    "BBOX_CROP",
+    "BoundingBox",
+    "CROP_MASK_BLACK",
+    "CROP_MASK_LETTERBOX",
+    "FALLBACK_ORIGINAL",
+    "FALLBACK_REJECT",
+    "FALLBACK_CENTER_CROP",
+    "InvalidBoundingBoxError",
+    "LeafDetectionResult",
+    "LeafMaskProcessorConfig",
+    "LeafImageProcessor",
+    "LeafProcessingResult",
+    "LeafProcessorConfig",
+    "LetterboxResult",
+    "MASK_BLACK",
+    "SegmentedLeafProcessingResult",
+    "SegmentedLeafProcessor",
+    "bbox_area",
+    "bbox_area_ratio",
+    "bbox_height",
+    "bbox_requires_clipping",
+    "bbox_width",
+    "clip_bbox",
+    "crop_leaf_region",
+    "expand_bbox",
+    "letterbox_image",
+    "mask_processor_config_from_mapping",
+    "validate_bbox",
+]

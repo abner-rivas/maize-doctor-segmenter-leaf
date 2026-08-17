@@ -1,40 +1,63 @@
+# Secretos y configuración local
 .env
 .env.local
 .env.*.local
 .envrc
 
-**.local**
+# Estado local de asistentes y herramientas
+/.agents/
+/.codex/
 
-.temp/
-cache/
-.vite/
-dist/
-node_modules/
-/data
-/outputs/
-/outputs-remote**
-/results-remote/
-**.aux
-**.log
-**.out
-**.toc
-**.fdb**
-**.fls
-**.synctex.gz
+# Entornos Python
+/.venv/
+/.venv-modal/
+/venv/
 
+# Cachés y cobertura de Python
+__pycache__/
+*.py[cod]
+*.cache
+/.pytest_cache/
+/.ruff_cache/
+/.mypy_cache/
+/.coverage
+/htmlcov/
+
+# Dependencias y builds web
+/docs/.vitepress/cache/
+/docs/.vitepress/dist/
+/dist/
+/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Datos derivados, resultados y descargas remotas
+/data/*
+!/data/README.md
+/outputs/
+/outputs-remote*/
+/results-remote/
+/modal_results/
+/test_images/
+
+# Pesos descargados en la raíz; los checkpoints viven bajo outputs/
+/yolo*.pt
+
+# Temporales
+/.temp/
+/cache/
+/tmp/
+
+# Artefactos de documentación
+*.aux
+*.log
+*.out
+*.toc
+*.fdb*
+*.fls
+*.synctex.gz
+
+# Sistema operativo
 .DS_Store
 Thumbs.db
-
-venv
-
-# Python
-__pycache__/
-*.pyc
-
-/tmp/**
-
-.ruff_cache/

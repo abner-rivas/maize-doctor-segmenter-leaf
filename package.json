@@ -1,9 +1,12 @@
 {
-  "name": "maize-doctor-classifier",
+  "name": "maize-doctor-segmentation",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "docs:dev": "vitepress dev docs",
-    "docs:build": "git fetch --unshallow && vitepress build docs",
+    "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false"
   },
