@@ -37,9 +37,6 @@ yarn-error.log*
 !/data/README.md
 /outputs/
 /outputs-remote*/
-/results-remote/
-/modal_results/
-/test_images/
 
 # Pesos descargados en la raíz; los checkpoints viven bajo outputs/
 /yolo*.pt
