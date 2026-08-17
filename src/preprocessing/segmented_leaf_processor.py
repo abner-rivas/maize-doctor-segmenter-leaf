@@ -126,6 +126,7 @@ def mask_processor_config_from_mapping(
     *,
     processing_profile: str | None = None,
     confidence_threshold: float | None = None,
+    selection_confidence_threshold: float | None = None,
     target_size: tuple[int, int] | None = None,
 ) -> LeafMaskProcessorConfig:
     """Build mask-output settings from ``config/segmentation.yaml``."""
@@ -137,6 +138,22 @@ def mask_processor_config_from_mapping(
         raise ValueError("background_value debe contener tres canales")
     background = tuple(_background_channel(channel) for channel in raw_background)
     configured_target = target_size or (224, 224)
+    if confidence_threshold is not None and selection_confidence_threshold is not None:
+        raise ValueError(
+            "use confidence_threshold o selection_confidence_threshold, no ambos"
+        )
+    configured_selection_confidence = (
+        selection_confidence_threshold
+        if selection_confidence_threshold is not None
+        else confidence_threshold
+    )
+    if configured_selection_confidence is None:
+        configured_selection_confidence = segmentation.get(
+            "selection_confidence_threshold",
+            segmentation.get("confidence_threshold"),
+        )
+    if configured_selection_confidence is None:
+        raise ValueError("falta selection_confidence_threshold")
     return LeafMaskProcessorConfig(
         processing_profile=(
             processing_profile
@@ -144,12 +161,8 @@ def mask_processor_config_from_mapping(
             else str(segmentation["output_profile"])
         ),
         confidence_threshold=_finite_number(
-            (
-                confidence_threshold
-                if confidence_threshold is not None
-                else segmentation["confidence_threshold"]
-            ),
-            "confidence_threshold",
+            configured_selection_confidence,
+            "selection_confidence_threshold",
         ),
         min_mask_area_ratio=_finite_number(
             segmentation["min_mask_area_ratio"], "min_mask_area_ratio"

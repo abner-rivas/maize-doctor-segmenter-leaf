@@ -1,0 +1,19 @@
+model: yolo26s-seg.pt
+data: data/leaf_detection/detector_dataset/dataset.yaml
+task: segment
+experiment_id: D-04
+initialization_profile: pretrained_yolo26s
+sampling_profile: canonical
+imgsz: 640
+epochs: 150
+patience: 30
+# Requires a model-specific smoke and weights_manifest_yolo26s.json.
+batch: 16
+workers: 8
+device: 0
+optimizer: auto
+seed: 42
+deterministic: true
+cache: false
+project: outputs/leaf_detection/segmenter
+name: d04_yolo26s_seed42

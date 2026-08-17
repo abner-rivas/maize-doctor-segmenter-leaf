@@ -111,7 +111,11 @@ class UltralyticsResultConversionTests(TestCase):
         with TemporaryDirectory() as temporary:
             checkpoint = Path(temporary) / "best.pt"
             checkpoint.write_bytes(b"trusted-test-checkpoint")
-            segmenter = UltralyticsLeafSegmenter(checkpoint, device="cpu")
+            segmenter = UltralyticsLeafSegmenter(
+                checkpoint,
+                device="cpu",
+                proposal_confidence_threshold=0.20,
+            )
             segmenter._model = model
 
             instances = segmenter.segment(Image.new("RGB", (100, 50)))
@@ -120,6 +124,25 @@ class UltralyticsResultConversionTests(TestCase):
         self.assertEqual(instances[0].mask.size, (100, 50))
         self.assertEqual(model.kwargs["save"], False)  # type: ignore[index]
         self.assertEqual(model.kwargs["retina_masks"], True)  # type: ignore[index]
-        self.assertEqual(model.kwargs["conf"], 0.50)  # type: ignore[index]
+        self.assertEqual(model.kwargs["conf"], 0.20)  # type: ignore[index]
         self.assertEqual(model.kwargs["iou"], 0.70)  # type: ignore[index]
-        self.assertEqual(segmenter.to_metadata()["proposal_confidence_threshold"], 0.50)
+        self.assertEqual(segmenter.to_metadata()["proposal_confidence_threshold"], 0.20)
+        self.assertEqual(segmenter.to_metadata()["confidence_threshold"], 0.20)
+
+    def test_legacy_confidence_alias_is_supported_but_cannot_be_combined(self) -> None:
+        with TemporaryDirectory() as temporary:
+            checkpoint = Path(temporary) / "best.pt"
+            checkpoint.write_bytes(b"trusted-test-checkpoint")
+
+            segmenter = UltralyticsLeafSegmenter(
+                checkpoint,
+                confidence_threshold=0.35,
+            )
+            self.assertEqual(segmenter.proposal_confidence_threshold, 0.35)
+
+            with self.assertRaisesRegex(ValueError, "no ambos"):
+                UltralyticsLeafSegmenter(
+                    checkpoint,
+                    confidence_threshold=0.35,
+                    proposal_confidence_threshold=0.20,
+                )

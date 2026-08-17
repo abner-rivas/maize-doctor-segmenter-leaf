@@ -154,6 +154,23 @@ def test_direct_training_modes_require_exact_confirmation(monkeypatch) -> None:
         runner.require_confirmation(mode)
 
 
+def test_experiment_profiles_allow_only_documented_seeds_and_initializers() -> None:
+    assert runner.ALLOWED_EXPERIMENT_SEEDS == {7, 42, 1337}
+    model, metadata = runner.resolve_initial_model("scratch_yolo26n")
+    assert model == "yolo26n-seg.yaml"
+    assert metadata["initialization"] == "scratch"
+    with pytest.raises(RuntimeError, match="initialization_profile no permitido"):
+        runner.resolve_initial_model("download_something_implicit")
+
+
+def test_train_mode_has_scoped_experiment_manifests_and_sampling() -> None:
+    source = inspect.getsource(runner.train_mode)
+    assert 'config.pop("experiment_id", None)' in source
+    assert "ALLOWED_EXPERIMENT_SEEDS" in source
+    assert "materialize_source_balanced_dataset(" in source
+    assert '"experiment_manifests"' in source
+
+
 def test_cuda_initialization_selects_and_initializes_before_reset(monkeypatch) -> None:
     calls = []
     monkeypatch.setattr(
@@ -370,6 +387,9 @@ def test_evaluate_mode_forces_test_and_gates_effective_split_before_summary() ->
     source = inspect.getsource(runner.evaluate_mode)
     assert 'config["split"] = REQUESTED_EVALUATION_SPLIT' in source
     assert 'config["name"] = "yolo26n_seg_test"' in source
+    assert "save_txt=True" in source
+    assert "save_conf=False" in source
+    assert "evaluate_downstream(" in source
     assert "require_evaluated_split(" in source
     assert source.index("require_evaluated_split(") < source.index(
         'Path(str(contract["summary_path"]))'

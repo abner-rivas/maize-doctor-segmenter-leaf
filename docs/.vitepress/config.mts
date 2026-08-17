@@ -11,6 +11,7 @@ const segmentationSidebar = [
       { text: "Splits", link: "/es/leaf-detection/segmentation-dataset-splits" },
       { text: "Preflight", link: "/es/leaf-detection/segmentation-training-preflight" },
       { text: "Entrenamiento cloud", link: "/es/leaf-detection/segmentation-cloud-training" },
+      { text: "Mejoras", link: "/es/leaf-detection/segmentation-improvement-protocol" },
       { text: "Quality gate", link: "/es/leaf-detection/segmentation-reliability-gate-audit" },
     ],
   },
@@ -46,6 +47,7 @@ export default defineConfig({
         nav: [
           { text: "Flujo", link: "/es/leaf-detection/segmentation-current-flow" },
           { text: "Entrenamiento", link: "/es/leaf-detection/segmentation-cloud-training" },
+          { text: "Mejoras", link: "/es/leaf-detection/segmentation-improvement-protocol" },
           { text: "Decisiones", link: "/es/decisions/adr-leaf-instance-segmentation-strategy" },
         ],
         sidebar: { "/es/": segmentationSidebar },

@@ -42,6 +42,7 @@ MODAL_SEGMENTATION_DOWNLOAD_DIR ?= outputs-remote-leaf-segmentation
 	leaf-segmentation-cloud-checksums leaf-segmentation-pilot-evaluate \
 	leaf-segmentation-cloud-prepare leaf-segmentation-cloud-check \
 	leaf-segmentation-downstream-metrics leaf-segmentation-reliability-audit \
+	leaf-segmentation-calibrate-quality-gate leaf-segmentation-calibrate-selection \
 	leaf-segmentation-modal-volume-create \
 	leaf-segmentation-modal-upload leaf-segmentation-modal-prepare \
 	leaf-segmentation-modal-preflight leaf-segmentation-modal-smoke \
@@ -93,6 +94,8 @@ help:
 		'  leaf-segmentation-downstream-metrics     IoU/Dice/recall por fuente' \
 		'                                           PREDICTIONS=<dir> [SPLIT=val]' \
 		'  leaf-segmentation-reliability-audit      Gate visual reproducible' \
+		'  leaf-segmentation-calibrate-quality-gate Calibrar gate con revisión humana' \
+		'  leaf-segmentation-calibrate-selection    Barrer umbral sólo sobre val' \
 		'' \
 		'CLOUD / SIN ENTRENAR:' \
 		'  leaf-segmentation-cloud-bootstrap        Instalar en entorno cloud aislado' \
@@ -145,6 +148,12 @@ leaf-segmentation-downstream-metrics:
 
 leaf-segmentation-reliability-audit:
 	$(PYTHON) scripts/experiments/audit_segmentation_reliability.py
+
+leaf-segmentation-calibrate-quality-gate:
+	$(PYTHON) scripts/experiments/calibrate_segmentation_quality_gate.py
+
+leaf-segmentation-calibrate-selection:
+	$(PYTHON) scripts/experiments/calibrate_segmentation_selection_threshold.py
 
 leaf-segmentation-status:
 	$(LEAF_SEGMENTATION_MAKE_HELPER) status

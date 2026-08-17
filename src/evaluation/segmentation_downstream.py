@@ -30,6 +30,32 @@ from src.data.segmentation_audit import parse_yolo_segmentation_line
 SPLITS = ("train", "val", "test")
 DEFAULT_RASTER_SIZE = 640
 DEFAULT_MIN_AREA = 0.01
+ROW_COLUMNS = (
+    "filename",
+    "source_dataset",
+    "orientation",
+    "image_width",
+    "image_height",
+    "native_megapixels",
+    "resolution_bin",
+    "truth_instances",
+    "predicted_instances",
+    "multi_leaf",
+    "leaf_count_group",
+    "truth_touches_border",
+    "border_contact",
+    "detected",
+    "fallback",
+    "leaf_pixel_recall",
+    "leaf_pixel_precision",
+    "iou",
+    "dice",
+    "under_segmentation_ratio",
+    "over_segmentation_ratio",
+    "cropped_leaf_percent",
+    "truth_area_fraction",
+    "predicted_area_fraction",
+)
 
 
 class DownstreamMetricsError(RuntimeError):
@@ -48,6 +74,8 @@ class MaskPair:
     truth_instances: int
     predicted_instances: int
     fallback: bool
+    image_width: int = 0
+    image_height: int = 0
 
     @property
     def truth_area(self) -> float:
@@ -110,13 +138,29 @@ def image_metrics(pair: MaskPair, *, minimum_area: float = DEFAULT_MIN_AREA) -> 
     total_pixels = float(pair.truth.size)
     detected = predicted_area / total_pixels >= minimum_area
     leaf_pixel_recall = intersection / truth_area
+    image_height, image_width = pair.truth.shape
+    native_width = pair.image_width or image_width
+    native_height = pair.image_height or image_height
+    touches_border = bool(
+        pair.truth[0, :].any()
+        or pair.truth[-1, :].any()
+        or pair.truth[:, 0].any()
+        or pair.truth[:, -1].any()
+    )
     return {
         "filename": pair.filename,
         "source_dataset": pair.source_dataset,
         "orientation": pair.orientation,
+        "image_width": native_width,
+        "image_height": native_height,
+        "native_megapixels": native_width * native_height / 1_000_000,
+        "resolution_bin": _resolution_bin(native_width, native_height),
         "truth_instances": pair.truth_instances,
         "predicted_instances": pair.predicted_instances,
         "multi_leaf": pair.truth_instances > 1,
+        "leaf_count_group": "multiple" if pair.truth_instances > 1 else "single",
+        "truth_touches_border": touches_border,
+        "border_contact": "touching" if touches_border else "interior",
         "detected": detected,
         "fallback": pair.fallback,
         # Prioritaria: fracción del tejido foliar real que sobrevive al recorte.
@@ -142,6 +186,22 @@ def _area_bin(fraction: float) -> str:
     return "small" if fraction < 0.05 else "large" if fraction > 0.50 else "medium"
 
 
+def _resolution_bin(width: int, height: int) -> str:
+    megapixels = width * height / 1_000_000
+    if megapixels <= 0.10:
+        return "low_<=0.10mp"
+    if megapixels <= 1.0:
+        return "medium_<=1.00mp"
+    return "high_>1.00mp"
+
+
+def _as_float(value: object) -> float:
+    """Convert serialized metric values without weakening the row type to Any."""
+    if isinstance(value, (int, float, str)):
+        return float(value)
+    raise DownstreamMetricsError(f"Valor numérico inválido: {value!r}")
+
+
 def aggregate(rows: Sequence[Mapping[str, object]]) -> dict[str, object]:
     """Aggregate per-image metrics into the summary the project reports."""
     if not rows:
@@ -155,31 +215,33 @@ def aggregate(rows: Sequence[Mapping[str, object]]) -> dict[str, object]:
         ),
         "fallback_images": sum(1 for row in rows if row["fallback"]),
         "fallback_rate": sum(1 for row in rows if row["fallback"]) / len(rows),
-        "mean_leaf_pixel_recall": mean(float(row["leaf_pixel_recall"]) for row in rows),
+        "mean_leaf_pixel_recall": mean(_as_float(row["leaf_pixel_recall"]) for row in rows),
         "mean_leaf_pixel_precision": mean(
-            float(row["leaf_pixel_precision"]) for row in rows
+            _as_float(row["leaf_pixel_precision"]) for row in rows
         ),
-        "mean_iou": mean(float(row["iou"]) for row in rows),
-        "mean_dice": mean(float(row["dice"]) for row in rows),
+        "mean_iou": mean(_as_float(row["iou"]) for row in rows),
+        "mean_dice": mean(_as_float(row["dice"]) for row in rows),
         "mean_under_segmentation_ratio": mean(
-            float(row["under_segmentation_ratio"]) for row in rows
+            _as_float(row["under_segmentation_ratio"]) for row in rows
         ),
         "mean_over_segmentation_ratio": mean(
-            float(row["over_segmentation_ratio"]) for row in rows
+            _as_float(row["over_segmentation_ratio"]) for row in rows
         ),
         "mean_cropped_leaf_percent": mean(
-            float(row["cropped_leaf_percent"]) for row in rows
+            _as_float(row["cropped_leaf_percent"]) for row in rows
         ),
         "worst_cropped_leaf_percent": max(
-            float(row["cropped_leaf_percent"]) for row in rows
+            _as_float(row["cropped_leaf_percent"]) for row in rows
         ),
         "mean_iou_detected_only": (
-            mean(float(row["iou"]) for row in detected) if detected else 0.0
+            mean(_as_float(row["iou"]) for row in detected) if detected else 0.0
         ),
         "multi_leaf_images": sum(1 for row in rows if row["multi_leaf"]),
         "mean_leaf_pixel_recall_multi_leaf": (
             mean(
-                float(row["leaf_pixel_recall"]) for row in rows if row["multi_leaf"]
+                _as_float(row["leaf_pixel_recall"])
+                for row in rows
+                if row["multi_leaf"]
             )
             if any(row["multi_leaf"] for row in rows)
             else None
@@ -202,7 +264,7 @@ def group_by_area_bin(rows: Sequence[Mapping[str, object]]) -> dict[str, dict[st
     """Aggregate by ground-truth mask size, which drives small-object behaviour."""
     grouped: dict[str, list[Mapping[str, object]]] = defaultdict(list)
     for row in rows:
-        grouped[_area_bin(float(row["truth_area_fraction"]))].append(row)
+        grouped[_area_bin(_as_float(row["truth_area_fraction"]))].append(row)
     return {value: aggregate(items) for value, items in sorted(grouped.items())}
 
 
@@ -237,6 +299,18 @@ def build_pairs(
         truth = rasterize_polygons(truth_polygons, raster_size)
         prediction = rasterize_polygons(predicted_polygons, raster_size)
         fallback = prediction.sum() / prediction.size < minimum_area
+        try:
+            image_width = int(row["width"])
+            image_height = int(row["height"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise DownstreamMetricsError(
+                f"Dimensiones nativas inválidas para {row['filename']}"
+            ) from exc
+        if image_width <= 0 or image_height <= 0:
+            raise DownstreamMetricsError(
+                f"Dimensiones nativas inválidas para {row['filename']}: "
+                f"{image_width}x{image_height}"
+            )
         pairs.append(
             MaskPair(
                 filename=row["filename"],
@@ -247,6 +321,8 @@ def build_pairs(
                 truth_instances=int(row["instance_count"]),
                 predicted_instances=len(predicted_polygons),
                 fallback=fallback,
+                image_width=image_width,
+                image_height=image_height,
             )
         )
     return pairs
@@ -273,7 +349,7 @@ def evaluate_downstream(
     )
     rows = [image_metrics(pair, minimum_area=minimum_area) for pair in pairs]
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "split": split,
         "raster_size": raster_size,
         "minimum_area_fraction": minimum_area,
@@ -282,6 +358,9 @@ def evaluate_downstream(
         "by_source": group_by(rows, "source_dataset"),
         "by_orientation": group_by(rows, "orientation"),
         "by_truth_area_bin": group_by_area_bin(rows),
+        "by_border_contact": group_by(rows, "border_contact"),
+        "by_resolution_bin": group_by(rows, "resolution_bin"),
+        "by_leaf_count": group_by(rows, "leaf_count_group"),
         "priority_note": (
             "leaf_pixel_recall y under_segmentation_ratio tienen prioridad sobre "
             "precision: recortar tejido enfermo destruye la señal diagnóstica, "

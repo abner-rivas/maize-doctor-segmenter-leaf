@@ -41,5 +41,6 @@ el entrenamiento remoto, la inferencia del segmentador y las evaluaciones de cal
 - [Splits reproducibles](/es/leaf-detection/segmentation-dataset-splits)
 - [Preflight](/es/leaf-detection/segmentation-training-preflight)
 - [Entrenamiento cloud](/es/leaf-detection/segmentation-cloud-training)
+- [Protocolo de mejora](/es/leaf-detection/segmentation-improvement-protocol)
 - [Quality gate](/es/leaf-detection/segmentation-reliability-gate-audit)
 - [Decisiones de arquitectura](/es/decisions/adr-leaf-instance-segmentation-strategy)

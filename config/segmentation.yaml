@@ -7,7 +7,10 @@ segmentation:
   checkpoint: "leaf_detection/models/doctor_maiz_leaf_segmenter_best.pt"
   ultralytics_version: "8.4.104"
   image_size: 640
-  confidence_threshold: 0.50
+  # Keep more model proposals for auditable selection; accepting a leaf remains
+  # stricter and is controlled independently below.
+  proposal_confidence_threshold: 0.20
+  selection_confidence_threshold: 0.50
   iou_threshold: 0.70
   max_detections: 20
   output_profile: "mask_black"
@@ -22,7 +25,9 @@ segmentation:
   quality_gate:
     reject_multiple_eligible: false
     max_mask_area_ratio: 0.999
-    large_mask_area_ratio: 0.50
-    min_large_mask_bbox_ratio: 0.70
+    # Calibrated on the frozen 42-image human review; see
+    # outputs/.../quality_gate_calibration_v1/summary.json.
+    large_mask_area_ratio: 0.25
+    min_large_mask_bbox_ratio: 0.80
     max_large_mask_normalized_perimeter: 8.0
     min_multi_instance_score_margin: 0.33

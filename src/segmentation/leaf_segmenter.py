@@ -199,7 +199,8 @@ class UltralyticsLeafSegmenter:
         checkpoint: Path,
         *,
         image_size: int = 640,
-        confidence_threshold: float = 0.50,
+        confidence_threshold: float | None = None,
+        proposal_confidence_threshold: float | None = None,
         iou_threshold: float = 0.70,
         max_detections: int = 20,
         device: str | int | None = None,
@@ -216,8 +217,16 @@ class UltralyticsLeafSegmenter:
             or max_detections <= 0
         ):
             raise ValueError("max_detections debe ser un entero positivo")
+        if confidence_threshold is not None and proposal_confidence_threshold is not None:
+            raise ValueError(
+                "use confidence_threshold o proposal_confidence_threshold, no ambos"
+            )
+        if confidence_threshold is not None:
+            proposal_confidence_threshold = confidence_threshold
+        if proposal_confidence_threshold is None:
+            proposal_confidence_threshold = 0.50
         for name, value in (
-            ("confidence_threshold", confidence_threshold),
+            ("proposal_confidence_threshold", proposal_confidence_threshold),
             ("iou_threshold", iou_threshold),
         ):
             if isinstance(value, bool) or not math.isfinite(float(value)):
@@ -228,7 +237,7 @@ class UltralyticsLeafSegmenter:
         self.checkpoint = resolved
         self.checkpoint_sha256 = _sha256(resolved)
         self.image_size = image_size
-        self.confidence_threshold = float(confidence_threshold)
+        self.proposal_confidence_threshold = float(proposal_confidence_threshold)
         self.iou_threshold = float(iou_threshold)
         self.max_detections = max_detections
         self.device = device
@@ -265,7 +274,7 @@ class UltralyticsLeafSegmenter:
         predict_kwargs: dict[str, object] = {
             "source": normalized,
             "imgsz": self.image_size,
-            "conf": self.confidence_threshold,
+            "conf": self.proposal_confidence_threshold,
             "iou": self.iou_threshold,
             "max_det": self.max_detections,
             "agnostic_nms": False,
@@ -297,8 +306,9 @@ class UltralyticsLeafSegmenter:
             "ultralytics_expected_version": self.expected_version,
             "ultralytics_runtime_version": self._runtime_version,
             "image_size": self.image_size,
-            "proposal_confidence_threshold": self.confidence_threshold,
-            "confidence_threshold": self.confidence_threshold,
+            "proposal_confidence_threshold": self.proposal_confidence_threshold,
+            # Compatibility alias for historical metadata consumers.
+            "confidence_threshold": self.proposal_confidence_threshold,
             "iou_threshold": self.iou_threshold,
             "max_detections": self.max_detections,
             "nms": "class_aware",

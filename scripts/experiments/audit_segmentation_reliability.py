@@ -240,6 +240,8 @@ def _build_processor(
     *,
     checkpoint_override: Path | None,
     device: str | None,
+    proposal_confidence_threshold: float | None = None,
+    selection_confidence_threshold: float | None = None,
 ) -> tuple[SegmentedLeafProcessor, SegmentationQualityGateConfig, bool]:
     segmentation = config.get("segmentation")
     if not isinstance(segmentation, Mapping):
@@ -251,10 +253,19 @@ def _build_processor(
     if not isinstance(reject_multiple, bool):
         raise ValueError("reject_multiple_eligible debe ser booleano")
     checkpoint = checkpoint_override or get_output_root() / str(segmentation["checkpoint"])
+    configured_proposal_confidence = proposal_confidence_threshold
+    if configured_proposal_confidence is None:
+        raw_proposal_confidence = segmentation.get(
+            "proposal_confidence_threshold",
+            segmentation.get("confidence_threshold"),
+        )
+        if raw_proposal_confidence is None:
+            raise ValueError("falta proposal_confidence_threshold")
+        configured_proposal_confidence = float(raw_proposal_confidence)
     segmenter = UltralyticsLeafSegmenter(
         checkpoint,
         image_size=int(segmentation["image_size"]),
-        confidence_threshold=float(segmentation["confidence_threshold"]),
+        proposal_confidence_threshold=configured_proposal_confidence,
         iou_threshold=float(segmentation["iou_threshold"]),
         max_detections=int(segmentation["max_detections"]),
         device=device,
@@ -262,7 +273,10 @@ def _build_processor(
     )
     processor = SegmentedLeafProcessor(
         segmenter,
-        mask_processor_config_from_mapping(segmentation),
+        mask_processor_config_from_mapping(
+            segmentation,
+            selection_confidence_threshold=selection_confidence_threshold,
+        ),
     )
     return processor, SegmentationQualityGateConfig.from_mapping(quality), reject_multiple
 
@@ -283,6 +297,8 @@ def run_audit(args: argparse.Namespace) -> dict[str, object]:
         config,
         checkpoint_override=args.segmenter_checkpoint,
         device=args.segmenter_device,
+        proposal_confidence_threshold=args.proposal_confidence_threshold,
+        selection_confidence_threshold=args.selection_confidence_threshold,
     )
 
     args.output_dir.mkdir(parents=True)
@@ -357,6 +373,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--segmenter-device", default=None)
     parser.add_argument("--segmenter-checkpoint", type=Path, default=None)
+    parser.add_argument("--proposal-confidence-threshold", type=float, default=None)
+    parser.add_argument("--selection-confidence-threshold", type=float, default=None)
     parser.add_argument("--no-visuals", action="store_true")
     parser.add_argument(
         "--config",

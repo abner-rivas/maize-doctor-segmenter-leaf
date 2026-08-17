@@ -39,6 +39,8 @@ def make_pair(truth, prediction, *, size=64, instances=1, source="corn", fallbac
         truth_instances=instances,
         predicted_instances=len(prediction),
         fallback=fallback,
+        image_width=224,
+        image_height=224,
     )
 
 
@@ -163,6 +165,17 @@ def test_group_by_area_bin_uses_ground_truth_size() -> None:
     assert "large" in grouped
 
 
+def test_per_image_metrics_expose_border_resolution_and_leaf_count_groups() -> None:
+    border_polygon = [(0.0, 0.1), (0.5, 0.1), (0.5, 0.9), (0.0, 0.9)]
+    pair = make_pair([border_polygon], [border_polygon], instances=2)
+    metrics = image_metrics(pair)
+
+    assert metrics["truth_touches_border"] is True
+    assert metrics["border_contact"] == "touching"
+    assert metrics["resolution_bin"] == "low_<=0.10mp"
+    assert metrics["leaf_count_group"] == "multiple"
+
+
 def test_multi_leaf_subset_is_reported_separately() -> None:
     rows = [
         image_metrics(make_pair([SQUARE], [SQUARE], instances=1)),
@@ -201,7 +214,7 @@ def _write_fixture(root: Path) -> Path:
             handle,
             fieldnames=(
                 "split", "filename", "source_dataset", "orientation",
-                "instance_count", "materialized_label_path",
+                "instance_count", "materialized_label_path", "width", "height",
             ),
         )
         writer.writeheader()
@@ -213,6 +226,8 @@ def _write_fixture(root: Path) -> Path:
                 "orientation": "square",
                 "instance_count": "1",
                 "materialized_label_path": f"labels/val/{Path(name).stem}.txt",
+                "width": "224",
+                "height": "224",
             })
         writer.writerow({
             "split": "train",
@@ -221,6 +236,8 @@ def _write_fixture(root: Path) -> Path:
             "orientation": "square",
             "instance_count": "1",
             "materialized_label_path": "labels/val/a.txt",
+            "width": "224",
+            "height": "224",
         })
     return dataset
 
@@ -244,6 +261,9 @@ def test_evaluate_downstream_reads_only_the_requested_split(tmp_path: Path) -> N
     assert summary["overall"]["fallback_rate"] == pytest.approx(0.5)
     assert set(summary["by_source"]) == {"corn", "corn_leaf_diseases"}
     assert summary["by_source"]["corn"]["mean_iou"] == pytest.approx(1.0, abs=0.02)
+    assert set(summary["by_border_contact"]) == {"interior"}
+    assert set(summary["by_resolution_bin"]) == {"low_<=0.10mp"}
+    assert set(summary["by_leaf_count"]) == {"single"}
 
 
 def test_build_pairs_requires_ground_truth_geometry(tmp_path: Path) -> None:
@@ -257,6 +277,8 @@ def test_build_pairs_requires_ground_truth_geometry(tmp_path: Path) -> None:
                 "orientation": "square",
                 "instance_count": "1",
                 "materialized_label_path": "labels/val/a.txt",
+                "width": "224",
+                "height": "224",
             }],
             dataset,
             tmp_path / "predictions",

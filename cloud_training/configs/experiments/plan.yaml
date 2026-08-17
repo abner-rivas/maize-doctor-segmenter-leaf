@@ -1,0 +1,29 @@
+schema_version: 1
+baseline:
+  id: C-01
+  checkpoint: outputs/leaf_detection/models/doctor_maiz_leaf_segmenter_best.pt
+  seed: 42
+  measured_batch: 26
+  imgsz: 640
+  best_epoch: 87
+  val_mask_map50_95_best: 0.93806
+selection_metric_order:
+  - val_mean_leaf_pixel_recall_single_leaf
+  - val_mean_dice_single_leaf
+  - val_mask_map50_95
+  - external_reliability_precision
+profiles:
+  - {id: D-01, config: d01_mosaic0_seed42.yaml, status: ready}
+  - {id: D-02, config: d02_imgsz512_seed42.yaml, status: ready}
+  - {id: D-02B, config: d02b_imgsz768_seed42.yaml, status: smoke_required}
+  - {id: D-03, config: d03_source_balanced_seed42.yaml, status: ready}
+  - {id: D-04, config: d04_yolo26s_seed42.yaml, status: verified_weights_and_smoke_required}
+  - {id: D-05, config: d05_scratch_seed42.yaml, status: ready}
+  - {id: D-06, config: d06_copy_paste_seed42.yaml, status: ready}
+multi_seed_confirmation:
+  existing_seed: 42
+  additional_configs: [e01_baseline_seed7.yaml, e01_baseline_seed1337.yaml]
+  note: Replace the baseline hyperparameters with the winning D profile before running E-01.
+retained_sets:
+  internal_test_usage: once_after_configuration_freeze
+  external_pilot_usage: qualitative_final_audit_only

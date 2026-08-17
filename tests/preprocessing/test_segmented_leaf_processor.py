@@ -72,7 +72,8 @@ class SegmentedLeafProcessorTests(TestCase):
 
     def test_config_mapping_can_override_selection_confidence(self) -> None:
         segmentation = {
-            "confidence_threshold": 0.5,
+            "proposal_confidence_threshold": 0.2,
+            "selection_confidence_threshold": 0.5,
             "output_profile": "mask_black",
             "min_mask_area_ratio": 0.01,
             "near_full_warning_ratio": 0.98,
@@ -87,10 +88,29 @@ class SegmentedLeafProcessorTests(TestCase):
 
         config = mask_processor_config_from_mapping(
             segmentation,
-            confidence_threshold=0.125,
+            selection_confidence_threshold=0.125,
         )
 
         self.assertEqual(config.confidence_threshold, 0.125)
+
+    def test_config_mapping_supports_legacy_confidence_key(self) -> None:
+        segmentation = {
+            "confidence_threshold": 0.5,
+            "output_profile": "mask_black",
+            "min_mask_area_ratio": 0.01,
+            "near_full_warning_ratio": 0.98,
+            "background_value": [0, 0, 0],
+            "selection_weights": {
+                "area": 0.45,
+                "center": 0.35,
+                "confidence": 0.20,
+            },
+            "fallback": "original",
+        }
+
+        config = mask_processor_config_from_mapping(segmentation)
+
+        self.assertEqual(config.confidence_threshold, 0.5)
 
     def test_one_clear_leaf_produces_black_background(self) -> None:
         processor = self._processor((_instance(self.size, (20, 10, 80, 70), 0.95, 0),))

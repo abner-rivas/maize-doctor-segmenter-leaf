@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import math
@@ -20,6 +21,8 @@ from typing import Any
 import torch
 import yaml
 
+from src.evaluation.segmentation_downstream import ROW_COLUMNS, evaluate_downstream
+from src.training.segmentation_experiments import materialize_source_balanced_dataset
 from src.training.segmentation_preflight import verify_cloud_training_payload
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +52,7 @@ EXPECTED_BEST_CHECKPOINT_SHA256 = (
     "4f66456d05d87f9e7080155eb5cd80c583f34849415ec820c950bd97f9c5ec6f"
 )
 EXPECTED_FASTER_COCO_EVAL = "1.7.2"
+ALLOWED_EXPERIMENT_SEEDS = {7, 42, 1337}
 EVALUATION_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 BOX_METRIC_KEYS = (
     "metrics/precision(B)",
@@ -99,6 +103,27 @@ def write(path: Path, payload: dict[str, Any]) -> None:
     os.replace(temporary, path)
 
 
+def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
+    """Atomically write the stable per-image downstream schema."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        newline="",
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        delete=False,
+    ) as handle:
+        temporary = Path(handle.name)
+        writer = csv.DictWriter(handle, fieldnames=ROW_COLUMNS, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
 def write_yaml_exclusive(path: Path, payload: dict[str, Any]) -> None:
     """Create a frozen YAML without ever replacing an earlier decision."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,13 +136,43 @@ def write_yaml_exclusive(path: Path, payload: dict[str, Any]) -> None:
         raise RuntimeError(f"No se sobrescribe configuración congelada: {path}") from exc
 
 
-def verified_weights() -> Path:
-    manifest_path = OUTPUTS / "cloud_preflight" / "weights_manifest.json"
+def verified_weights(
+    manifest_name: str = "weights_manifest.json",
+    *,
+    expected_filename: str | None = None,
+) -> Path:
+    manifest_path = OUTPUTS / "cloud_preflight" / manifest_name
+    if not manifest_path.is_file():
+        raise RuntimeError(f"Falta manifiesto de pesos verificados: {manifest_path}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     path = Path(str(manifest["path"]))
     if not path.is_file() or sha256(path) != manifest["sha256"]:
         raise RuntimeError("Los pesos no coinciden con weights_manifest.json")
+    if expected_filename is not None and path.name != expected_filename:
+        raise RuntimeError(
+            f"Pesos inesperados: {path.name!r} != {expected_filename!r}"
+        )
     return path
+
+
+def resolve_initial_model(profile: str) -> tuple[str, dict[str, Any]]:
+    """Resolve only explicit, auditable initialization profiles."""
+    if profile == "pretrained_yolo26n":
+        path = verified_weights()
+        return str(path), checkpoint_record(path)
+    if profile == "scratch_yolo26n":
+        return "yolo26n-seg.yaml", {
+            "path": "yolo26n-seg.yaml",
+            "initialization": "scratch",
+            "weights_sha256": None,
+        }
+    if profile == "pretrained_yolo26s":
+        path = verified_weights(
+            "weights_manifest_yolo26s.json",
+            expected_filename="yolo26s-seg.pt",
+        )
+        return str(path), checkpoint_record(path)
+    raise RuntimeError(f"initialization_profile no permitido: {profile!r}")
 
 
 def base_gate() -> dict[str, Any]:
@@ -468,8 +523,21 @@ def train_mode(mode: str, config_path: Path) -> None:
     config = load_yaml(config_path)
     if config.pop("task", None) != "segment":
         raise RuntimeError("La configuración debe declarar task=segment")
-    if config.get("seed") != 42 or config.get("deterministic") is not True:
-        raise RuntimeError("La configuración debe conservar seed=42 y deterministic=true")
+    experiment_id = config.pop("experiment_id", None)
+    initialization_profile = str(
+        config.pop("initialization_profile", "pretrained_yolo26n")
+    )
+    sampling_profile = str(config.pop("sampling_profile", "canonical"))
+    seed = config.get("seed")
+    if config.get("deterministic") is not True:
+        raise RuntimeError("La configuración debe conservar deterministic=true")
+    if experiment_id is None and seed != 42:
+        raise RuntimeError("El baseline debe conservar seed=42")
+    if experiment_id is not None and seed not in ALLOWED_EXPERIMENT_SEEDS:
+        raise RuntimeError(
+            f"Semilla de experimento no permitida: {seed!r}; "
+            f"use {sorted(ALLOWED_EXPERIMENT_SEEDS)}"
+        )
     requested_batch = config.get("batch")
     if mode == "smoke":
         if requested_batch != -1:
@@ -490,7 +558,8 @@ def train_mode(mode: str, config_path: Path) -> None:
         or int(config["epochs"]) <= 1
     ):
         raise RuntimeError("El entrenamiento completo requiere más de una época")
-    config["model"] = str(verified_weights())
+    model_path, initial_model = resolve_initial_model(initialization_profile)
+    config["model"] = model_path
     config["data"] = str(DATASET / "dataset.yaml")
     config["device"] = DEVICE
     config["project"] = str(OUTPUTS / "segmenter")
@@ -501,14 +570,31 @@ def train_mode(mode: str, config_path: Path) -> None:
             f"El run solicitado ya existe; no se permite baseline2 implícito: "
             f"{expected_save_dir}"
         )
+    sampling_metadata: dict[str, object] = {
+        "profile": "canonical",
+        "dataset_yaml": str((DATASET / "dataset.yaml").resolve()),
+        "test_included": False,
+        "pilot_included": False,
+    }
+    if sampling_profile == "source_balanced_corn":
+        sampling_metadata = materialize_source_balanced_dataset(
+            DATASET,
+            OUTPUTS / "segmenter" / "experiment_inputs" / str(config["name"]),
+        )
+        config["data"] = str(sampling_metadata["dataset_yaml"])
+    elif sampling_profile != "canonical":
+        raise RuntimeError(f"sampling_profile no permitido: {sampling_profile!r}")
     model_path = config.pop("model")
     started = time.monotonic()
     cuda_device = initialize_cuda_and_reset_peak_memory_stats(DEVICE_INDEX)
-    summary_path = (
-        OUTPUTS / "segmenter" / "smoke_summary.json"
-        if mode == "smoke"
-        else OUTPUTS / "segmenter" / "training_summary.json"
-    )
+    if mode == "smoke":
+        summary_path = OUTPUTS / "segmenter" / "smoke_summary.json"
+    elif experiment_id is not None:
+        summary_path = (
+            OUTPUTS / "segmenter" / "experiment_summaries" / f"{config['name']}.json"
+        )
+    else:
+        summary_path = OUTPUTS / "segmenter" / "training_summary.json"
     summary: dict[str, Any] = {
         "status": "running",
         "mode": mode,
@@ -517,11 +603,21 @@ def train_mode(mode: str, config_path: Path) -> None:
         "expected_save_dir": str(expected_save_dir),
         "started_utc": datetime.now(timezone.utc).isoformat(),
         "dataset_fingerprints": payload,
-        "initial_weights": checkpoint_record(Path(model_path)),
+        "experiment_id": experiment_id,
+        "initialization_profile": initialization_profile,
+        "sampling": sampling_metadata,
+        "initial_weights": initial_model,
         "source": package_trace(),
     }
     final_path = OUTPUTS / "segmenter" / "configs" / "train_yolo26n_seg.final.yaml"
-    active_manifest_path = OUTPUTS / "segmenter" / "active_run_manifest.json"
+    active_manifest_path = (
+        OUTPUTS / "segmenter" / "active_run_manifest.json"
+        if experiment_id is None
+        else OUTPUTS
+        / "segmenter"
+        / "experiment_manifests"
+        / f"{config['name']}.json"
+    )
     if mode == "smoke" and final_path.exists():
         raise RuntimeError(
             f"Ya existe una configuración final; no se sobrescribe: {final_path}"
@@ -537,6 +633,7 @@ def train_mode(mode: str, config_path: Path) -> None:
                 "schema_version": 1,
                 "status": "running",
                 "run_id": config["name"],
+                "experiment_id": experiment_id,
                 "save_dir": str(expected_save_dir),
                 "expected_last_checkpoint": str(
                     expected_save_dir / "weights" / "last.pt"
@@ -548,6 +645,8 @@ def train_mode(mode: str, config_path: Path) -> None:
                 "config_sha256": summary["config_sha256"],
                 "dataset_fingerprints": payload,
                 "initial_weights": summary["initial_weights"],
+                "initialization_profile": initialization_profile,
+                "sampling": sampling_metadata,
                 "started_utc": summary["started_utc"],
                 "source": summary["source"],
             },
@@ -583,6 +682,9 @@ def train_mode(mode: str, config_path: Path) -> None:
             checkpoints["best"] = checkpoint_record(save_dir / "weights" / "best.pt")
         effective_config = {
             "task": "segment",
+            "experiment_id": experiment_id,
+            "initialization_profile": initialization_profile,
+            "sampling_profile": sampling_profile,
             "model": model_path,
             **config,
             "batch": selected_batch,
@@ -844,7 +946,13 @@ def evaluate_mode(checkpoint: Path, config_path: Path, split: str) -> None:
             validation_observation,
         ),
     )
-    result = model.val(**config, plots=True, save_json=True)
+    result = model.val(
+        **config,
+        plots=True,
+        save_json=True,
+        save_txt=True,
+        save_conf=False,
+    )
     evaluated_split = str(validation_observation.get("evaluated_split", ""))
     require_evaluated_split(REQUESTED_EVALUATION_SPLIT, evaluated_split)
     evaluated_split_path = Path(
@@ -879,6 +987,19 @@ def evaluate_mode(checkpoint: Path, config_path: Path, split: str) -> None:
         raise RuntimeError(
             f"Directorio test inesperado: {actual_save_dir} != {expected_save_dir}"
         )
+    prediction_labels_dir = actual_save_dir / "labels"
+    if not prediction_labels_dir.is_dir():
+        raise RuntimeError(
+            "Ultralytics no guardó las etiquetas YOLO-seg necesarias para las "
+            f"métricas downstream: {prediction_labels_dir}"
+        )
+    downstream_rows, downstream_summary = evaluate_downstream(
+        dataset_root=DATASET,
+        prediction_root=prediction_labels_dir,
+        split=REQUESTED_EVALUATION_SPLIT,
+    )
+    write_csv(actual_save_dir / "downstream_per_image.csv", downstream_rows)
+    write(actual_save_dir / "downstream_summary.json", downstream_summary)
     metrics = metrics_dict(result)
     box_metrics, mask_metrics = _metric_groups(metrics)
 
@@ -922,6 +1043,8 @@ def evaluate_mode(checkpoint: Path, config_path: Path, split: str) -> None:
             "dataset_yaml": contract["dataset_yaml"],
             "resolved_split_path": contract["resolved_split_path"],
             "save_dir": str(actual_save_dir),
+            "prediction_labels_dir": str(prediction_labels_dir),
+            "downstream_summary": downstream_summary,
             "checkpoint": checkpoint_after["path"],
             "checkpoint_sha256": checkpoint_after["sha256"],
             "checkpoint_size_bytes": checkpoint_after["size_bytes"],

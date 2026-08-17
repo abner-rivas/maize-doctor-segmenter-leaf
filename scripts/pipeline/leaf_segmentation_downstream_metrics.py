@@ -12,32 +12,14 @@ import argparse
 import csv
 import json
 from pathlib import Path
+from typing import Any, cast
 
 from src.config import get_output_root, get_project_data_root
 from src.evaluation.segmentation_downstream import (
     DEFAULT_MIN_AREA,
     DEFAULT_RASTER_SIZE,
+    ROW_COLUMNS,
     evaluate_downstream,
-)
-
-ROW_COLUMNS = (
-    "filename",
-    "source_dataset",
-    "orientation",
-    "truth_instances",
-    "predicted_instances",
-    "multi_leaf",
-    "detected",
-    "fallback",
-    "leaf_pixel_recall",
-    "leaf_pixel_precision",
-    "iou",
-    "dice",
-    "under_segmentation_ratio",
-    "over_segmentation_ratio",
-    "cropped_leaf_percent",
-    "truth_area_fraction",
-    "predicted_area_fraction",
 )
 
 
@@ -86,7 +68,7 @@ def main() -> None:
     ) as handle:
         writer = csv.DictWriter(handle, fieldnames=ROW_COLUMNS, extrasaction="ignore")
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(cast(Any, rows))
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
         encoding="utf-8",
