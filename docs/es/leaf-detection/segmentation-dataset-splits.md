@@ -116,7 +116,9 @@ permanece como evaluación externa retenida.
 Los manifiestos y el gate están en
 `data/leaf_detection/detector_dataset/manifests/`. Las estadísticas, reportes
 de fugas, nueve gráficos y previews con máscaras superpuestas están en
-`outputs/leaf_detection/detector_dataset_splits/`.
+el output regenerable `outputs/leaf_detection/detector_dataset_splits/`. Esta
+carpeta histórica fue eliminada localmente el 2026-08-17; los splits y sus
+manifiestos canónicos no fueron modificados.
 
 `split_lock.status=ready_for_training_preflight`. Este estado sólo habilita el
 preflight posterior: durante esta fase no se entrenó ningún modelo, no se

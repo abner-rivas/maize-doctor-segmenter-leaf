@@ -179,6 +179,14 @@ class MakefileSafetyTests(TestCase):
                 "CONFIRM_SEGMENTATION_TRAINING=1",
                 "modal_training.py::resume",
             ),
+            "leaf-segmentation-modal-experiment": (
+                "CONFIRM_SEGMENTATION_TRAINING=1",
+                "modal_training.py::experiment",
+            ),
+            "leaf-segmentation-modal-experiment-resume": (
+                "CONFIRM_SEGMENTATION_TRAINING=1",
+                "modal_training.py::resume_experiment",
+            ),
         }
         for target, (confirmation, remote_function) in cases.items():
             blocked = self._dry_run(target)
@@ -198,6 +206,8 @@ class MakefileSafetyTests(TestCase):
         for target in (
             "leaf-segmentation-modal-train",
             "leaf-segmentation-modal-resume",
+            "leaf-segmentation-modal-experiment",
+            "leaf-segmentation-modal-experiment-resume",
         ):
             rendered = self._dry_run(
                 target,
@@ -221,7 +231,7 @@ class MakefileSafetyTests(TestCase):
         upload = self._dry_run("leaf-segmentation-modal-upload")
         self.assertEqual(upload.returncode, 0, upload.stderr)
         self.assertIn(
-            "doctor_maiz_leaf_segmentation_cloud_v6-segmenter-only-7a4a5c08-seed42.tar.gz",
+            "doctor_maiz_leaf_segmentation_cloud_v7-segmentation-improvements-7a4a5c08-seed42.tar.gz",
             upload.stdout,
         )
         self.assertEqual(upload.stdout.count("modal volume put"), 2)

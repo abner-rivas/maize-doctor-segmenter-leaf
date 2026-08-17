@@ -22,6 +22,17 @@ Este documento resume únicamente la evolución del proyecto de segmentación de
    que Ultralytics deduplicaba dos polígonos con la misma clase y bbox.
 10. La inferencia se complementó con selección determinista de instancia, generación de
     máscara, perfiles de salida y un quality gate auditable.
+11. Se construyó la release cloud v7 y se ejecutó `D-01` en una A10 con
+    `mosaic=0.0`; la parada temprana seleccionó la época 115 y el checkpoint
+    alcanzó Mask mAP50-95 `0.94404` en `val`.
+12. El checkpoint D-01 se descargó y verificó por SHA-256. El pipeline real se
+    evaluó sobre las 150 imágenes de `val` procedentes del dataset de enfermedades:
+    150 `reliable`, IoU medio `0.98122`, Dice `0.99046` y cero fallbacks.
+13. Se retiraron dos evaluaciones diagnósticas intermedias, predicciones antiguas
+    del clasificador, outputs antiguos del piloto, previews/reportes de
+    preparación del dataset y el paquete cloud v6 reemplazado. Se dejó una única
+    evaluación end-to-end y el paquete v7 como evidencia actual. `test` y el
+    piloto externo permanecen sin consumir.
 
 El piloto externo nunca participa en train, val ni test interno. Las fuentes, el padre
 consolidado, los locks y los artefactos de entrenamiento mantienen responsabilidades

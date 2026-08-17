@@ -9,7 +9,10 @@ etiquetas, no consolidó datasets y no modificó checkpoints.
 El notebook reproducible es
 [`notebooks/02_leaf_segmentation_external_sources_eda.ipynb`](https://github.com/abner-rivas/maize-doctor-segmenter-leaf/blob/master/notebooks/02_leaf_segmentation_external_sources_eda.ipynb).
 La lógica reutilizable está en `src/data/segmentation_audit.py` y los resultados
-completos en `outputs/leaf_detection/external_sources_eda/`.
+completos se generaron originalmente en
+`outputs/leaf_detection/external_sources_eda/`, pero se eliminaron localmente el
+2026-08-17 después de consolidar la evidencia en los manifiestos y en esta
+documentación. Pueden regenerarse desde las fuentes conservadas bajo `data/`.
 
 La motivación histórica está en [Historia del aislamiento de hojas](history.md)
 y la decisión formal sobre estas fuentes en
@@ -173,7 +176,7 @@ piloto:
 
 ## Auditoría visual pendiente
 
-Se generaron 207 archivos bajo
+Se generaron 207 archivos bajo el directorio histórico
 `outputs/leaf_detection/external_sources_eda/previews/`, organizados en:
 
 - muestras aleatorias;
@@ -188,6 +191,9 @@ No se generaron previews de duplicados cruzados porque no existen casos. El CSV
 `manual_semantic_review.csv` contiene 32 casos estratificados; los campos
 `annotation_quality`, `multiple_leaves` y `background_complexity` permanecen
 como `unknown` hasta completar una revisión humana.
+
+Estos previews ya no están presentes localmente; la lista describe la salida
+regenerable del notebook y del módulo de auditoría.
 
 ## Decisión
 
@@ -231,10 +237,12 @@ La fase siguiente materializó un pool candidato bajo
 
 Las validaciones estructurales pasaron sin errores. Aún no se crearon splits:
 los previews y la cola manual deben aprobarse antes de usar el pool para
-entrenamiento. Los reportes viven en
-`outputs/leaf_detection/detector_dataset_consolidation/`.
+entrenamiento. Los reportes se generaron en
+`outputs/leaf_detection/detector_dataset_consolidation/`. Esa copia local fue
+retirada el 2026-08-17; el dataset consolidado y sus manifiestos permanecen bajo
+`data/leaf_detection/detector_dataset/`.
 
-## Artefactos
+## Esquema de artefactos regenerables
 
 - `summary.json`: resultado estructurado y controles de seguridad;
 - `source_summary.csv`, `class_summary.csv`, `class_instance_summary.csv`,

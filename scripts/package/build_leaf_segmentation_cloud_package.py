@@ -21,7 +21,7 @@ from src.data.jpeg_normalization import (
 )
 from src.training.segmentation_preflight import verify_cloud_training_payload
 
-PACKAGE_VERSION = "v6-segmenter-only-7a4a5c08-seed42"
+PACKAGE_VERSION = "v7-segmentation-improvements-7a4a5c08-seed42"
 METADATA_PATHS = {
     Path("cloud_training/package_manifest.json"),
     Path("cloud_training/checksums.sha256"),

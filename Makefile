@@ -25,10 +25,11 @@ SPLIT ?= val
 MODAL_SEGMENTATION_APP ?= modal_training.py
 MODAL_SEGMENTATION_VOLUME ?= doctor-maiz-leaf-segmentation
 MODAL_SEGMENTATION_GPU ?= A10
-MODAL_SEGMENTATION_PACKAGE ?= $(LEAF_SEGMENTATION_PACKAGE_DIR)/doctor_maiz_leaf_segmentation_cloud_v6-segmenter-only-7a4a5c08-seed42.tar.gz
+MODAL_SEGMENTATION_PACKAGE ?= $(LEAF_SEGMENTATION_PACKAGE_DIR)/doctor_maiz_leaf_segmentation_cloud_v7-segmentation-improvements-7a4a5c08-seed42.tar.gz
 MODAL_SEGMENTATION_PACKAGE_SHA256 ?= $(shell sed -n '1s/[[:space:]].*//p' "$(MODAL_SEGMENTATION_PACKAGE).sha256" 2>/dev/null)
 MODAL_SEGMENTATION_PROJECT_ROOT ?= /project_v4-7a4a5c08-seed42
 MODAL_SEGMENTATION_DOWNLOAD_DIR ?= outputs-remote-leaf-segmentation
+MODAL_SEGMENTATION_EXPERIMENT ?= d01_mosaic0_seed42
 
 .PHONY: help \
 	leaf-segmentation-status leaf-segmentation-verify-locks \
@@ -47,6 +48,7 @@ MODAL_SEGMENTATION_DOWNLOAD_DIR ?= outputs-remote-leaf-segmentation
 	leaf-segmentation-modal-upload leaf-segmentation-modal-prepare \
 	leaf-segmentation-modal-preflight leaf-segmentation-modal-smoke \
 	leaf-segmentation-modal-train leaf-segmentation-modal-resume \
+	leaf-segmentation-modal-experiment leaf-segmentation-modal-experiment-resume \
 	leaf-segmentation-modal-validate leaf-segmentation-modal-results \
 	leaf-segmentation-modal-checksums leaf-segmentation-modal-download \
 	install lint lint-fix fmt check clean-outputs
@@ -122,6 +124,8 @@ help:
 		'  leaf-segmentation-modal-smoke   CONFIRM_SEGMENTATION_SMOKE_TRAINING=1' \
 		'  leaf-segmentation-modal-train   CONFIRM_SEGMENTATION_TRAINING=1' \
 		'  leaf-segmentation-modal-resume  CONFIRM_SEGMENTATION_TRAINING=1' \
+		'  leaf-segmentation-modal-experiment MODAL_SEGMENTATION_EXPERIMENT=<perfil>' \
+		'  leaf-segmentation-modal-experiment-resume MODAL_SEGMENTATION_EXPERIMENT=<perfil>' \
 		'  leaf-segmentation-pilot-evaluate CONFIRM_PILOT_EVALUATION=1'
 
 install:
@@ -313,6 +317,20 @@ leaf-segmentation-modal-resume:
 	$(REQUIRE_MODAL_SEGMENTATION_GPU)
 	DOCTOR_MAIZ_MODAL_GPU="$(MODAL_SEGMENTATION_GPU)" \
 		$(MODAL) run --detach $(MODAL_SEGMENTATION_APP)::resume --confirm true
+
+leaf-segmentation-modal-experiment:
+	$(REQUIRE_SEGMENTATION_TRAINING_CONFIRMATION)
+	$(REQUIRE_MODAL_SEGMENTATION_GPU)
+	DOCTOR_MAIZ_MODAL_GPU="$(MODAL_SEGMENTATION_GPU)" \
+		$(MODAL) run --detach $(MODAL_SEGMENTATION_APP)::experiment \
+			--profile "$(MODAL_SEGMENTATION_EXPERIMENT)" --confirm true
+
+leaf-segmentation-modal-experiment-resume:
+	$(REQUIRE_SEGMENTATION_TRAINING_CONFIRMATION)
+	$(REQUIRE_MODAL_SEGMENTATION_GPU)
+	DOCTOR_MAIZ_MODAL_GPU="$(MODAL_SEGMENTATION_GPU)" \
+		$(MODAL) run --detach $(MODAL_SEGMENTATION_APP)::resume_experiment \
+			--profile "$(MODAL_SEGMENTATION_EXPERIMENT)" --confirm true
 
 leaf-segmentation-modal-validate:
 	$(REQUIRE_MODAL_SEGMENTATION_GPU)

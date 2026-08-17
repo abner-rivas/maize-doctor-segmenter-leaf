@@ -35,10 +35,10 @@ APP_NAME = "doctor-maiz-leaf-segmentation"
 VOLUME_NAME = "doctor-maiz-leaf-segmentation"
 VOLUME_MOUNT = Path("/workspace")
 INCOMING_ROOT = VOLUME_MOUNT / "incoming"
-PACKAGE_VERSION = "v6-segmenter-only-7a4a5c08-seed42"
+PACKAGE_VERSION = "v7-segmentation-improvements-7a4a5c08-seed42"
 PACKAGE_NAME = f"doctor_maiz_leaf_segmentation_cloud_{PACKAGE_VERSION}.tar.gz"
 PACKAGE_ROOT_NAME = f"doctor_maiz_leaf_segmentation_cloud_{PACKAGE_VERSION}"
-PACKAGE_SHA256 = "469b019489194929bcd32008afa5943d5f099dad4078f38dceb39f5f457d4144"
+PACKAGE_SHA256 = "a90f3f3089f3e628ae3212aec62fedc734358be813e3cebbfcab0495f69655b6"
 PROJECT_ROOT = VOLUME_MOUNT / f"project_{PACKAGE_VERSION}"
 ARTIFACT_PROJECT_VERSION = "v4-7a4a5c08-seed42"
 ARTIFACT_PROJECT_ROOT = VOLUME_MOUNT / f"project_{ARTIFACT_PROJECT_VERSION}"
@@ -115,6 +115,16 @@ if REQUESTED_GPU not in ALLOWED_GPUS:
         f"DOCTOR_MAIZ_MODAL_GPU={REQUESTED_GPU!r} no permitido; use uno de {ALLOWED_GPUS}"
     )
 MINIMUM_VRAM_BYTES = 12 * 1024**3
+
+TRAINABLE_EXPERIMENTS = {
+    "d01_mosaic0_seed42": "d01_mosaic0_seed42.yaml",
+    "d02_imgsz512_seed42": "d02_imgsz512_seed42.yaml",
+    "d03_source_balanced_seed42": "d03_source_balanced_seed42.yaml",
+    "d05_scratch_seed42": "d05_scratch_seed42.yaml",
+    "d06_copy_paste_seed42": "d06_copy_paste_seed42.yaml",
+    "e01_baseline_seed7": "e01_baseline_seed7.yaml",
+    "e01_baseline_seed1337": "e01_baseline_seed1337.yaml",
+}
 
 
 def _validate_image_versions(
@@ -214,7 +224,7 @@ modal_image = (
 
 app = modal.App("doctor-maiz-leaf-segmentation")
 workspace = modal.Volume.from_name(VOLUME_NAME, create_if_missing=False)
-VOLUME_MOUNTS = {str(VOLUME_MOUNT): workspace}
+VOLUME_MOUNTS: dict[Any, Any] = {str(VOLUME_MOUNT): workspace}
 
 
 def _utc_now() -> str:
@@ -610,6 +620,31 @@ def _require_confirmation(value: str, operation: str) -> None:
         raise RuntimeError(f"{operation} bloqueado: use --confirm true exactamente")
 
 
+def _experiment_paths(profile: str) -> tuple[Path, Path, Path]:
+    filename = TRAINABLE_EXPERIMENTS.get(profile)
+    if filename is None:
+        allowed = ", ".join(sorted(TRAINABLE_EXPERIMENTS))
+        raise RuntimeError(
+            f"Perfil de experimento no permitido: {profile!r}; use uno de: {allowed}. "
+            "d02b_imgsz768_seed42 y d04_yolo26s_seed42 permanecen bloqueados "
+            "hasta completar su smoke específico."
+        )
+    config = PROJECT_ROOT / "cloud_training" / "configs" / "experiments" / filename
+    manifest = (
+        SEGMENTATION_OUTPUT_ROOT
+        / "segmenter"
+        / "experiment_manifests"
+        / f"{profile}.json"
+    )
+    summary = (
+        SEGMENTATION_OUTPUT_ROOT
+        / "segmenter"
+        / "experiment_summaries"
+        / f"{profile}.json"
+    )
+    return config, manifest, summary
+
+
 def _prepare_marker_payload(
     root: Path,
     archive: Path,
@@ -904,6 +939,41 @@ def train(confirm: str = "false") -> dict[str, Any]:
     memory=32768,
     timeout=24 * 3600,
 )
+def experiment(profile: str, confirm: str = "false") -> dict[str, Any]:
+    """Run one allow-listed improvement experiment without touching the baseline."""
+    _require_confirmation(confirm, "experiment")
+    config, _, _ = _experiment_paths(profile)
+    _execute(
+        f"experiment:{profile}",
+        "leaf-segmentation-cloud-train",
+        require_gpu=True,
+        variables=(
+            "CONFIRM_SEGMENTATION_TRAINING=1",
+            f"CONFIG={config}",
+        ),
+    )
+    summary = _require_summary(
+        f"outputs/leaf_detection/segmenter/experiment_summaries/{profile}.json",
+        "passed",
+        "experiment_id",
+        "save_dir",
+        "selected_batch",
+        "peak_vram_bytes",
+        "duration_seconds",
+        "checkpoints",
+    )
+    print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
+    return summary
+
+
+@app.function(
+    image=modal_image,
+    volumes=VOLUME_MOUNTS,
+    gpu=REQUESTED_GPU,
+    cpu=8.0,
+    memory=32768,
+    timeout=24 * 3600,
+)
 def resume(confirm: str = "false") -> dict[str, Any]:
     """Resume only the exact run identified by active_run_manifest.json."""
     _require_confirmation(confirm, "resume")
@@ -915,6 +985,40 @@ def resume(confirm: str = "false") -> dict[str, Any]:
     )
     manifest = _require_summary(
         "outputs/leaf_detection/segmenter/resume_manifest.json",
+        "completed",
+        "checkpoint",
+        "checkpoint_sha256",
+        "run_id",
+        "save_dir",
+        "checkpoints",
+    )
+    print(json.dumps(manifest, indent=2, sort_keys=True), flush=True)
+    return manifest
+
+
+@app.function(
+    image=modal_image,
+    volumes=VOLUME_MOUNTS,
+    gpu=REQUESTED_GPU,
+    cpu=8.0,
+    memory=32768,
+    timeout=24 * 3600,
+)
+def resume_experiment(profile: str, confirm: str = "false") -> dict[str, Any]:
+    """Resume the exact checkpoint registered for one allow-listed experiment."""
+    _require_confirmation(confirm, "resume_experiment")
+    _, active_manifest, _ = _experiment_paths(profile)
+    _execute(
+        f"resume_experiment:{profile}",
+        "leaf-segmentation-cloud-resume",
+        require_gpu=True,
+        variables=(
+            "CONFIRM_SEGMENTATION_TRAINING=1",
+            f"ACTIVE_MANIFEST={active_manifest}",
+        ),
+    )
+    manifest = _require_summary(
+        f"outputs/leaf_detection/segmenter/experiment_resume_manifests/{profile}.json",
         "completed",
         "checkpoint",
         "checkpoint_sha256",

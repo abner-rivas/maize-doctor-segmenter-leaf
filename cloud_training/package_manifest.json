@@ -15,8 +15,8 @@
   "files": [
     {
       "path": "Makefile",
-      "sha256": "a3fbd4ded379986ff9a6604ecceeeb32277521ab0c6c83145febc172579be475",
-      "size_bytes": 15229
+      "sha256": "dd7c977c65dda0a05c1bcc72d3efca796348e9f7190f9f22c836300d097dcde8",
+      "size_bytes": 16630
     },
     {
       "path": "README.md",
@@ -30,8 +30,8 @@
     },
     {
       "path": "cloud_training/COMMIT_VERSION.txt",
-      "sha256": "252675d010468aa35dfb20e74b35995d04511194bacfc6e9ee147233ecaf07f8",
-      "size_bytes": 98
+      "sha256": "e1e78de6735abd2e9416f0aa8f9f3cff8f23e8f10cc0fdcbc5e53ce793e4d330",
+      "size_bytes": 109
     },
     {
       "path": "cloud_training/README_CLOUD_TRAINING.md",
@@ -42,6 +42,56 @@
       "path": "cloud_training/bootstrap_cloud.sh",
       "sha256": "762937c38f903b17fef5150806da86a853df87580e15fa4c5f4e75608d47710b",
       "size_bytes": 6880
+    },
+    {
+      "path": "cloud_training/configs/experiments/d01_mosaic0_seed42.yaml",
+      "sha256": "95d8fcb29870bf857e7bcc7c1bec423764206c445ae5f874b89b8b356932556a",
+      "size_bytes": 387
+    },
+    {
+      "path": "cloud_training/configs/experiments/d02_imgsz512_seed42.yaml",
+      "sha256": "2d93813fbeff04e6991e055c547760777c5806de319100f1a900c7f37b1919ff",
+      "size_bytes": 376
+    },
+    {
+      "path": "cloud_training/configs/experiments/d02b_imgsz768_seed42.yaml",
+      "sha256": "299cb33b1f9b91012463e9ce2e77a2a49f57d542ee387793ff85a76375cbb68c",
+      "size_bytes": 461
+    },
+    {
+      "path": "cloud_training/configs/experiments/d03_source_balanced_seed42.yaml",
+      "sha256": "42e49a552bf6f83373a82176370a46e803b695eccf8336248a18f2f4481bfa95",
+      "size_bytes": 394
+    },
+    {
+      "path": "cloud_training/configs/experiments/d04_yolo26s_seed42.yaml",
+      "sha256": "917cf7da670c37a5199e1d6eaa2b6e3200da7298e20a3b98e29e27fd3c37511e",
+      "size_bytes": 444
+    },
+    {
+      "path": "cloud_training/configs/experiments/d05_scratch_seed42.yaml",
+      "sha256": "f661c3257cb29d4fbee03cf739747180272241ed1beecadec0682eac3bc380dc",
+      "size_bytes": 374
+    },
+    {
+      "path": "cloud_training/configs/experiments/d06_copy_paste_seed42.yaml",
+      "sha256": "e2b9395851962a403505ebc5565da338f2898c299b8674e4f2b5f5f9d706d712",
+      "size_bytes": 394
+    },
+    {
+      "path": "cloud_training/configs/experiments/e01_baseline_seed1337.yaml",
+      "sha256": "d883393fa131f9eebaf68b2aba51ac8347be3ffb206789073cf2bf6b20d98f97",
+      "size_bytes": 389
+    },
+    {
+      "path": "cloud_training/configs/experiments/e01_baseline_seed7.yaml",
+      "sha256": "e70e75ffb8c05a7333a2530c1ca63a6c3762125b0cf82f62210c596e47d3f3cc",
+      "size_bytes": 380
+    },
+    {
+      "path": "cloud_training/configs/experiments/plan.yaml",
+      "sha256": "a28bdc136a03c114e5eb28528935cfa3858d2d89d1ba52597cab73f681dc03e7",
+      "size_bytes": 1210
     },
     {
       "path": "cloud_training/configs/smoke_yolo26n_seg.yaml",
@@ -90,13 +140,13 @@
     },
     {
       "path": "cloud_training/resume_train.sh",
-      "sha256": "ecf593efad7ba50284ef5bcfd6ae88677ec607c350c5863efbd2a245ad43c7d4",
-      "size_bytes": 1244
+      "sha256": "db40b90a4e47b01f6825d1ee970262ade9bad8bdc74f2459d857e57d3e8be5d2",
+      "size_bytes": 1303
     },
     {
       "path": "cloud_training/run_ultralytics.py",
-      "sha256": "cc8a57fa32431c21095012eec1f1f9840160d9978f16ed1fe8a69a67861b5bd9",
-      "size_bytes": 37634
+      "sha256": "32f791fabc290ddd6aea5868f4bb2227a504c1a441fddf7781e91f047612aeea",
+      "size_bytes": 44171
     },
     {
       "path": "cloud_training/smoke_train.sh",
@@ -115,8 +165,8 @@
     },
     {
       "path": "config/segmentation.yaml",
-      "sha256": "0f92d336326abdc517685326fcb2a7ce7aaa6141f3b21e90e375ee71fd3f4a94",
-      "size_bytes": 798
+      "sha256": "d537af08613441b5fe90a44bc9008004aca80b77c8d4c293c34efba6b1d5adc3",
+      "size_bytes": 1096
     },
     {
       "path": "data/leaf_detection/detector_dataset/dataset.yaml",
@@ -11710,8 +11760,8 @@
     },
     {
       "path": "docs/es/leaf-detection/segmentation-cloud-training.md",
-      "sha256": "4dc5f64bdc40a12927a88ce4c38b404637025dbdadb153458aaff35bb009389b",
-      "size_bytes": 4168
+      "sha256": "73b8ef25acc1e758e192b9d5cfc0838ba3a9d90063156025ea08d833515e41b2",
+      "size_bytes": 5732
     },
     {
       "path": "docs/es/leaf-detection/segmentation-dataset-splits.md",
@@ -11725,13 +11775,13 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "865643c559b0395dace23051a1e3ab567105c330ade49ab0d40b78386cc79d23",
-      "size_bytes": 680
+      "sha256": "e96f278bf11633713cbd75684665ab6dc6d5379e5e8d6a1fa61b37a8b8f4774d",
+      "size_bytes": 755
     },
     {
       "path": "scripts/package/build_leaf_segmentation_cloud_package.py",
-      "sha256": "348d828360c821998ae9d715302eba6e0720cdf57f2d0ed62f67dea6af448fb5",
-      "size_bytes": 19565
+      "sha256": "02bb7625984ae913428867c881fe2168167b3d821a1fa8f234e2c1aad7bafe2e",
+      "size_bytes": 19576
     },
     {
       "path": "scripts/package/leaf_segmentation_make.py",
@@ -11745,8 +11795,8 @@
     },
     {
       "path": "scripts/pipeline/leaf_segmentation_downstream_metrics.py",
-      "sha256": "e0836854c2cba0a820dddeb593cc7eb0341a9343ce8fc1e885d3c02a62aa00ea",
-      "size_bytes": 3060
+      "sha256": "9518409367ab0572373e4ea2e4b66d4832a181c307a4544f130f112958f8f923",
+      "size_bytes": 2716
     },
     {
       "path": "scripts/pipeline/leaf_segmentation_pilot_evaluate.py",
@@ -11830,8 +11880,13 @@
     },
     {
       "path": "src/evaluation/segmentation_downstream.py",
-      "sha256": "6ba1cfdb9a513801453ae57604cd92a7175c39821ccb055529fb2323bf5934f1",
-      "size_bytes": 11267
+      "sha256": "7db72da99fef2325a84488e15022d7766df52337f6bfdef45023c45cf5ec4709",
+      "size_bytes": 14006
+    },
+    {
+      "path": "src/evaluation/segmentation_gate_calibration.py",
+      "sha256": "206501afe353d6417d2be542602420459a527d1b9acd3b51d2ef0680ca87a204",
+      "size_bytes": 7528
     },
     {
       "path": "src/evaluation/segmentation_reliability.py",
@@ -11839,9 +11894,14 @@
       "size_bytes": 7141
     },
     {
+      "path": "src/evaluation/segmentation_threshold_calibration.py",
+      "sha256": "13252e903af406a980e571dcc9e422c255dfd225e8bc028c69524c7893f84b0a",
+      "size_bytes": 2730
+    },
+    {
       "path": "src/preprocessing/__init__.py",
-      "sha256": "688c0e7ad6add84b67a91178dd9708af4c8d920880c66ce080cabf96b671dea7",
-      "size_bytes": 1601
+      "sha256": "4e4a4c90f21b54e66f935017f1ae0012d3679e7495d6e81f20adbfa3363fbdd2",
+      "size_bytes": 2429
     },
     {
       "path": "src/preprocessing/leaf_mask.py",
@@ -11870,8 +11930,8 @@
     },
     {
       "path": "src/preprocessing/segmented_leaf_processor.py",
-      "sha256": "c423e128f2736975972358c2a7a935f7828a17d40acced707043f351b946bfa3",
-      "size_bytes": 22361
+      "sha256": "fb994e01f31e124ee722b43d4e00ae3ccc155f99004c27ad8a05070db497763a",
+      "size_bytes": 23007
     },
     {
       "path": "src/segmentation/__init__.py",
@@ -11880,8 +11940,8 @@
     },
     {
       "path": "src/segmentation/leaf_segmenter.py",
-      "sha256": "3b7036ce8aa55b866c9fbcaef66c0d1aba560ba30fb863667620ec6a0348ce59",
-      "size_bytes": 11526
+      "sha256": "441477df90c33db4503bf73695f6d7f8884d1dbf7e7b7e3bb94695da831b3711",
+      "size_bytes": 12154
     },
     {
       "path": "src/segmentation/quality.py",
@@ -11894,6 +11954,11 @@
       "size_bytes": 0
     },
     {
+      "path": "src/training/segmentation_experiments.py",
+      "sha256": "2ac810e8331b19e2343c5a212507b19ea1315c18df925ac9cd6f8f4aae35c017",
+      "size_bytes": 3484
+    },
+    {
       "path": "src/training/segmentation_preflight.py",
       "sha256": "356cd2b30449b1305144c91c7b8166c9eca1f6cb6f79d213224169b1633c1d17",
       "size_bytes": 32934
@@ -11904,62 +11969,17 @@
     "cloud_training/checksums.sha256"
   ],
   "git": {
-    "commit": "e63a8864387545b036e34811eab1764448d8ca1b",
-    "deleted_path_count": 214,
+    "commit": "b4045b86c1484fa735130b33bed105fb381bda47",
+    "deleted_path_count": 0,
     "dirty_paths": [
-      " M .env.example",
-      " M CLAUDE.md",
-      " M LOCAL.md",
       " M Makefile",
-      " M README.md",
-      " M cloud_training/CLOUD_READINESS_CHECKLIST.md",
-      " M data/README.md",
-      " M docs/.vitepress/config.mts",
-      " M docs/es/decisions/adr-external-leaf-segmentation-datasets.md",
-      " M docs/es/decisions/adr-leaf-instance-segmentation-strategy.md",
-      " M docs/es/decisions/adr-project-data-root-and-output-root.md",
-      " M docs/es/decisions/adr-segmentation-training-strategy.md",
-      " M docs/es/index.md",
-      " M docs/es/leaf-detection/external-segmentation-datasets-eda.md",
-      " M docs/es/leaf-detection/history.md",
+      " M cloud_training/resume_train.sh",
+      " M cloud_training/run_ultralytics.py",
       " M docs/es/leaf-detection/segmentation-cloud-training.md",
-      " M docs/es/leaf-detection/segmentation-current-flow.md",
-      " M docs/es/leaf-detection/segmentation-reliability-gate-audit.md",
-      " M docs/es/leaf-detection/yolo26-detector-dataset.md",
       " M modal_training.py",
-      " M notebooks/02_leaf_segmentation_external_sources_eda.ipynb",
-      " M package-lock.json",
-      " M package.json",
-      " M pyproject.toml",
-      " M scripts/checks/validate_leaf_roi.py",
-      " M scripts/checks/validate_roi_manifest.py",
-      " M scripts/dataset/build_roi_manifest.py",
-      " M scripts/dataset/consolidate_leaf_segmentation_dataset.py",
-      " M scripts/dataset/finalize_leaf_segmentation_dataset.py",
-      " M scripts/experiments/audit_segmentation_reliability.py",
-      " M scripts/experiments/manifests/segmentation_reliability_audit_v1.csv",
       " M scripts/package/build_leaf_segmentation_cloud_package.py",
-      " M src/config.py",
-      " M src/data/leaf_detector_dataset.py",
-      " M src/data/leaf_pilot.py",
-      " M src/data/segmentation_audit.py",
-      " M src/data/segmentation_consolidation.py",
-      " M src/evaluation/segmentation_downstream.py",
-      " M src/evaluation/segmentation_reliability.py",
-      " M src/preprocessing/__init__.py",
-      " M src/preprocessing/roi_manifest.py",
-      " M src/preprocessing/segmented_leaf_processor.py",
-      " M src/segmentation/__init__.py",
-      " M src/segmentation/leaf_segmenter.py",
       " M tests/checks/test_makefile_safety.py",
-      " M tests/checks/test_modal_training_contract.py",
-      " M tests/dataset/test_segmentation_review.py",
-      " M tests/preprocessing/test_letterbox.py",
-      " M tests/preprocessing/test_segmented_leaf_processor.py",
-      "?? config/segmentation.yaml",
-      "?? src/preprocessing/roi_processor.py",
-      "?? src/segmentation/quality.py",
-      "?? tests/segmentation/test_quality.py"
+      " M tests/checks/test_modal_training_contract.py"
     ]
   },
   "jpeg_validation": {
@@ -11992,10 +12012,10 @@
     }
   },
   "model_candidate": "yolo26n-seg.pt",
-  "package_version": "v6-segmenter-only-7a4a5c08-seed42",
+  "package_version": "v7-segmentation-improvements-7a4a5c08-seed42",
   "parent_fingerprint": "7a4a5c083fc64b067df12bcc95ec976d5a7e3b8a585d0a090b6b3940af4d7d5c",
-  "payload_file_count": 2377,
-  "payload_total_bytes": 2336947627,
+  "payload_file_count": 2390,
+  "payload_total_bytes": 2336980631,
   "pilot_included": false,
   "schema_version": 1,
   "split_fingerprints": {

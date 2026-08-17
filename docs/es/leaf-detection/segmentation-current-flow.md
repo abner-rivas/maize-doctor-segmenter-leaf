@@ -1,8 +1,8 @@
 # Flujo actual del requerimiento de segmentación
 
-Reconstruido desde el repositorio y el Volume de Modal el 2026-07-29. Cada
-etapa se verificó contra locks, manifiestos, código y artefactos, no contra la
-documentación previa.
+Reconstruido desde el repositorio y el Volume de Modal el 2026-07-29 y
+actualizado con D-01 el 2026-08-17. Cada etapa se verificó contra locks,
+manifiestos, código y artefactos, no sólo contra la documentación previa.
 
 La evidencia estructurada equivalente está en
 `outputs/leaf_detection/requirement_review/current_flow.json`.
@@ -18,7 +18,7 @@ flowchart TD
     S05["S05 Cierre del padre<br/>dataset_lock 7a4a5c08<br/>ready_for_split_generation"]
     S06["S06 Splits por grupos<br/>809/173/173 · 1035 grupos<br/>ready_for_training_preflight"]
     S07["S07 Preflight local<br/>sin GPU ni Ultralytics<br/>blocked_by_missing_dependency"]
-    S08["S08 Paquetes cloud<br/>v4 entrenamiento + v5 validación<br/>verificados"]
+    S08["S08 Paquetes cloud<br/>v4 baseline + v7 mejoras<br/>verificados"]
     S09["S09 Prepare Modal<br/>ultralytics==8.4.104<br/>completado"]
     S10["S10 Preflight cloud<br/>GPU · pesos · forward<br/>aprobado"]
     S11["S11 Smoke 1 época<br/>batch 26<br/>aprobado"]
@@ -26,11 +26,14 @@ flowchart TD
     S13["S13 Test final<br/>173 img · 183 raw / 182 efectivas<br/>BLOQUEADO"]
     S14["S14 Piloto externo<br/>retenido por S13<br/>no ejecutado"]
     S15["S15 Quality gate<br/>IMPLEMENTADO"]
+    S16["S16 D-01 mosaic=0<br/>época 115 · mAP95(M) 0.94404<br/>completado"]
+    S17["S17 Val hojas enfermas<br/>150/150 reliable · IoU 0.98122<br/>completado"]
     PILOT[("Piloto retenido<br/>100 imágenes<br/>cero fugas verificadas")]
 
     S01 --> S02 --> S03 --> S04 --> S05 --> S06 --> S07 --> S08
     S08 --> S09 --> S10 --> S11 --> S12 --> S13 --> S14
     S14 --> S15
+    S12 --> S16 --> S17
     PILOT -.->|"nunca entra en train/val/test"| S06
     PILOT -.->|"sólo tras aprobar S13"| S14
     S12 -.->|"resume con last.pt"| S12
@@ -39,7 +42,7 @@ flowchart TD
     classDef todo fill:#FEF3C7,stroke:#D97706,color:#78350F
     classDef missing fill:#FEE2E2,stroke:#DC2626,color:#7F1D1D
     classDef held fill:#E0E7FF,stroke:#4F46E5,color:#312E81
-    class S01,S02,S03,S04,S05,S06,S07,S08,S09,S10,S11,S12 done
+    class S01,S02,S03,S04,S05,S06,S07,S08,S09,S10,S11,S12,S16,S17 done
     class S14 todo
     class S13 missing
     class S15 done
@@ -66,18 +69,25 @@ retenido.
 
 | Etapa | Make | Guard | Lock exigido | Artefactos previstos |
 |---|---|---|---|---|
-| S08 Paquete | `make leaf-segmentation-cloud-package` | v4 de entrenamiento y v5 de validación verificados | `verify_cloud_training_payload` | `.tar.gz` + `.sha256` + manifiesto |
-| S09 Prepare | `modal run modal_training.py::prepare` | completado | paquete y SHA verificados | proyectos v4/v5 versionados en Volume |
+| S08 Paquete | `make leaf-segmentation-cloud-package` | v4 baseline y v7 de mejoras verificados | `verify_cloud_training_payload` | `.tar.gz` + `.sha256` + manifiesto |
+| S09 Prepare | `modal run modal_training.py::prepare` | completado | paquete y SHA verificados | proyectos versionados en Volume |
 | S10 Preflight cloud | `modal run modal_training.py::preflight` | aprobado antes y después del smoke | payload verificado | `cloud_preflight/` |
 | S11 Smoke | `modal run modal_training.py::smoke --confirm true` | aprobado | preflight `ready_for_smoke_training` | `smoke_summary.json`, config final |
 | S12 Baseline | `make leaf-segmentation-cloud-train` | completado; no repetir | preflight ready + smoke passed | `yolo26n_seg_baseline/`, `training_summary.json` |
 | S13 Test final | `make leaf-segmentation-cloud-validate` | bloqueado por 183 raw/182 efectivas | fingerprint test + SHA de `best.pt` + split efectivo | `test_summary.json` sólo si todos los gates pasan |
 | S14 Piloto | `make leaf-segmentation-pilot-evaluate` | no autorizado | test aprobado + pilot-gate | `pilot_external_evaluation/` |
+| S16 D-01 | `make leaf-segmentation-modal-experiment MODAL_SEGMENTATION_EXPERIMENT=d01_mosaic0_seed42` | completado | v7 + preflight A10 | checkpoint, curvas y resumen D-01 |
+| S17 Val enfermedades | wrapper de inferencia + métricas downstream | completado sobre `val`; no consume `test` | SHA de D-01 + manifiesto congelado | evaluación end-to-end de 150 imágenes |
 
 ## Etapa posterior
 
 S15 conserva la selección de instancia, perfiles de máscara y quality gate en módulos
 propios del segmentador. La auditoría humana puede ejecutarse sin depender de otro modelo.
+
+D-01 es el candidato de mejora actual. S16 y S17 verifican entrenamiento y
+funcionamiento sobre hojas enfermas, pero no sustituyen la repetición con semillas
+7 y 1337 ni la evaluación de un solo uso sobre `test`. Consulte
+[Resultados de D-01](segmentation-d01-results.md).
 
 ## Redundancias detectadas
 
@@ -127,3 +137,17 @@ Se retiraron del Volume las dos evaluaciones `val`, sus predicciones, el
 `labels/test.cache`. Los checkpoints y artefactos del baseline no fueron
 modificados. Localmente, `outputs/`, pesos descargados, muestras de test,
 entornos y resultados remotos están excluidos por `.gitignore`.
+
+El 2026-08-17 también se eliminaron localmente las evaluaciones diagnósticas
+`d01_mosaic0_seed42_val` y `d01_mosaic0_seed42_val_conf020`. Se conservaron el
+entrenamiento D-01, su resumen y
+`d01_mosaic0_seed42_disease_val_pipeline` como resultado canónico actual.
+También se retiraron `outputs/leaf_detection/predictions/`, que pertenecía al
+clasificador, el paquete v6 reemplazado y los previews/reportes históricos de
+`outputs/leaf_detection/pilot/`; la release v7 permanece disponible. Los datos
+retenidos en `data/leaf_detection/pilot/` no se modificaron.
+
+También se eliminaron `external_sources_eda/`,
+`detector_dataset_consolidation/` y `detector_dataset_splits/` bajo `outputs/`.
+Sólo contenían 97 MB de reportes y previews de julio; el dataset y los
+manifiestos bajo `data/` permanecen intactos.

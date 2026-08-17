@@ -46,6 +46,61 @@ CONFIRM_SEGMENTATION_TRAINING=1 \
 make leaf-segmentation-cloud-validate
 ```
 
+## Flujo con Modal
+
+El baseline `yolo26n_seg_baseline` ya está completo y se conserva como control.
+La release `v7-segmentation-improvements-7a4a5c08-seed42` prepara experimentos
+separados, de modo que cada corrida tiene su propio directorio, resumen y
+manifiesto y no puede sobrescribir el baseline.
+
+La primera corrida de esa release, `d01_mosaic0_seed42`, terminó correctamente
+el 2026-08-17. Usó A10, batch 26 y parada temprana después de 145 épocas; la
+mejor fue la 115. El checkpoint local y remoto comparten SHA-256
+`a2bf4f201ca4f5e32c349cdc66d7ac39a6b012a330b182149401e533b2ecb8ab`.
+Los resultados completos están en
+[Resultados de D-01](segmentation-d01-results.md).
+
+```bash
+# Operaciones sin épocas de entrenamiento.
+make leaf-segmentation-modal-volume-create
+make leaf-segmentation-modal-upload
+make leaf-segmentation-modal-prepare
+make leaf-segmentation-modal-preflight MODAL_SEGMENTATION_GPU=A10
+
+# Primera ablación recomendada: desactivar mosaic.
+CONFIRM_SEGMENTATION_TRAINING=1 \
+  make leaf-segmentation-modal-experiment \
+  MODAL_SEGMENTATION_EXPERIMENT=d01_mosaic0_seed42 \
+  MODAL_SEGMENTATION_GPU=A10
+
+make leaf-segmentation-modal-results
+make leaf-segmentation-modal-checksums
+make leaf-segmentation-modal-download
+```
+
+Los artefactos canónicos descargados quedan bajo
+`outputs/leaf_detection/segmenter/d01_mosaic0_seed42/` y su resumen bajo
+`outputs/leaf_detection/segmenter/experiment_summaries/`. Las evaluaciones
+locales oficiales deben usar un nombre propio bajo `segmenter/evaluations/` y
+registrar el hash del checkpoint y del manifiesto evaluado.
+
+Los perfiles permitidos directamente son `d01_mosaic0_seed42`,
+`d02_imgsz512_seed42`, `d03_source_balanced_seed42`, `d05_scratch_seed42`,
+`d06_copy_paste_seed42`, `e01_baseline_seed7` y
+`e01_baseline_seed1337`. Los perfiles `d02b_imgsz768_seed42` y
+`d04_yolo26s_seed42` están bloqueados hasta ejecutar un smoke específico; el
+segundo también necesita pesos `yolo26s-seg.pt` registrados y verificados.
+
+Si una ablación queda en estado `running` o `failed` y conserva `last.pt`, se
+reanuda explícitamente con:
+
+```bash
+CONFIRM_SEGMENTATION_TRAINING=1 \
+  make leaf-segmentation-modal-experiment-resume \
+  MODAL_SEGMENTATION_EXPERIMENT=d01_mosaic0_seed42 \
+  MODAL_SEGMENTATION_GPU=A10
+```
+
 La evaluación final tiene un gate de un solo uso: `validate.sh` aborta si
 `test_summary.json` ya existe. Envía `split=test` explícitamente y el runner
 bloquea si el validador de Ultralytics reporta cualquier otro split. Antes de

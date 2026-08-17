@@ -30,9 +30,14 @@ Las rutas activas son:
 - `data/leaf_detection/pilot/`;
 - `data/leaf_detection/external_sources/`;
 - `data/leaf_detection/detector_dataset/`;
-- `outputs/leaf_detection/pilot/`;
-- `outputs/leaf_detection/external_sources_eda/`;
+- `outputs/leaf_detection/pilot/`, creado sólo cuando se regeneran auditorías
+  o previews del piloto y actualmente ausente;
 - `outputs/leaf_detection/segmenter/`.
+
+Los directorios `outputs/leaf_detection/external_sources_eda/`,
+`detector_dataset_consolidation/` y `detector_dataset_splits/` se crean sólo al
+regenerar sus auditorías. Actualmente están ausentes porque sus datos y
+manifiestos canónicos permanecen bajo `data/`.
 
 Los paquetes originales y anotaciones son datos. Los previews, validaciones y
 métricas son resultados.
@@ -52,7 +57,9 @@ métricas son resultados.
 - Cambiar `OUTPUT_ROOT` no reubica los datos ni los splits del segmentador.
 - Los splits congelados del segmentador no se editan manualmente.
 - Los datos fuente no se escriben desde auditorías o entrenamientos.
-- Los artefactos históricos permanecen fuera del flujo activo.
+- Los artefactos históricos permanecen fuera del flujo activo y pueden
+  eliminarse de `outputs/` si sus datos de entrada reproducibles siguen bajo
+  `data/`.
 
 ## Artefactos relacionados
 

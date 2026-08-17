@@ -4,6 +4,18 @@ Este protocolo convierte los hallazgos del baseline en experimentos reproducible
 No reutiliza `test` para seleccionar hiperparámetros y no incorpora el piloto externo
 retenido al entrenamiento.
 
+## Estado actual
+
+`D-01`, que desactiva mosaic y conserva el resto del baseline, terminó en Modal
+con estado `passed`. El mejor checkpoint alcanzó Mask mAP50-95 `0.94404`; el
+pico de la curva fue `0.94399` en la época 115 frente a `0.93806` del baseline
+de semilla 42. La prueba end-to-end sobre las 150 imágenes de enfermedades de
+`val` produjo 150 estados `reliable`, IoU medio `0.98122` y Dice `0.99046`.
+
+La identidad del checkpoint, la configuración, las métricas, la limpieza de
+outputs y las limitaciones están en
+[Resultados de D-01](segmentation-d01-results.md).
+
 ## Cambios ya calibrados
 
 - inferencia: propuestas `0.20`, selección `0.50`;
@@ -25,9 +37,12 @@ make leaf-segmentation-calibrate-selection
 
 ## Ablaciones
 
-Los perfiles están en `cloud_training/configs/experiments/`. El orden recomendado
-es `D-01`, `D-02`, `D-02B`, `D-03`, `D-06`, `D-05` y, sólo con pesos verificados,
-`D-04`. Cada perfil conserva el split y genera su propio manifiesto y resumen.
+Los perfiles están en `cloud_training/configs/experiments/`. `D-01` ya está
+completo y es el candidato actual. Antes de abrir más ablaciones, debe repetirse
+con semillas 7 y 1337 para medir la variación. Si no es estable, el siguiente
+orden recomendado es `D-02`, `D-02B`, `D-03`, `D-06`, `D-05` y, sólo con pesos
+verificados, `D-04`. Cada perfil conserva el split y genera su propio manifiesto
+y resumen.
 
 Ejemplo, después del smoke cloud y con autorización explícita de coste:
 

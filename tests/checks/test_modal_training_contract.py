@@ -114,11 +114,11 @@ class ModalTrainingContractTests(TestCase):
             SOURCE,
         )
         self.assertIn(
-            'PACKAGE_VERSION = "v6-segmenter-only-7a4a5c08-seed42"',
+            'PACKAGE_VERSION = "v7-segmentation-improvements-7a4a5c08-seed42"',
             SOURCE,
         )
         self.assertIn(
-            'PACKAGE_SHA256 = "469b019489194929bcd32008afa5943d5f099dad4078f38dceb39f5f457d4144"',
+            'PACKAGE_SHA256 = "a90f3f3089f3e628ae3212aec62fedc734358be813e3cebbfcab0495f69655b6"',
             SOURCE,
         )
         self.assertIn('PROJECT_ROOT = VOLUME_MOUNT / f"project_{PACKAGE_VERSION}"', SOURCE)
@@ -239,7 +239,9 @@ class ModalTrainingContractTests(TestCase):
         self.assertIn("torch.cuda.is_available()", runtime_source)
 
     def test_project_root_is_first_without_duplicate_in_pythonpath(self) -> None:
-        project_root = Path("/workspace/project_v6-segmenter-only-7a4a5c08-seed42")
+        project_root = Path(
+            "/workspace/project_v7-segmentation-improvements-7a4a5c08-seed42"
+        )
         project_environment = _project_environment_function(project_root)
         previous = os.pathsep.join(
             (
@@ -413,7 +415,9 @@ class ModalTrainingContractTests(TestCase):
                 "preflight",
                 "smoke",
                 "train",
+                "experiment",
                 "resume",
+                "resume_experiment",
                 "validate",
                 "results",
                 "checksums",
@@ -429,7 +433,7 @@ class ModalTrainingContractTests(TestCase):
 
     def test_training_requires_literal_string_confirmation(self) -> None:
         functions = _remote_functions()
-        for name in ("smoke", "train", "resume"):
+        for name in ("smoke", "train", "experiment", "resume", "resume_experiment"):
             function = functions[name]
             defaults = function.args.defaults
             self.assertEqual(len(defaults), 1)

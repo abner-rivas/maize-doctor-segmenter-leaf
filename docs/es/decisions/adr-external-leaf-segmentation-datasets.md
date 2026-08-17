@@ -151,10 +151,12 @@ segmentador ni alteró las fuentes.
 ## Evidencia
 
 - `notebooks/02_leaf_segmentation_external_sources_eda.ipynb`;
-- `outputs/leaf_detection/external_sources_eda/`;
 - `data/leaf_detection/detector_dataset/manifests/consolidation_manifest.csv`;
-- `outputs/leaf_detection/detector_dataset_consolidation/`;
-- `outputs/leaf_detection/detector_dataset_consolidation/review_preview_validation.json`;
-- `outputs/leaf_detection/detector_dataset_splits/`;
 - `docs/es/leaf-detection/segmentation-dataset-splits.md`;
 - `docs/es/leaf-detection/external-segmentation-datasets-eda.md`.
+
+Los outputs históricos `external_sources_eda/`,
+`detector_dataset_consolidation/` y `detector_dataset_splits/` fueron eliminados
+localmente el 2026-08-17. Eran reportes y previews regenerables, no datos de
+entrada. La evidencia persistente queda en el notebook, los manifiestos bajo
+`data/` y esta documentación.

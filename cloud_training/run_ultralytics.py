@@ -116,7 +116,8 @@ def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
         delete=False,
     ) as handle:
         temporary = Path(handle.name)
-        writer = csv.DictWriter(handle, fieldnames=ROW_COLUMNS, extrasaction="ignore")
+        fieldnames: list[str] = [str(column) for column in ROW_COLUMNS]
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
         handle.flush()
@@ -769,11 +770,25 @@ def train_mode(mode: str, config_path: Path) -> None:
     write(summary_path, summary)
 
 
-def resume_mode(checkpoint: Path, reason: str) -> None:
+def resume_mode(
+    checkpoint: Path,
+    reason: str,
+    active_manifest: Path | None = None,
+) -> None:
     from ultralytics import YOLO
 
     payload = base_gate()
-    active_path = OUTPUTS / "segmenter" / "active_run_manifest.json"
+    baseline_active_path = (OUTPUTS / "segmenter" / "active_run_manifest.json").resolve()
+    experiment_manifest_root = (
+        OUTPUTS / "segmenter" / "experiment_manifests"
+    ).resolve()
+    active_path = (
+        active_manifest.resolve()
+        if active_manifest is not None
+        else baseline_active_path
+    )
+    if active_path != baseline_active_path and active_path.parent != experiment_manifest_root:
+        raise RuntimeError(f"Manifiesto activo fuera del área permitida: {active_path}")
     if not active_path.is_file():
         raise RuntimeError(f"Falta identidad activa: {active_path}")
     active = json.loads(active_path.read_text(encoding="utf-8"))
@@ -798,11 +813,20 @@ def resume_mode(checkpoint: Path, reason: str) -> None:
     if active.get("dataset_fingerprints") != payload:
         raise RuntimeError("El dataset ya no coincide con el run interrumpido")
     model = YOLO(str(checkpoint))
+    checkpoint_payload = getattr(model, "ckpt", None)
     epoch = (
-        model.ckpt.get("epoch")
-        if isinstance(getattr(model, "ckpt", None), dict)
+        checkpoint_payload.get("epoch")
+        if isinstance(checkpoint_payload, dict)
         else None
     )
+    experiment_id = active.get("experiment_id")
+    run_id = str(active.get("run_id", ""))
+    if experiment_id is not None and active_path.parent != experiment_manifest_root:
+        raise RuntimeError("Un experimento debe usar experiment_manifests/")
+    if experiment_id is None and active_path != baseline_active_path:
+        raise RuntimeError("El baseline debe usar active_run_manifest.json")
+    if not run_id:
+        raise RuntimeError("El manifiesto activo no declara run_id")
     manifest = {
         "status": "authorized",
         "checkpoint": str(checkpoint),
@@ -810,7 +834,9 @@ def resume_mode(checkpoint: Path, reason: str) -> None:
         "epoch": epoch,
         "original_configuration": str(config_path),
         "original_configuration_sha256": active["config_sha256"],
-        "run_id": active.get("run_id"),
+        "run_id": run_id,
+        "experiment_id": experiment_id,
+        "active_manifest": str(active_path),
         "save_dir": active.get("save_dir"),
         "dataset_fingerprints": payload,
         "utc": datetime.now(timezone.utc).isoformat(),
@@ -818,9 +844,22 @@ def resume_mode(checkpoint: Path, reason: str) -> None:
     }
     # Un manifiesto por reanudación (histórico completo) y una copia con el
     # nombre estable que consultan los consumidores existentes.
-    history_path = timestamped_manifest_path(OUTPUTS / "segmenter")
+    resume_root = OUTPUTS / "segmenter"
+    if experiment_id is not None:
+        history_root = resume_root / "experiment_resume_history" / run_id
+        stable_resume_path = (
+            resume_root / "experiment_resume_manifests" / f"{run_id}.json"
+        )
+        training_summary_path = (
+            resume_root / "experiment_summaries" / f"{run_id}.json"
+        )
+    else:
+        history_root = resume_root
+        stable_resume_path = resume_root / "resume_manifest.json"
+        training_summary_path = resume_root / "training_summary.json"
+    history_path = timestamped_manifest_path(history_root)
     write(history_path, manifest)
-    write(OUTPUTS / "segmenter" / "resume_manifest.json", manifest)
+    write(stable_resume_path, manifest)
     try:
         cuda_device = initialize_cuda_and_reset_peak_memory_stats(DEVICE_INDEX)
         result = model.train(resume=True)
@@ -868,7 +907,6 @@ def resume_mode(checkpoint: Path, reason: str) -> None:
                 "resumed": True,
             }
         )
-        training_summary_path = OUTPUTS / "segmenter" / "training_summary.json"
         training_summary = (
             json.loads(training_summary_path.read_text(encoding="utf-8"))
             if training_summary_path.is_file()
@@ -893,7 +931,7 @@ def resume_mode(checkpoint: Path, reason: str) -> None:
         write(active_path, active)
         write(training_summary_path, training_summary)
         write(history_path, manifest)
-        write(OUTPUTS / "segmenter" / "resume_manifest.json", manifest)
+        write(stable_resume_path, manifest)
     except Exception as exc:
         manifest.update(
             {
@@ -903,7 +941,7 @@ def resume_mode(checkpoint: Path, reason: str) -> None:
             }
         )
         write(history_path, manifest)
-        write(OUTPUTS / "segmenter" / "resume_manifest.json", manifest)
+        write(stable_resume_path, manifest)
         raise
 
 
@@ -1066,6 +1104,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("mode", choices=("smoke", "train", "resume", "evaluate"))
     result.add_argument("--config", type=Path)
     result.add_argument("--checkpoint", type=Path)
+    result.add_argument("--active-manifest", type=Path)
     result.add_argument("--split", choices=("test",))
     result.add_argument("--reason", default="manual_authorized_resume")
     return result
@@ -1082,7 +1121,7 @@ def main() -> None:
     elif args.mode == "resume":
         if args.checkpoint is None:
             raise SystemExit("--checkpoint es obligatorio")
-        resume_mode(args.checkpoint, args.reason)
+        resume_mode(args.checkpoint, args.reason, args.active_manifest)
     else:
         if args.checkpoint is None or args.config is None or args.split is None:
             raise SystemExit("--checkpoint, --config y --split son obligatorios")
