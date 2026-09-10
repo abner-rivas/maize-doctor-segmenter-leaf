@@ -1,0 +1,109 @@
+@page {
+  size: A4;
+  margin: 18mm 17mm 19mm 17mm;
+  @top-left { content: "Doctor Maíz"; color: #496154; font-size: 8pt; }
+  @top-right { content: "Informe del segmentador"; color: #496154; font-size: 8pt; }
+  @bottom-center { content: counter(page); color: #496154; font-size: 8pt; }
+}
+
+@page :first {
+  margin: 0;
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-center { content: none; }
+}
+
+:root {
+  --green: #0b6b33;
+  --green-soft: #e9f5ed;
+  --yellow: #e5a100;
+  --ink: #17211b;
+  --muted: #52605a;
+  --line: #cfd9d2;
+  --red: #a72c2c;
+  font-family: "Noto Sans", "DejaVu Sans", Arial, sans-serif;
+  color: var(--ink);
+  background: white;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 210mm;
+  font-size: 10pt;
+  line-height: 1.48;
+}
+
+.cover {
+  box-sizing: border-box;
+  height: 297mm;
+  padding: 24mm 22mm 18mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  page-break-after: always;
+  background: linear-gradient(155deg, #ffffff 0%, #ffffff 68%, #eef8f0 68%, #dcefe1 100%);
+  border-top: 7mm solid var(--green);
+}
+
+.cover img { width: 47mm; height: 47mm; object-fit: contain; margin: 7mm 0 8mm; }
+.cover .university { font-size: 14pt; font-weight: 800; letter-spacing: .02em; }
+.cover .faculty { font-size: 11pt; margin-top: 2mm; }
+.cover h1 { color: var(--green); font-size: 26pt; line-height: 1.15; margin: 14mm 0 3mm; }
+.cover .subtitle { font-size: 15pt; line-height: 1.35; max-width: 155mm; }
+.cover .report-kind { font-size: 18pt; font-weight: 800; margin-top: 12mm; }
+.cover .authors { margin-top: 15mm; border-collapse: collapse; font-size: 11pt; }
+.cover .authors td { padding: 1.4mm 4mm; border: 0; }
+.cover .place { margin-top: auto; font-size: 11pt; }
+
+.front-matter { page-break-after: always; }
+.front-matter h1 { color: var(--green); border-bottom: 2px solid var(--green); padding-bottom: 2mm; }
+.toc ol, .figure-list ol, .table-list ol { padding-left: 6mm; }
+.toc li { margin: 1.2mm 0; }
+.toc a { color: var(--ink); text-decoration: none; }
+
+h1.section-title {
+  color: var(--green);
+  font-size: 18pt;
+  border-bottom: 2px solid var(--green);
+  padding-bottom: 2mm;
+  margin: 10mm 0 4mm;
+  page-break-after: avoid;
+}
+h2 { color: #184e2b; font-size: 13.5pt; margin: 7mm 0 2.5mm; page-break-after: avoid; }
+h3 { color: #285f39; font-size: 11.5pt; margin: 5mm 0 2mm; page-break-after: avoid; }
+p { margin: 0 0 3mm; text-align: justify; hyphens: auto; }
+ul, ol { margin: 1.5mm 0 3mm 6mm; padding-left: 5mm; }
+li { margin-bottom: 1mm; }
+code { font-family: "DejaVu Sans Mono", monospace; font-size: 8.5pt; background: #f3f6f4; padding: .2mm .8mm; border-radius: 1mm; }
+pre { background: #f3f6f4; border-left: 3px solid var(--green); padding: 3mm; white-space: pre-wrap; font-size: 8pt; page-break-inside: avoid; }
+pre code { padding: 0; background: transparent; }
+a { color: var(--green); }
+
+.figure { margin: 5mm auto 6mm; text-align: center; page-break-inside: avoid; }
+.figure img { max-width: 100%; max-height: 176mm; object-fit: contain; }
+.caption { font-size: 8.8pt; color: #35433b; margin: 1.5mm auto 0; max-width: 168mm; text-align: justify; }
+.caption .label { font-weight: 800; color: var(--ink); }
+
+.table-wrap { margin: 4mm 0 6mm; page-break-inside: avoid; }
+.table-caption { font-size: 8.8pt; color: #35433b; margin-bottom: 1.5mm; }
+.table-caption .label { font-weight: 800; color: var(--ink); }
+table { width: 100%; border-collapse: collapse; font-size: 8.2pt; }
+th { background: var(--green); color: white; text-align: left; }
+th, td { border: .4px solid var(--line); padding: 1.4mm 1.6mm; vertical-align: top; }
+tbody tr:nth-child(even) { background: #f6faf7; }
+
+.callout { border-left: 4px solid var(--yellow); background: #fff8e7; padding: 3mm 4mm; margin: 4mm 0; page-break-inside: avoid; }
+.callout strong { color: #6f4e00; }
+.evidence { border-left-color: var(--green); background: var(--green-soft); }
+.risk { border-left-color: var(--red); background: #fff0f0; }
+
+.keywords { margin-top: 5mm; font-size: 9pt; }
+.page-break { page-break-before: always; }
+.references li { margin-bottom: 2.5mm; text-align: left; }
+.small { font-size: 8.4pt; color: var(--muted); }
+
+@media screen {
+  body { padding: 10mm 14mm; box-shadow: 0 0 18px #ccd7cf; }
+  .cover { margin: -10mm -14mm 0; }
+}

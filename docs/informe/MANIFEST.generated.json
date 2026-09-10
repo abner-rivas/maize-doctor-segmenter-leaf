@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "source_sections": [
+    "sections/01_resumen.md",
+    "sections/02_introduccion.md",
+    "sections/03_objetivos.md",
+    "sections/04_alcance_metodo.md",
+    "sections/05_arquitectura.md",
+    "sections/06_fuentes_eda.md",
+    "sections/07_consolidacion.md",
+    "sections/08_splits.md",
+    "sections/09_preflight_cloud.md",
+    "sections/10_entrenamiento.md",
+    "sections/11_d01.md",
+    "sections/12_inferencia_seleccion.md",
+    "sections/13_quality_gate.md",
+    "sections/14_evaluacion_downstream.md",
+    "sections/15_inferencia_masiva.md",
+    "sections/16_analisis_fallos.md",
+    "sections/17_integracion_clasificador.md",
+    "sections/18_reproducibilidad.md",
+    "sections/19_calidad_software.md",
+    "sections/20_etica_impacto.md",
+    "sections/21_limitaciones.md",
+    "sections/22_plan_cierre.md",
+    "sections/23_conclusiones.md"
+  ],
+  "figures": [
+    "figures/class_retention.png",
+    "figures/d01_metrics.png",
+    "figures/dataset_splits.png",
+    "figures/downstream_metrics.png",
+    "figures/eda_border_touching.png",
+    "figures/eda_inventory.png",
+    "figures/eda_polygon_area.png",
+    "figures/inference_time_distribution.png",
+    "figures/logo.png",
+    "figures/mask_area_distribution.png",
+    "figures/model_comparison.png",
+    "figures/pipeline_architecture.png",
+    "figures/qualitative_cases.png",
+    "figures/rejection_reasons.png",
+    "figures/source_splits.png",
+    "figures/status_by_class.png"
+  ],
+  "outputs": [
+    "main.html",
+    "main.tex",
+    "main.pdf"
+  ]
+}
