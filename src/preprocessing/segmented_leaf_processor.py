@@ -21,6 +21,7 @@ from src.preprocessing.leaf_mask import (
 from src.preprocessing.leaf_roi import (
     BoundingBox,
     crop_leaf_region,
+    crop_square_centered,
     image_to_rgb,
     normalize_rgb_color,
 )
@@ -31,12 +32,14 @@ MASK_BLACK = "mask_black"
 BBOX_CROP = "bbox_crop"
 CROP_MASK_BLACK = "crop_mask_black"
 CROP_MASK_LETTERBOX = "crop_mask_letterbox"
+SQUARE_CROP = "square_crop"
 SUPPORTED_MASK_PROFILES = frozenset(
     {
         MASK_BLACK,
         BBOX_CROP,
         CROP_MASK_BLACK,
         CROP_MASK_LETTERBOX,
+        SQUARE_CROP,
     }
 )
 FALLBACK_ORIGINAL = "original"
@@ -121,6 +124,30 @@ class LeafMaskProcessorConfig:
             raise ValueError(f"fallback desconocido: {self.fallback!r}")
 
 
+def _configured_target_size(segmentation: Mapping[str, object]) -> tuple[int, int]:
+    """Resuelve el tamaño de entrega al clasificador declarado en la configuración.
+
+    El contrato de tamaño entre segmentador y clasificador debe estar declarado, no
+    hardcodeado: ``config/segmentation.yaml`` fija ``target_size`` igual que el
+    ``config/dataset.yaml`` del clasificador.
+
+    @param {Mapping[str, object]} segmentation Sección ``segmentation`` del YAML.
+    @returns {tuple[int, int]} Tamaño ``(alto, ancho)`` de entrega.
+    """
+    raw = segmentation.get("target_size")
+    if raw is None:
+        raise ValueError(
+            "config/segmentation.yaml debe declarar segmentation.target_size; "
+            "es el contrato de tamaño con el clasificador"
+        )
+    if not isinstance(raw, (list, tuple)) or len(raw) != 2:
+        raise ValueError("target_size debe ser una pareja [alto, ancho]")
+    height, width = raw
+    if not isinstance(height, int) or not isinstance(width, int):
+        raise ValueError("target_size debe contener enteros")
+    return (height, width)
+
+
 def mask_processor_config_from_mapping(
     segmentation: Mapping[str, object],
     *,
@@ -137,7 +164,7 @@ def mask_processor_config_from_mapping(
     if not isinstance(raw_background, (list, tuple)) or len(raw_background) != 3:
         raise ValueError("background_value debe contener tres canales")
     background = tuple(_background_channel(channel) for channel in raw_background)
-    configured_target = target_size or (224, 224)
+    configured_target = target_size or _configured_target_size(segmentation)
     if confidence_threshold is not None and selection_confidence_threshold is not None:
         raise ValueError(
             "use confidence_threshold o selection_confidence_threshold, no ambos"
@@ -601,6 +628,13 @@ class SegmentedLeafProcessor:
                 self.config.target_size,
                 padding_value=self.config.background_value,
             ).image
+        elif self.config.processing_profile == SQUARE_CROP:
+            processed = crop_square_centered(
+                original,
+                bbox,
+                margin_ratio=0.15,
+                target_size=self.config.target_size,
+            )
         else:  # guarded by config validation
             raise AssertionError(self.config.processing_profile)
 
